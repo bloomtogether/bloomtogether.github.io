@@ -3,127 +3,33 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-</head>
-<body>
 <title>Big &amp; Small</title>
+<meta name="description" content="A two-player co-op puzzle adventure: a Giant and a tiny Sprite wake a sunken garden together.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Work+Sans:wght@400;500;600&display=swap">
-<style>
-/* Layout: full-bleed WebGL scene; slate glass panels anchored to the edges, title and briefing as left-weighted sheets. Single dark UI look by choice. */
-:root{
-  --slate:rgba(17,21,19,.80); --slate2:rgba(28,33,30,.92); --line:rgba(222,212,188,.20); --line2:rgba(222,212,188,.38);
-  --text:#ece6d6; --muted:#aaa392; --rune:#82dcc6; --golem:#d9a441; --sprite:#bcdcf5; --warn:#e48a6a;
-  --display:"Marcellus","Trajan Pro","Palatino Linotype",Georgia,serif;
-  --body:"Work Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
-  color-scheme:dark;
-}
-[hidden]{display:none!important}
-html,body{height:100%;margin:0}
-body{background:#1b1f1c;color:var(--text);font-family:var(--body);overflow:hidden;-webkit-user-select:none;user-select:none}
-#gl{position:fixed;inset:0;width:100%;height:100%;display:block}
-button{font:inherit;color:inherit}
-.screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:flex-start;overflow:auto;
-  padding:max(20px,env(safe-area-inset-top,0px)) max(20px,env(safe-area-inset-right,0px)) max(20px,env(safe-area-inset-bottom,0px)) max(20px,env(safe-area-inset-left,0px));
-  background:linear-gradient(90deg,rgba(12,15,13,.82) 0%,rgba(12,15,13,.55) 45%,rgba(12,15,13,0) 75%)}
-.screen.center{justify-content:center;background:rgba(10,12,11,.62)}
-.sheet{width:min(560px,100%);display:flex;flex-direction:column;gap:18px;margin-left:clamp(0px,5vw,80px)}
-.sheet.wide{width:min(980px,100%);margin:auto}
-.panel{background:var(--slate);border:1px solid var(--line);border-radius:14px;padding:22px 24px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
-h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;letter-spacing:.02em;text-wrap:balance}
-h1{font-size:clamp(52px,9vw,96px);line-height:.9}
-h1 .amp{color:var(--rune)}
-h2{font-size:clamp(28px,4vw,40px);line-height:1.05}
-h3{font-size:21px}
-.eyebrow{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
-p{margin:0;line-height:1.55;max-width:62ch}
-.lede{font-size:17px;color:#d8d1bf}
-.btns{display:flex;flex-direction:column;gap:10px}
-.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.btn{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;text-align:left;cursor:pointer;
-  background:rgba(236,230,214,.06);border:1px solid var(--line2);border-radius:10px;padding:13px 16px;font-size:16px;font-weight:500;transition:background .12s,border-color .12s}
-.btn:hover{background:rgba(236,230,214,.12);border-color:rgba(236,230,214,.6)}
-.btn.primary{background:var(--text);color:#151815;border-color:var(--text)}
-.btn.primary:hover{background:#fff}
-.btn:disabled{opacity:.4;cursor:not-allowed}
-.btn small{font-size:13px;font-weight:400;opacity:.7}
-.btn.inline{width:auto}
-.btn:focus-visible,input:focus-visible{outline:2px solid var(--rune);outline-offset:3px}
-input.code{font-family:var(--display);font-size:22px;letter-spacing:.3em;text-transform:uppercase;width:7.2em;min-width:0;flex:1 1 120px;
-  background:rgba(0,0,0,.35);color:var(--text);border:1px solid var(--line2);border-radius:10px;padding:10px 12px}
-.note{font-size:13.5px;color:var(--muted);line-height:1.5}
-kbd{font-family:var(--body);font-size:12.5px;font-weight:600;display:inline-block;min-width:1.6em;text-align:center;padding:2px 7px;border:1px solid var(--line2);border-bottom-width:2px;border-radius:6px;background:rgba(255,255,255,.06);color:var(--text);white-space:nowrap;line-height:1.4}
-.roles{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-@media (max-width:760px){.roles{grid-template-columns:1fr}}
-.role{border:1px solid var(--line);border-radius:12px;padding:16px 18px;background:rgba(0,0,0,.25);display:flex;flex-direction:column;gap:10px;min-width:0}
-.role h3{display:flex;align-items:center;gap:10px}
-.dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex:none}
-.dot.g{background:var(--golem)}.dot.s{background:var(--sprite)}
-.role ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:5px;font-size:14.5px;line-height:1.45}
-.keys{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:14px;align-items:center}
-.keys span:nth-child(odd){color:var(--muted)}
-.ready{display:flex;align-items:center;gap:8px;font-size:14px;padding:8px 12px;border-radius:8px;border:1px dashed var(--line2);color:var(--muted)}
-.ready.on{border-style:solid;border-color:var(--rune);color:var(--text)}
-.ready.on::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--rune)}
-.tips{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;font-size:14px;line-height:1.45}
-@media (max-width:760px){.tips{grid-template-columns:1fr}}
-.tips div{border-left:2px solid var(--rune);padding-left:10px;color:#d6cfbd}
-.code-big{font-family:var(--display);font-size:46px;letter-spacing:.3em;line-height:1}
-.stats{display:grid;grid-template-columns:1fr auto;gap:8px 24px;font-size:16px;font-variant-numeric:tabular-nums;margin:0}
-.stats dt{color:var(--muted)}.stats dd{margin:0;text-align:right}
-
-/* HUD */
-#hud{position:fixed;inset:0;pointer-events:none}
-.hpanel{position:absolute;background:var(--slate);border:1px solid var(--line);border-radius:12px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
-#obj{top:max(16px,env(safe-area-inset-top,0px));left:max(16px,env(safe-area-inset-left,0px));width:min(380px,calc(100vw - 32px));padding:14px 16px;display:flex;flex-direction:column;gap:10px}
-#objText{font-size:15px;line-height:1.45}
-#runeList{display:flex;flex-direction:column;gap:4px;font-size:13px}
-#runeList div{display:flex;justify-content:space-between;gap:10px;color:var(--muted)}
-#runeList b{font-weight:500}
-#runeList .carried b{color:var(--golem)}#runeList .placed b{color:var(--rune)}
-#plates{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted)}
-#plates i{display:inline-block;width:9px;height:9px;border-radius:50%;border:1px solid var(--line2)}
-#plates i.on{background:var(--rune);border-color:var(--rune)}
-#latch{flex:1;height:5px;border-radius:3px;background:rgba(255,255,255,.1);overflow:hidden}
-#latch b{display:block;height:100%;width:0;background:var(--rune)}
-#topRight{top:max(16px,env(safe-area-inset-top,0px));right:max(16px,env(safe-area-inset-right,0px));padding:10px 14px;display:flex;gap:14px;align-items:center;font-size:14px;font-variant-numeric:tabular-nums}
-#topRight .t{font-family:var(--display);font-size:20px}
-.card{bottom:max(16px,env(safe-area-inset-bottom,0px));width:min(300px,calc(50vw - 24px));padding:12px 14px;display:flex;flex-direction:column;gap:8px}
-#cardG{left:max(16px,env(safe-area-inset-left,0px))}
-#cardS{right:max(16px,env(safe-area-inset-right,0px))}
-.card.solo{left:50%!important;right:auto!important;transform:translateX(-50%)}
-.card h3{font-size:17px;display:flex;align-items:center;gap:8px}
-.card .prompt{font-size:14px;min-height:1.45em;color:var(--text);line-height:1.45}
-.card .prompt:empty::before{content:"\00a0"}
-.card .keys{font-size:12.5px;gap:4px 10px}
-.card.collapsed .keys{display:none}
-#hint{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(max(16px,env(safe-area-inset-bottom,0px)) + 150px);max-width:min(560px,calc(100vw - 32px));padding:11px 16px;font-size:15px;line-height:1.45;text-align:center;border-color:rgba(130,220,198,.45);transition:opacity .4s}
-#toast{position:absolute;left:50%;top:max(18px,env(safe-area-inset-top,0px));transform:translateX(-50%);font-family:var(--display);font-size:22px;letter-spacing:.03em;text-shadow:0 2px 12px rgba(0,0,0,.6);transition:opacity .5s;text-align:center;white-space:nowrap}
-#charge{position:absolute;left:50%;bottom:calc(max(16px,env(safe-area-inset-bottom,0px)) + 120px);transform:translateX(-50%);width:200px;height:8px;border-radius:4px;background:rgba(0,0,0,.45);border:1px solid var(--line2);overflow:hidden}
-#charge b{display:block;height:100%;width:0;background:var(--golem)}
-#loading{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);font-family:var(--display);font-size:22px;color:var(--muted)}
-@media (max-width:640px){#topRight{display:none}.card{width:calc(100vw - 32px)}#cardS{bottom:calc(max(16px,env(safe-area-inset-bottom,0px)) + 150px)}#cardS.solo{bottom:max(16px,env(safe-area-inset-bottom,0px))}}
-@media (prefers-reduced-motion:reduce){.btn,#toast,#hint{transition:none}}
-</style>
-
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;700;800&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
 <canvas id="gl" aria-label="Big and Small game view"></canvas>
-<div id="loading">Carving the garden…</div>
+<div id="loading"><div class="spin"></div><span id="loadText">Growing the garden…</span></div>
 
 <!-- TITLE -->
 <div class="screen" id="scrTitle" hidden>
   <div class="sheet">
     <div>
-      <div class="eyebrow">A two-player journey</div>
-      <h1>Big <span class="amp">&amp;</span> Small</h1>
+      <div class="eyebrow light">A two-player garden adventure</div>
+      <h1 class="logo">Big <span class="amp">&amp;</span> Small</h1>
     </div>
-    <p class="lede">A stone Golem and a tiny Sprite wake in the ruins of the Sunken Garden. Its fountain has run dry. Find the three rune stones, carry them home, and bring the water back. Neither of you can do it alone.</p>
+    <p class="lede">A huge Giant and a tiny Sprite wake in a sunken garden whose fountain has run dry. Find the three rune stones, bring them home, and wake the water. Neither of you can do it alone.</p>
     <div class="panel btns">
       <button class="btn primary" id="bLocal">Play together on this keyboard <small>2 players · 1 laptop</small></button>
-      <button class="btn" id="bOnline">Play online <small>2 laptops · room code</small></button>
+      <button class="btn mint" id="bOnline">Play online <small>2 laptops · room code</small></button>
       <div id="onlineBox" class="btns" hidden>
+        <label class="field"><span>Your name</span><input id="nameIn" maxlength="16" placeholder="Type your name" autocomplete="off" spellcheck="false"></label>
         <div class="row">
-          <button class="btn inline" id="bHostG">Create room as Golem</button>
-          <button class="btn inline" id="bHostS">Create room as Sprite</button>
+          <button class="btn inline g" id="bHostG">Create room as Giant</button>
+          <button class="btn inline s" id="bHostS">Create room as Sprite</button>
         </div>
         <div class="row">
           <input class="code" id="codeIn" maxlength="4" placeholder="CODE" autocomplete="off" spellcheck="false" aria-label="Room code">
@@ -132,7 +38,7 @@ kbd{font-family:var(--body);font-size:12.5px;font-weight:600;display:inline-bloc
         <p class="note" id="netNote">Checking online play…</p>
       </div>
     </div>
-    <p class="note">Needs a keyboard (or two gamepads) and a desktop browser. About 20 minutes. Press <kbd>M</kbd> any time to mute.</p>
+    <p class="note light">Needs a keyboard and a desktop browser. About 20 minutes. Press <kbd>M</kbd> any time to mute.</p>
   </div>
 </div>
 
@@ -143,39 +49,42 @@ kbd{font-family:var(--body);font-size:12.5px;font-weight:600;display:inline-bloc
       <div><div class="eyebrow" id="briefEyebrow">Before you set out</div><h2>How to play</h2></div>
       <div id="lobbyInfo" hidden style="text-align:right"><div class="eyebrow">Room code</div><div class="code-big" id="lobbyCode">----</div></div>
     </div>
-    <p><b>Goal:</b> find the <b>three rune stones</b> hidden in the garden, have Golem carry them to the dry fountain at the far end, then lift Sprite up to the fountain's spout to wake it. Puzzles need both of you. If you fall into the ravine, you return to the last checkpoint.</p>
+    <p><b>Goal:</b> find the <b>three rune stones</b>, have the Giant carry them to the dry fountain at the far end, then get the Sprite up onto the fountain's spout to wake it. Every puzzle needs both of you. Fall into the ravine and you're back at the last checkpoint.</p>
     <div class="roles">
-      <div class="role">
-        <h3><span class="dot g"></span>Golem <span class="note" id="whoG"></span></h3>
+      <div class="role g">
+        <div class="rolehead"><span class="badge g">Giant</span><span class="who" id="whoG"></span></div>
+        <label class="field" id="nameGWrap"><span>Name</span><input id="nameG" maxlength="16" placeholder="Player 1" autocomplete="off" spellcheck="false"></label>
         <ul>
-          <li><b>Heavy.</b> Pushes stone blocks and holds down heavy pressure plates.</li>
-          <li><b>Lifts and throws Sprite.</b> Stand close and press interact to pick up. <b>Tap</b> again for a short, high lob. <b>Hold</b> to charge a long throw, then release.</li>
-          <li><b>Carries the rune stones.</b> They glow in its chest.</li>
+          <li><b>Strong and heavy.</b> Pushes stone blocks and holds down heavy plates.</li>
+          <li><b>Lifts and throws the Sprite.</b> Walk close and press interact. <b>Tap</b> again for a short high lob, <b>hold</b> to charge a long throw.</li>
+          <li><b>Carries the rune stones.</b></li>
           <li>Too big for small gaps. Can't jump while carrying.</li>
         </ul>
         <div class="keys" id="keysG"></div>
       </div>
-      <div class="role">
-        <h3><span class="dot s"></span>Sprite <span class="note" id="whoS"></span></h3>
+      <div class="role s">
+        <div class="rolehead"><span class="badge s">Sprite</span><span class="who" id="whoS"></span></div>
+        <label class="field" id="nameSWrap"><span>Name</span><input id="nameS" maxlength="16" placeholder="Player 2" autocomplete="off" spellcheck="false"></label>
         <ul>
-          <li><b>Tiny.</b> Crawls through small gaps in walls.</li>
+          <li><b>Tiny and quick.</b> Crawls through the small glowing gaps in walls.</li>
           <li><b>Works mechanisms:</b> levers, cranks, and nudging things off high places.</li>
-          <li><b>Hold jump while falling to glide.</b> Can ride on Golem's head.</li>
-          <li>Too light for heavy plates, and can't cross the ravine alone.</li>
+          <li><b>Hold jump while falling to glide.</b> Can ride on the Giant's head.</li>
+          <li>Too light for heavy plates, can't cross the ravine alone.</li>
         </ul>
         <div class="keys" id="keysS"></div>
       </div>
     </div>
     <div class="tips">
-      <div>Your current goal is always shown in the top-left corner, with the rune stones you have found.</div>
-      <div>When something can be used, a prompt appears on your control card at the bottom.</div>
-      <div><kbd>Esc</kbd> opens the menu and controls. <kbd>H</kbd> hides the control cards.</div>
+      <div><b>Goal</b> is always in the top-left corner.</div>
+      <div><b>Prompts</b> appear on your card at the bottom when something can be used.</div>
+      <div><kbd>Q</kbd> <kbd>R</kbd> turn the camera. <kbd>Esc</kbd> menu. <kbd>H</kbd> hides the cards.</div>
+      <div id="tipChat" hidden><kbd>Enter</kbd> chat. <kbd>1</kbd>–<kbd>4</kbd> quick messages.</div>
     </div>
     <div class="row" id="readyRow">
-      <div class="ready" id="readyG">Golem: press <kbd>Space</kbd> when ready</div>
-      <div class="ready" id="readyS">Sprite: press <kbd>Enter</kbd> when ready</div>
+      <div class="ready g" id="readyG"></div>
+      <div class="ready s" id="readyS"></div>
     </div>
-    <p class="note" id="lobbyText" hidden></p>
+    <p class="lobby" id="lobbyText" hidden></p>
     <div class="row">
       <button class="btn primary inline" id="bBegin">Begin</button>
       <button class="btn inline" id="bBriefBack">Back</button>
@@ -185,14 +94,14 @@ kbd{font-family:var(--body);font-size:12.5px;font-weight:600;display:inline-bloc
 
 <!-- PAUSE -->
 <div class="screen center" id="scrPause" hidden>
-  <div class="sheet wide panel" style="max-width:760px;gap:16px">
+  <div class="sheet wide panel" style="max-width:780px;gap:16px">
     <div><div class="eyebrow" id="pauseEyebrow">Paused</div><h2>Menu</h2></div>
     <p id="pauseObj"></p>
     <div class="roles">
-      <div class="role"><h3><span class="dot g"></span>Golem</h3><div class="keys" id="pkeysG"></div></div>
-      <div class="role"><h3><span class="dot s"></span>Sprite</h3><div class="keys" id="pkeysS"></div></div>
+      <div class="role g"><div class="rolehead"><span class="badge g">Giant</span><span class="who" id="pnameG"></span></div><div class="keys" id="pkeysG"></div></div>
+      <div class="role s"><div class="rolehead"><span class="badge s">Sprite</span><span class="who" id="pnameS"></span></div><div class="keys" id="pkeysS"></div></div>
     </div>
-    <p class="note">Golem: tap interact while holding Sprite for a short high lob, or hold it to charge a long throw. Sprite: jump while being held to leap from Golem's hands, and hold jump while falling to glide.</p>
+    <p class="note">Giant: tap interact while holding the Sprite for a short high lob, or hold it to charge a long throw. Sprite: jump while held to leap from the Giant's hands, hold jump while falling to glide. <kbd>Q</kbd> <kbd>R</kbd> turn the camera.</p>
     <div class="row">
       <button class="btn primary inline" id="bResume">Resume</button>
       <button class="btn inline" id="bRestart">Restart level</button>
@@ -205,8 +114,8 @@ kbd{font-family:var(--body);font-size:12.5px;font-weight:600;display:inline-bloc
 <!-- END -->
 <div class="screen" id="scrEnd" hidden>
   <div class="sheet">
-    <div><div class="eyebrow">The Sunken Garden</div><h1 style="font-size:clamp(44px,7vw,72px)">The fountain wakes</h1></div>
-    <p class="lede">Water runs through the garden again. The Golem sits by the basin, and the Sprite rests on its shoulder.</p>
+    <div><div class="eyebrow light">The Sunken Garden</div><h1 class="logo" style="font-size:clamp(44px,7vw,76px)">The fountain wakes</h1></div>
+    <p class="lede" id="endLede">Water runs through the garden again.</p>
     <div class="panel"><dl class="stats" id="endStats"></dl></div>
     <div class="btns" style="max-width:360px">
       <button class="btn primary" id="bAgain">Play again</button>
@@ -215,1111 +124,39 @@ kbd{font-family:var(--body);font-size:12.5px;font-weight:600;display:inline-bloc
   </div>
 </div>
 
+<!-- WORLD OVERLAYS (name tags, bubbles, edge arrows) -->
+<div id="overlay" hidden>
+  <div class="tag g" id="tagG"><div class="bubble" id="bubG" hidden></div><span id="tagGName">Giant</span></div>
+  <div class="tag s" id="tagS"><div class="bubble" id="bubS" hidden></div><span id="tagSName">Sprite</span></div>
+  <div class="edge g" id="edgeG"><i></i><span id="edgeGName">Giant</span></div>
+  <div class="edge s" id="edgeS"><i></i><span id="edgeSName">Sprite</span></div>
+</div>
+
 <!-- HUD -->
 <div id="hud" hidden>
   <div class="hpanel" id="obj">
-    <div class="eyebrow">Objective</div>
+    <div class="eyebrow">Goal</div>
     <div id="objText"></div>
     <div id="plates" hidden><span>Plates</span><i id="plA"></i><i id="plB"></i><div id="latch"><b></b></div></div>
     <div id="runeList"></div>
   </div>
-  <div class="hpanel" id="topRight"><span class="t" id="timer">0:00</span><span class="note"><kbd>Esc</kbd> menu</span></div>
-  <div class="hpanel card" id="cardG"><h3><span class="dot g"></span><span id="cardGName">Golem</span></h3><div class="prompt" id="promptG"></div><div class="keys" id="ckeysG"></div></div>
-  <div class="hpanel card" id="cardS"><h3><span class="dot s"></span><span id="cardSName">Sprite</span></h3><div class="prompt" id="promptS"></div><div class="keys" id="ckeysS"></div></div>
+  <div class="hpanel" id="topRight"><span class="t" id="timer">0:00</span><span class="note"><kbd>Q</kbd><kbd>R</kbd> turn</span><span class="note"><kbd>Esc</kbd> menu</span></div>
+  <div class="hpanel card g" id="cardG"><div class="cardhead"><span class="badge g">Giant</span><span class="cname" id="cardGName"></span></div><div class="prompt" id="promptG"></div><div class="keys" id="ckeysG"></div></div>
+  <div class="hpanel card s" id="cardS"><div class="cardhead"><span class="badge s">Sprite</span><span class="cname" id="cardSName"></span></div><div class="prompt" id="promptS"></div><div class="keys" id="ckeysS"></div></div>
   <div class="hpanel" id="hint" style="opacity:0"></div>
-  <div id="charge" hidden><b></b></div>
+  <div id="charge" hidden><span>Throw power</span><div><b></b></div></div>
   <div id="toast" style="opacity:0"></div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
+<!-- CHAT (online) -->
+<div id="chat" hidden>
+  <div id="chatLog" aria-live="polite"></div>
+  <form id="chatForm" hidden autocomplete="off"><input id="chatIn" maxlength="140" placeholder="Say something… (Enter to send, Esc to cancel)" spellcheck="false"></form>
+  <div id="chatHelp"><kbd>Enter</kbd> chat · <kbd>1</kbd>–<kbd>4</kbd> quick</div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script>
-(() => {
-"use strict";
-const $ = id => document.getElementById(id);
-if (!window.THREE) { $('loading').textContent = 'Could not load the 3D engine. Check your internet connection and reload.'; return; }
-const V3 = THREE.Vector3;
-const clamp=(v,a,b)=>v<a?a:v>b?b:v, lerp=(a,b,t)=>a+(b-a)*t, smooth=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
-const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-// ================= renderer =================
-const canvas=$('gl');
-let renderer;
-try{ renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'}); }
-catch(e){ $('loading').textContent='WebGL is not available in this browser. Try Chrome, Edge, Firefox or Safari on a desktop.'; return; }
-renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1));
-renderer.setSize(innerWidth,innerHeight,false);
-renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.05;
-renderer.outputEncoding=THREE.sRGBEncoding;
-const ANISO=Math.min(8,renderer.capabilities.getMaxAnisotropy());
-const scene=new THREE.Scene();
-const FOGC=new THREE.Color('#c7bea6');
-scene.fog=new THREE.FogExp2(FOGC,0.014);
-const camera=new THREE.PerspectiveCamera(42,innerWidth/innerHeight,0.1,600);
-addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();pMat.uniforms.uScale.value=innerHeight*renderer.getPixelRatio()*0.5;});
-
-// ================= noise & textures =================
-function hash2(x,y,s){let h=Math.imul(x|0,374761393)+Math.imul(y|0,668265263)+Math.imul(s|0,982451653);h=Math.imul(h^(h>>>13),1274126177);h^=h>>>16;return (h>>>0)/4294967296;}
-function vnoise(x,y,p,s){const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi,u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf);
-  const w=a=>((a%p)+p)%p;const X0=w(xi),X1=w(xi+1),Y0=w(yi),Y1=w(yi+1);
-  const a=hash2(X0,Y0,s),b=hash2(X1,Y0,s),c=hash2(X0,Y1,s),d=hash2(X1,Y1,s);return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v;}
-function fbm(x,y,p,oct,s){let t=0,a=.5,f=1,n=0;for(let i=0;i<oct;i++){t+=a*vnoise(x*f,y*f,p*f,s+i*17);n+=a;a*=.5;f*=2;}return t/n;}
-function n3(x,y,z){return vnoise(x+z*1.731,y-z*1.137,65536,3)*2-1;}
-function setupTex(t,srgb){t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=ANISO;if(srgb)t.encoding=THREE.sRGBEncoding;t.needsUpdate=true;return t;}
-function genTex(N,fn,nScale){
-  const cv=document.createElement('canvas');cv.width=cv.height=N;const ctx=cv.getContext('2d');const im=ctx.createImageData(N,N);const H=new Float32Array(N*N);const o=[0,0,0,0];
-  for(let y=0;y<N;y++)for(let x=0;x<N;x++){fn(x/N,y/N,o);const i=y*N+x,j=i*4;im.data[j]=clamp(o[0],0,255);im.data[j+1]=clamp(o[1],0,255);im.data[j+2]=clamp(o[2],0,255);im.data[j+3]=255;H[i]=o[3];}
-  ctx.putImageData(im,0,0);
-  const map=setupTex(new THREE.CanvasTexture(cv),true);
-  let normalMap=null;
-  if(nScale){
-    const cv2=document.createElement('canvas');cv2.width=cv2.height=N;const c2=cv2.getContext('2d');const im2=c2.createImageData(N,N);
-    for(let y=0;y<N;y++)for(let x=0;x<N;x++){
-      const l=H[y*N+(x-1+N)%N],r=H[y*N+(x+1)%N],u=H[((y-1+N)%N)*N+x],d=H[((y+1)%N)*N+x];
-      let nx=(l-r)*nScale,ny=(d-u)*nScale,nz=1;const L=Math.hypot(nx,ny,nz);nx/=L;ny/=L;nz/=L;
-      const j=(y*N+x)*4;im2.data[j]=(nx*.5+.5)*255;im2.data[j+1]=(ny*.5+.5)*255;im2.data[j+2]=(nz*.5+.5)*255;im2.data[j+3]=255;}
-    c2.putImageData(im2,0,0);normalMap=setupTex(new THREE.CanvasTexture(cv2),false);
-  }
-  return {map,normalMap};
-}
-function mixc(o,r,g,b,t){o[0]+= (r-o[0])*t;o[1]+=(g-o[1])*t;o[2]+=(b-o[2])*t;}
-const TEX={};
-function buildTextures(){
-  TEX.wall=genTex(512,(u,v,o)=>{
-    const rows=4,cols=2,ry=Math.floor(v*rows),off=(ry&1)*.5,bxf=u*cols+off,bx=Math.floor(bxf),fu=bxf-bx,fv=v*rows-ry;
-    const e=Math.min(Math.min(fu,1-fu)*(2/cols),Math.min(fv,1-fv)*(2/rows));
-    const id=hash2(((bx%cols)+cols)%cols,ry,5),n=fbm(u*6,v*6,6,4,1),n2=fbm(u*24,v*24,24,3,2),chip=fbm(u*12,v*12,12,3,8);
-    let h=smooth(.012,.055+chip*.04,e);h=h*(.82+.18*n)+(n2-.5)*.12*h;
-    const tone=.74+.3*id+(n-.5)*.55;o[0]=152*tone;o[1]=142*tone;o[2]=124*tone;
-    if(h<.2){const t=1-h/.2;mixc(o,70,66,58,t);}
-    const st=fbm(u*3,v*9,3,3,4);mixc(o,96,88,76,smooth(.55,.8,st)*.35);
-    const m=fbm(u*5+3,v*5,5,4,9),moss=smooth(.5,.7,m+v*.14)*(h<.35?1:.75);mixc(o,74+30*n2,88+28*n2,46,clamp(moss,0,.92));
-    o[3]=h;},5);
-  TEX.ground=genTex(512,(u,v,o)=>{
-    const n=fbm(u*6,v*6,6,5,11),d=fbm(u*3,v*3,3,4,12),sp=fbm(u*64,v*64,64,2,13),cl=fbm(u*20,v*20,20,3,14);
-    o[0]=lerp(52,98,n)*(.8+.4*cl);o[1]=lerp(66,106,n)*(.8+.4*cl);o[2]=lerp(30,52,n)*(.8+.3*cl);
-    const dirt=smooth(.56,.72,d);mixc(o,108+30*sp,90+24*sp,64+20*sp,dirt*.85);
-    if(sp>.72){mixc(o,130,122,100,.35*dirt);}
-    o[3]=n*.5+sp*.35+cl*.3-dirt*.2;},3);
-  TEX.pave=genTex(512,(u,v,o)=>{
-    const C=5,px=u*C,py=v*C,ix=Math.floor(px),iy=Math.floor(py);let d1=9,d2=9,id=0;
-    for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const cx=ix+dx,cy=iy+dy,wx=((cx%C)+C)%C,wy=((cy%C)+C)%C;
-      const fx=cx+.15+.7*hash2(wx,wy,21),fy=cy+.15+.7*hash2(wx,wy,22),d=Math.hypot(px-fx,py-fy);
-      if(d<d1){d2=d1;d1=d;id=hash2(wx,wy,23);}else if(d<d2)d2=d;}
-    const e=d2-d1,n=fbm(u*8,v*8,8,4,31),n2=fbm(u*32,v*32,32,3,32);
-    let h=smooth(.03,.17,e)*(.85+.15*n)+(n2-.5)*.07;
-    const tone=.7+.32*id+(n-.5)*.45;o[0]=150*tone;o[1]=141*tone;o[2]=124*tone;
-    if(e<.1){const t=1-e/.1;mixc(o,62+20*n2,70+20*n2,42,t);}
-    const m=fbm(u*4,v*4,4,4,35);mixc(o,82,94,52,smooth(.6,.75,m)*.55);
-    o[3]=h;},5);
-  TEX.rock=genTex(256,(u,v,o)=>{
-    const n=fbm(u*4,v*4,4,5,41),r=1-Math.abs(2*fbm(u*7,v*7,7,4,42)-1),cr=smooth(.9,.98,r),sp=fbm(u*40,v*40,40,2,43);
-    const t=.62+.55*n;o[0]=124*t;o[1]=119*t;o[2]=108*t;mixc(o,40,38,34,cr*.8);mixc(o,150,146,134,smooth(.7,.85,sp)*.3);
-    const m=fbm(u*3,v*3,3,3,44);mixc(o,78,90,50,smooth(.62,.78,m)*.7);
-    o[3]=n*.9-cr*.5+sp*.2;},4);
-  TEX.wood=genTex(256,(u,v,o)=>{
-    const P=4,pu=u*P,pi=Math.floor(pu),fu=pu-pi,g=fbm(fu*2+pi*7.3,v*24,1e6,4,51),k=fbm(u*8,v*3,8,3,52);
-    const t=.6+.5*g+(hash2(pi,0,53)-.5)*.3;o[0]=118*t;o[1]=86*t;o[2]=58*t;
-    const gap=Math.min(fu,1-fu);if(gap<.04){mixc(o,30,24,20,1-gap/.04);}
-    mixc(o,90,96,88,smooth(.6,.8,k)*.35);
-    o[3]=g*.6+smooth(0,.05,gap)*.6;},4);
-  TEX.iron=genTex(128,(u,v,o)=>{const n=fbm(u*6,v*6,6,4,61),r=fbm(u*12,v*12,12,3,62);o[0]=58+30*n;o[1]=56+24*n;o[2]=54+20*n;mixc(o,112,64,36,smooth(.55,.75,r)*.8);o[3]=n*.5+r*.3;},3);
-  TEX.foliage=genTex(256,(u,v,o)=>{const n=fbm(u*8,v*8,8,4,71),s=fbm(u*30,v*30,30,2,72);const t=.55+.6*n;o[0]=58*t;o[1]=74*t;o[2]=36*t;mixc(o,108,118,62,smooth(.7,.85,s)*.5);o[3]=s;},6);
-  // rune glyphs (emissive)
-  const rc=document.createElement('canvas');rc.width=512;rc.height=256;const rx=rc.getContext('2d');
-  rx.fillStyle='#000';rx.fillRect(0,0,512,256);rx.strokeStyle='#fff';rx.lineCap='round';rx.lineJoin='round';
-  for(let k=0;k<8;k++){const x=32+k*62,y=100;rx.lineWidth=7;rx.beginPath();
-    const r=(a)=>hash2(k,a,91);rx.moveTo(x,y);rx.lineTo(x,y+60);
-    if(r(1)>.5){rx.moveTo(x,y+10);rx.lineTo(x+22,y+28);} if(r(2)>.4){rx.moveTo(x,y+30);rx.lineTo(x+20,y+12);}
-    if(r(3)>.5){rx.moveTo(x,y+60);rx.lineTo(x+20,y+44);} if(r(4)>.6){rx.moveTo(x-14,y+20);rx.lineTo(x,y+34);}
-    rx.stroke();}
-  TEX.glyph=setupTex(new THREE.CanvasTexture(rc),true);
-  // glow & wing textures
-  const gc=document.createElement('canvas');gc.width=gc.height=128;const gx=gc.getContext('2d');const gr=gx.createRadialGradient(64,64,0,64,64,64);
-  gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(.25,'rgba(255,255,255,.55)');gr.addColorStop(1,'rgba(255,255,255,0)');gx.fillStyle=gr;gx.fillRect(0,0,128,128);
-  TEX.glow=new THREE.CanvasTexture(gc);
-  const wc=document.createElement('canvas');wc.width=128;wc.height=96;const wx=wc.getContext('2d');
-  const wg=wx.createRadialGradient(20,48,4,40,48,90);wg.addColorStop(0,'rgba(230,245,255,.85)');wg.addColorStop(.6,'rgba(200,230,255,.35)');wg.addColorStop(1,'rgba(200,230,255,0)');
-  wx.fillStyle=wg;wx.beginPath();wx.ellipse(64,48,62,40,0,0,Math.PI*2);wx.fill();
-  wx.strokeStyle='rgba(255,255,255,.5)';wx.lineWidth=1.5;for(let i=0;i<4;i++){wx.beginPath();wx.moveTo(6,48);wx.quadraticCurveTo(60,48+(i-1.5)*18,118,48+(i-1.5)*30);wx.stroke();}
-  TEX.wing=new THREE.CanvasTexture(wc);
-}
-
-// ================= materials =================
-const M={};
-function buildMaterials(){
-  const std=(t,o)=>new THREE.MeshStandardMaterial(Object.assign({map:t.map,normalMap:t.normalMap,roughness:.93,metalness:0},o||{}));
-  M.wall=std(TEX.wall,{normalScale:new THREE.Vector2(1.3,1.3)});
-  M.ground=std(TEX.ground,{roughness:.97});
-  M.pave=std(TEX.pave,{normalScale:new THREE.Vector2(1.2,1.2)});
-  M.rock=std(TEX.rock,{normalScale:new THREE.Vector2(1.4,1.4)});
-  M.wood=std(TEX.wood,{roughness:.85});
-  M.iron=std(TEX.iron,{roughness:.55,metalness:.6});
-  M.foliage=std(TEX.foliage,{roughness:.95,color:new THREE.Color('#b9c4a6')});
-  M.golem=std(TEX.rock,{color:new THREE.Color('#c9c0ae'),normalScale:new THREE.Vector2(1.6,1.6),flatShading:true});
-  M.moss=new THREE.MeshStandardMaterial({color:'#5b6b37',roughness:1,flatShading:true});
-  M.eye=new THREE.MeshStandardMaterial({color:'#2a1a08',emissive:'#ffae3a',emissiveIntensity:2.2});
-  M.rune=std(TEX.rock,{color:new THREE.Color('#8f8e86'),emissive:new THREE.Color('#5fe0c0'),emissiveMap:TEX.glyph,emissiveIntensity:1.6,flatShading:true});
-  M.gem=new THREE.MeshStandardMaterial({color:'#2d6b5e',emissive:'#6fe8cc',emissiveIntensity:1.8,roughness:.3});
-  M.socket=new THREE.MeshStandardMaterial({color:'#1d1f1c',roughness:1});
-  M.water=new THREE.MeshStandardMaterial({color:'#36504c',roughness:.08,metalness:.25,transparent:true,opacity:.88});
-  M.jet=new THREE.MeshStandardMaterial({color:'#bfe6e0',emissive:'#4f8f86',emissiveIntensity:.4,roughness:.1,transparent:true,opacity:.55,depthWrite:false});
-  M.spriteBody=new THREE.MeshStandardMaterial({color:'#e9f4ff',emissive:'#a9d6ff',emissiveIntensity:1.4,roughness:.4});
-  M.spriteDark=new THREE.MeshBasicMaterial({color:'#1a2433'});
-  M.leaf=new THREE.MeshStandardMaterial({color:'#7fae5a',emissive:'#2c4a1c',emissiveIntensity:.5,roughness:.7,side:THREE.DoubleSide});
-  M.plate=std(TEX.pave,{color:new THREE.Color('#b8b1a0')});
-  M.plateRing=new THREE.MeshStandardMaterial({color:'#2a3a36',emissive:'#5fe0c0',emissiveIntensity:.15});
-  M.bark=std(TEX.wood,{color:new THREE.Color('#6a5a4a'),roughness:1});
-}
-
-// box geometry with world-scaled UVs so textures keep a constant size
-function boxGeo(w,h,d,tile,ox,oy,oz){
-  const g=new THREE.BoxGeometry(w,h,d),uv=g.attributes.uv;
-  const dims=[[d,h,oz,oy],[d,h,oz,oy],[w,d,ox,oz],[w,d,ox,oz],[w,h,ox,oy],[w,h,ox,oy]];
-  for(let f=0;f<6;f++)for(let i=0;i<4;i++){const k=f*4+i,D=dims[f];uv.setXY(k,(uv.getX(k)*D[0]+D[2])/tile,(uv.getY(k)*D[1]+D[3])/tile);}
-  return g;
-}
-const TILE=new Map();
-function tileFor(m){return TILE.get(m)||2;}
-
-// ================= colliders =================
-const colliders=[];
-function box(xa,xb,ya,yb,za,zb,mat,opt){
-  opt=opt||{};
-  const x0=Math.min(xa,xb),x1=Math.max(xa,xb),y0=Math.min(ya,yb),y1=Math.max(ya,yb),z0=Math.min(za,zb),z1=Math.max(za,zb);
-  let mesh=null;
-  if(mat){mesh=new THREE.Mesh(boxGeo(x1-x0,y1-y0,z1-z0,tileFor(mat),x0,y0,z0),mat);mesh.position.set((x0+x1)/2,(y0+y1)/2,(z0+z1)/2);
-    mesh.castShadow=opt.cast!==false;mesh.receiveShadow=true;(opt.parent||scene).add(mesh);}
-  if(opt.collide===false) return {mesh};
-  const c={min:new V3(x0,y0,z0),max:new V3(x1,y1,z1),kind:opt.kind||'static',on:true,mesh};
-  colliders.push(c);return c;
-}
-const invis=(xa,xb,ya,yb,za,zb)=>box(xa,xb,ya,yb,za,zb,null);
-function wall(xa,xb,za,zb,h,extend){box(xa,xb,0,h,za,zb,M.wall);if(extend!==false)invis(xa,xb,h,14,za,zb);}
-function floorSlab(xa,xb,za,zb,mat,deep){box(xa,xb,-0.4,0,za,zb,mat,{cast:false});box(xa,xb,deep?-12:-2,-0.4,za,zb,deep?M.rock:mat,{cast:false});}
-
-// ================= world =================
-const F={x:0,z:-72}; // fountain center
-const CP=[
-  {z:2,  g:[-1.5,0,-2.5], s:[1.5,0,-2.5]},
-  {z:-23.5,g:[-1.5,0,-24.5],s:[1.5,0,-24.5]},
-  {z:-34,g:[-1.5,0,-36], s:[1.5,0,-36]},
-  {z:-45,g:[-1.5,0,-46.5],s:[1.5,0,-46.5]},
-  {z:-64,g:[-1.5,0,-65], s:[1.5,0,-65]},
-];
-const W={}; // named world objects
-const rockMeshes=[];
-function rockGeo(rx,ry,rz,detail,seed,amp){
-  const g=new THREE.IcosahedronGeometry(1,detail),p=g.attributes.position,v=new V3();
-  for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);const n=n3(v.x*1.6+seed,v.y*1.6+seed*.7,v.z*1.6)*amp+n3(v.x*4+seed,v.y*4,v.z*4)*amp*.35;v.multiplyScalar(1+n);p.setXYZ(i,v.x*rx,v.y*ry,v.z*rz);}
-  g.computeVertexNormals();return g;
-}
-function addRock(x,y,z,s,seed,collide){
-  const m=new THREE.Mesh(rockGeo(s,s*.7,s*.9,2,seed,.28),M.rock);m.position.set(x,y,z);m.rotation.y=seed;m.castShadow=true;m.receiveShadow=true;scene.add(m);
-  if(collide) box(x-s*.7,x+s*.7,0,y+s*.55,z-s*.7,z+s*.7,null);
-  return m;
-}
-function addColumn(x,z,h,r,broken,collide){
-  const g=new THREE.CylinderGeometry(r*.92,r,h,14,1);const m=new THREE.Mesh(g,M.wall);m.position.set(x,h/2,z);m.castShadow=m.receiveShadow=true;scene.add(m);
-  const cap=new THREE.Mesh(boxGeo(r*2.4,.3,r*2.4,2,0,0,0),M.wall);cap.position.set(x,.15,z);cap.castShadow=cap.receiveShadow=true;scene.add(cap);
-  if(!broken){const top=new THREE.Mesh(boxGeo(r*2.6,.35,r*2.6,2,0,0,0),M.wall);top.position.set(x,h+.17,z);top.castShadow=true;scene.add(top);}
-  if(collide!==false) box(x-r,x+r,0,h,z-r,z+r,null);
-}
-function addUrn(x,z,s){
-  const pts=[[0,0],[.25,0],[.32,.08],[.42,.35],[.38,.6],[.24,.75],[.26,.86],[.32,.9]].map(p=>new THREE.Vector2(p[0]*s,p[1]*s));
-  const m=new THREE.Mesh(new THREE.LatheGeometry(pts,16),M.wall);m.position.set(x,0,z);m.castShadow=m.receiveShadow=true;scene.add(m);
-  box(x-.35*s,x+.35*s,0,.9*s,z-.35*s,z+.35*s,null);
-}
-function addTree(x,z,s,seed){
-  const h=3.2*s,trunk=new THREE.Mesh(new THREE.CylinderGeometry(.16*s,.3*s,h,8),M.bark);trunk.position.set(x,h/2,z);trunk.castShadow=true;scene.add(trunk);
-  const n=3+Math.floor(hash2(seed,1,7)*3);
-  for(let i=0;i<n;i++){const a=hash2(seed,i,8)*6.28,r=hash2(seed,i,9)*1.1*s,fs=(1.1+hash2(seed,i,10)*.9)*s;
-    const f=new THREE.Mesh(rockGeo(fs,fs*.8,fs,1,seed+i,.35),M.foliage);f.position.set(x+Math.cos(a)*r,h+(hash2(seed,i,11)-.2)*1.4*s,z+Math.sin(a)*r);f.castShadow=true;f.receiveShadow=true;scene.add(f);}
-}
-function addCypress(x,z,s,seed){
-  const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.12*s,.2*s,1.2*s,6),M.bark);trunk.position.set(x,.6*s,z);scene.add(trunk);
-  const f=new THREE.Mesh(rockGeo(.9*s,3.6*s,.9*s,2,seed,.22),M.foliage);f.position.set(x,3.6*s,z);f.castShadow=true;scene.add(f);
-}
-
-let grassUniform={value:0};
-function buildWorld(){
-  TILE.set(M.wall,2);TILE.set(M.ground,4);TILE.set(M.pave,3);TILE.set(M.rock,3);TILE.set(M.wood,1.6);TILE.set(M.iron,1);TILE.set(M.plate,3);
-  // ---------- sky ----------
-  const skyMat=new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,fog:false,uniforms:{uSun:{value:new V3()}},
-    vertexShader:'varying vec3 vD;void main(){vD=normalize(position);vec4 p=modelViewMatrix*vec4(position,1.);gl_Position=projectionMatrix*p;}',
-    fragmentShader:'uniform vec3 uSun;varying vec3 vD;void main(){float h=clamp(vD.y,-.2,1.);vec3 zen=vec3(.36,.5,.64);vec3 hor=vec3(.84,.79,.68);vec3 c=mix(hor,zen,pow(max(h,0.),.55));c=mix(c,vec3(.55,.52,.45),clamp(-h*4.,0.,1.));float s=max(dot(normalize(vD),normalize(uSun)),0.);c+=vec3(1.,.82,.55)*(pow(s,8.)*.35+pow(s,600.)*3.);gl_FragColor=vec4(c,1.);}'});
-  W.sky=new THREE.Mesh(new THREE.SphereGeometry(400,32,16),skyMat);scene.add(W.sky);
-  // ---------- light ----------
-  const hemi=new THREE.HemisphereLight('#c7d3dc','#4a4232',0.62);scene.add(hemi);
-  W.sunDir=new V3(-0.55,0.62,0.56).normalize();skyMat.uniforms.uSun.value.copy(W.sunDir);
-  const sun=new THREE.DirectionalLight('#ffe2b8',2.35);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
-  const sc=sun.shadow.camera;sc.left=-24;sc.right=24;sc.top=24;sc.bottom=-24;sc.near=1;sc.far=140;sun.shadow.bias=-0.0004;sun.shadow.normalBias=0.025;
-  scene.add(sun);scene.add(sun.target);W.sun=sun;
-
-  // ---------- outer land (with the ravine cutting through) ----------
-  floorSlab(-90,-11,60,-27,M.ground,true);floorSlab(-90,-11,-33,-170,M.ground,true);
-  floorSlab(11,90,60,-27,M.ground,true);floorSlab(11,90,-33,-170,M.ground,true);
-  floorSlab(-11,11,5,60,M.ground,false);floorSlab(-11,11,-83,-170,M.ground,false);
-  // ravine bottom
-  const water=new THREE.Mesh(new THREE.PlaneGeometry(180,6.2),M.water.clone());water.material.opacity=.95;water.rotation.x=-Math.PI/2;water.position.set(0,-7,-30);scene.add(water);
-  for(let i=0;i<26;i++){const x=-70+i*5.6+hash2(i,2,3)*3,z=-30+(hash2(i,4,5)-.5)*4.5;addRock(x,-6.8,z,.8+hash2(i,6,7)*1.4,i*1.7,false);}
-  invis(-200,200,-20,-9.5,-27,-33); // safety net below ravine (falls are caught by y check anyway)
-  colliders.pop(); // net not needed as collider
-  // distant hills
-  for(let i=0;i<9;i++){const a=i/9*Math.PI*2,r=150+hash2(i,1,2)*40,s=40+hash2(i,3,4)*35;const m=new THREE.Mesh(rockGeo(s,s*.35,s,2,i,.15),M.foliage);m.position.set(Math.cos(a)*r,-4,-40+Math.sin(a)*r);scene.add(m);}
-
-  // ---------- AREA 1: courtyard ----------
-  floorSlab(-11,11,5,-22,M.ground,false);
-  wall(-11,11,4,5,3);
-  wall(-11,-10,4,-22,4);
-  wall(10,11,4,-15.1,4); wall(10,11,-15.7,-22,4);
-  box(10,11,.55,4,-15.1,-15.7,M.wall); invis(10,11,4,14,-15.1,-15.7);
-  // side room (lever 1)
-  floorSlab(11,16,-12,-19,M.pave,false);
-  wall(11,16,-12,-13,3,false); wall(11,16,-18,-19,3,false); wall(15,16,-13,-18,3,false);
-  // rune ledge + push block
-  box(-10,-6.5,0,2.4,-6,-10,M.wall);
-  // gate wall
-  wall(-11,-2,-22,-23,4.5); wall(2,11,-22,-23,4.5); box(-2,2,3.6,4.5,-22,-23,M.wall); invis(-2,2,4.5,14,-22,-23);
-  // decor
-  addColumn(6.5,-3,3.2,.42,false);addColumn(6.5,-9,1.6,.42,true);addColumn(-6.5,1,2.4,.42,true);addColumn(-4,-19,3.4,.42,false);addColumn(4.5,-19,3.4,.42,false);
-  const fallen=new THREE.Mesh(new THREE.CylinderGeometry(.4,.42,2.6,14),M.wall);fallen.rotation.z=Math.PI/2;fallen.rotation.y=.6;fallen.position.set(4.6,.4,-12.5);fallen.castShadow=fallen.receiveShadow=true;scene.add(fallen);box(3.4,5.8,0,.8,-12,-13.2,null);
-  addUrn(-9.2,3,1.1);addUrn(9.2,3,1.1);addUrn(-9.2,-20.5,1.1);addUrn(8.6,-20.5,1.1);
-  addRock(8.2,0.2,-6.5,.6,3.1,true);addRock(-3.5,.1,3,.4,4.2,false);addRock(2.5,.15,-15,.5,5.5,false);addRock(-8.5,.2,-14,.7,6.6,true);
-  addTree(-15,-6,1.2,1);addTree(-17,4,1.4,2);addTree(17,0,1.3,3);addTree(19,-10,1.1,4);addCypress(-14,-16,1.1,5);addCypress(14.5,-22,1.2,6);
-  // ---------- AREA 2: ravine ----------
-  floorSlab(-11,11,-22,-27,M.ground,true);
-  floorSlab(-11,11,-33,-44,M.ground,true);
-  wall(-11,-10,-23,-27,4);wall(10,11,-23,-27,4);wall(-11,-10,-33,-44,4);wall(10,11,-33,-44,4);
-  invis(-11,-10,-12,14,-27,-33);invis(10,11,-12,14,-27,-33);
-  box(5.6,7.2,0,3.8,-38,-39.6,M.wall); // rune column
-  addColumn(-6,-37,2.8,.42,true);addRock(-8,.2,-41.5,.8,7.7,true);addRock(-3.5,.15,-42.5,.5,8.8,false);addUrn(9,-42.6,1.0);
-  addTree(-16,-38,1.3,7);addTree(18,-40,1.4,8);addCypress(15,-46,1.3,9);addCypress(-15,-48,1.2,10);addTree(-20,-20,1.2,11);addTree(21,-24,1.1,12);
-  // ---------- AREA 3: waterworks ----------
-  floorSlab(-11,11,-44,-62.6,M.pave,false);
-  wall(-11,-10,-44,-62,4);wall(10,11,-44,-62,4);
-  // vault (rune 3)
-  wall(-10,-6,-44.6,-45,3,false);wall(-10,-6,-49.6,-50,3,false);
-  wall(-6.5,-6,-45,-47.0,3,false);wall(-6.5,-6,-47.6,-49.6,3,false);box(-6.5,-6,.55,3,-47.0,-47.6,M.wall);
-  // alcove (light plate)
-  wall(6,10,-52.6,-53,3,false);wall(6,10,-58.6,-59,3,false);
-  wall(6,6.4,-53,-55.5,3,false);wall(6,6.4,-56.1,-58.6,3,false);box(6,6.4,.55,3,-55.5,-56.1,M.wall);
-  // water channel (decor) with curb
-  box(-10,-9,0,.3,-51,-61,M.wall);box(-8.2,-7.9,0,.3,-51,-61,M.wall);
-  const ch=new THREE.Mesh(new THREE.PlaneGeometry(.9,10),M.water);ch.rotation.x=-Math.PI/2;ch.position.set(-8.6,.22,-56);scene.add(ch);
-  const pipe=new THREE.Mesh(new THREE.CylinderGeometry(.18,.18,10,10),M.iron);pipe.rotation.x=Math.PI/2;pipe.position.set(9.7,2.4,-50);pipe.castShadow=true;scene.add(pipe);
-  // portcullis wall
-  wall(-11,-2,-62,-62.6,4.5);wall(2,11,-62,-62.6,4.5);box(-2,2,3.6,4.5,-62,-62.6,M.wall);invis(-2,2,4.5,14,-62,-62.6);
-  addUrn(-3.5,-60.5,1);addUrn(3.5,-60.5,1);addRock(3,.15,-46,.45,9.9,false);
-  // ---------- AREA 4: fountain chamber ----------
-  floorSlab(-11,11,-62.6,-83,M.pave,false);
-  wall(-11,-10,-62.6,-82,5.5);wall(10,11,-62.6,-82,5.5);wall(-11,11,-82,-83,5.5);
-  for(const z of [-66,-72,-78]){addColumn(-8.3,z,5.2,.45,false);addColumn(8.3,z,5.2,.45,false);}
-  buildFountain();
-  addCypress(-15,-70,1.4,13);addCypress(15,-74,1.4,14);addTree(-17,-86,1.5,15);addTree(17,-88,1.5,16);addTree(0,-92,1.6,17);addCypress(-6,-90,1.5,18);addCypress(7,-91,1.5,19);
-  for(let i=0;i<22;i++){const side=i%2?1:-1,x=side*(24+hash2(i,1,99)*40),z=10-hash2(i,2,99)*110;if(z<-25&&z>-35)continue;(i%3?addTree:addCypress)(x,z,1+hash2(i,3,99)*.6,40+i);}
-  buildGrass();
-}
-
-function buildFountain(){
-  const pts=[[.01,.12],[2.55,.12],[2.62,.78],[2.8,.86],[3.0,.8],[3.06,.06],[3.0,0]].map(p=>new THREE.Vector2(p[0],p[1]));
-  const basin=new THREE.Mesh(new THREE.LatheGeometry(pts,48),M.pave);basin.position.set(F.x,0,F.z);basin.castShadow=basin.receiveShadow=true;scene.add(basin);
-  box(F.x-2.8,F.x+2.8,0,.8,F.z+2.8,F.z-2.8,null);
-  const col=new THREE.Mesh(new THREE.CylinderGeometry(.42,.55,2.6,18),M.wall);col.position.set(F.x,.8+1.3,F.z);col.castShadow=col.receiveShadow=true;scene.add(col);
-  const bpts=[[.01,0],[.3,.02],[.62,.2],[.72,.34],[.62,.36],[.4,.22],[.01,.2]].map(p=>new THREE.Vector2(p[0],p[1]));
-  const bowl=new THREE.Mesh(new THREE.LatheGeometry(bpts,32),M.wall);bowl.position.set(F.x,3.38,F.z);bowl.castShadow=true;scene.add(bowl);
-  box(F.x-.72,F.x+.72,.8,3.6,F.z-.72,F.z+.72,null);
-  W.spout=new V3(F.x,3.6,F.z);
-  W.basinWater=new THREE.Mesh(new THREE.CircleGeometry(2.56,48),M.water);W.basinWater.rotation.x=-Math.PI/2;W.basinWater.position.set(F.x,.14,F.z);W.basinWater.visible=false;scene.add(W.basinWater);
-  W.jet=new THREE.Mesh(new THREE.CylinderGeometry(.06,.16,1.4,12,1,true),M.jet);W.jet.position.set(F.x,4.3,F.z);W.jet.visible=false;scene.add(W.jet);
-  W.sockets=[];
-  [-1.2,0,1.2].forEach((dx,i)=>{const sx=F.x+dx,sz=F.z+2.75-Math.abs(dx)*.12;
-    const s=new THREE.Mesh(new THREE.BoxGeometry(.42,.18,.3),M.socket);s.position.set(sx,.84,sz);scene.add(s);
-    const g=new THREE.Mesh(new THREE.OctahedronGeometry(.17),M.gem);g.scale.y=1.4;g.position.set(sx,1.02,sz);g.visible=false;scene.add(g);W.sockets.push(g);});
-  W.fLight=new THREE.PointLight('#9fe8d6',0,14,2);W.fLight.position.set(F.x,4.2,F.z);scene.add(W.fLight);
-}
-
-function buildGrass(){
-  const blade=new THREE.BufferGeometry();const P=[],N=[],U=[];
-  for(let k=0;k<5;k++){const a=k*1.3,ox=Math.cos(a*2.1)*.05,oz=Math.sin(a*1.7)*.05,c=Math.cos(a)*.022,s=Math.sin(a)*.022,lean=.06*(k%2?1:-1),hh=.26+(k%3)*.06;
-    const q=[[ox-c,0,oz-s],[ox+c,0,oz+s],[ox+lean,hh,oz+lean*.5]];
-    for(const i of [0,1,2]){P.push(...q[i]);N.push(0,1,0);U.push(0,q[i][1]/.38);}}
-  blade.setAttribute('position',new THREE.Float32BufferAttribute(P,3));blade.setAttribute('normal',new THREE.Float32BufferAttribute(N,3));blade.setAttribute('uv',new THREE.Float32BufferAttribute(U,2));
-  const mat=new THREE.MeshStandardMaterial({color:'#ffffff',roughness:.9,side:THREE.DoubleSide});
-  mat.onBeforeCompile=sh=>{sh.uniforms.uTime=grassUniform;
-    sh.vertexShader='uniform float uTime;\nvarying float vH;\n'+sh.vertexShader.replace('#include <begin_vertex>',
-      '#include <begin_vertex>\nvH=position.y/.38;vec4 wp=instanceMatrix*vec4(0.,0.,0.,1.);float w=sin(uTime*1.6+wp.x*.31+wp.z*.23)*.6+sin(uTime*3.3+wp.x*.9+wp.z*.4)*.2;transformed.x+=w*vH*vH*.16;transformed.z+=w*vH*vH*.08;');
-    sh.fragmentShader='varying float vH;\n'+sh.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.rgb*=mix(.42,1.08,clamp(vH,0.,1.));');};
-  const rects=[[-10,10,4,-22,9],[-10,10,-23,-27,9],[-10,10,-33,-44,9],[-30,-11,30,-26,2.2],[11,30,30,-26,2.2],[-30,-11,-34,-95,2.2],[11,30,-34,-95,2.2],[-10,10,6,25,2.2],
-    [-9.6,-6.8,-50.5,-61.5,1.5],[6.8,9.6,-44.5,-52,1.5],[-9.6,-7.5,-64,-81,1.5],[7.5,9.6,-64,-81,1.5]];
-  let total=0;for(const r of rects)total+=Math.abs((r[1]-r[0])*(r[3]-r[2]))*r[4];
-  const inst=new THREE.InstancedMesh(blade,mat,Math.floor(total));
-  const m4=new THREE.Matrix4(),q=new THREE.Quaternion(),sc=new V3(),pos=new V3(),col=new THREE.Color();let n=0;
-  const rnd=(()=>{let s=99;return()=>{s=Math.imul(s^(s>>>15),2246822507)+0x6D2B79F5|0;return ((s>>>0)%100000)/100000;};})();
-  for(const r of rects){const cnt=Math.floor(Math.abs((r[1]-r[0])*(r[3]-r[2]))*r[4]);
-    for(let i=0;i<cnt;i++){const x=lerp(r[0],r[1],rnd()),z=lerp(r[2],r[3],rnd());
-      let blocked=false;for(const c of colliders){if(c.max.y>.05&&c.min.y<.3&&x>c.min.x-.05&&x<c.max.x+.05&&z>c.min.z-.05&&z<c.max.z+.05){blocked=true;break;}}
-      if(blocked||(z<-26.9&&z>-33.1))continue;
-      const dense=fbm(x*.15+50,z*.15+50,1e6,3,77);if(rnd()>smooth(.3,.6,dense)+.25)continue;
-      pos.set(x,0,z);q.setFromAxisAngle(new V3(0,1,0),rnd()*6.28);const s=.7+rnd()*.6;sc.set(s,s*(.6+rnd()*.6),s);m4.compose(pos,q,sc);inst.setMatrixAt(n,m4);
-      col.setHSL(.2+rnd()*.06,.32+rnd()*.15,.24+rnd()*.12);inst.setColorAt(n,col);n++;}}
-  inst.count=n;inst.instanceMatrix.needsUpdate=true;if(inst.instanceColor)inst.instanceColor.needsUpdate=true;inst.receiveShadow=true;inst.frustumCulled=false;scene.add(inst);
-}
-
-// ================= interactive objects =================
-const gate={t:0,open:false},bridge={t:0,open:false},port={t:0,open:false},latch={t:0};
-const levers=[],plates=[];let crank=null,block=null;const runes=[];
-function buildInteractives(){
-  // gate (wood + iron)
-  gate.group=new THREE.Group();
-  for(let i=0;i<6;i++){box(-2+i*.667,-2+(i+1)*.667-.04,0,3.6,-22.32,-22.68,M.wood,{parent:gate.group,collide:false});}
-  for(const y of [.6,1.8,3.0]) box(-2,2,y,y+.16,-22.25,-22.75,M.iron,{parent:gate.group,collide:false});
-  scene.add(gate.group);
-  gate.col=box(-2,2,0,3.6,-22.25,-22.75,null,{kind:'door'});gate.base={y0:0,y1:3.6};
-  // drawbridge (pivot at far edge)
-  bridge.pivot=new THREE.Group();bridge.pivot.position.set(0,0,-33);scene.add(bridge.pivot);
-  for(let i=0;i<5;i++)box(-1.5+i*.6+.02,-1.5+(i+1)*.6-.02,-.28,0,0,6,M.wood,{parent:bridge.pivot,collide:false});
-  for(const z of [.6,3,5.4])box(-1.55,1.55,-.34,-.24,z,z+.18,M.iron,{parent:bridge.pivot,collide:false});
-  bridge.col=box(-1.5,1.5,-.3,0,-27,-33,null,{kind:'door'});bridge.col.on=false;
-  // chain posts
-  box(-1.9,-1.6,0,2.2,-33.1,-33.5,M.wall);box(1.6,1.9,0,2.2,-33.1,-33.5,M.wall);
-  // portcullis
-  port.group=new THREE.Group();
-  for(let i=0;i<9;i++)box(-2+i*.5-.05,-2+i*.5+.05,0,3.6,-62.22,-62.38,M.iron,{parent:port.group,collide:false});
-  for(const y of [.4,1.3,2.2,3.1])box(-2,2,y,y+.1,-62.2,-62.4,M.iron,{parent:port.group,collide:false});
-  scene.add(port.group);
-  port.col=box(-2,2,0,3.6,-62.1,-62.5,null,{kind:'door'});port.base={y0:0,y1:3.6};
-  // levers
-  levers.push(makeLever(13.9,-15.4,-Math.PI/2,'gate'),makeLever(-9.3,-46.1,Math.PI/2,'vault'));
-  // crank
-  crank={pos:new V3(2.9,0,-34.4),t:0,used:false};
-  box(2.6,3.2,0,.75,-34.15,-34.65,M.wall);
-  crank.wheel=new THREE.Group();crank.wheel.position.set(2.9,1.05,-34.4);crank.wheel.rotation.y=Math.PI/2;scene.add(crank.wheel);
-  const tor=new THREE.Mesh(new THREE.TorusGeometry(.32,.045,8,20),M.iron);tor.castShadow=true;crank.wheel.add(tor);
-  for(let k=0;k<4;k++){const sp=new THREE.Mesh(new THREE.BoxGeometry(.05,.62,.05),M.iron);sp.rotation.z=k*Math.PI/4;crank.wheel.add(sp);}
-  const axle=new THREE.Mesh(new THREE.CylinderGeometry(.06,.06,.4,8),M.iron);axle.rotation.x=Math.PI/2;axle.position.set(2.9,1.05,-34.4);axle.rotation.z=Math.PI/2;scene.add(axle);
-  // plates
-  plates.push(makePlate(-5,-55,1.0,8,'heavy'),makePlate(8.3,-55.8,.5,1,'light'));
-  // push block
-  block={pos:new V3(-2,0,-7),vel:new V3(),hw:.6,h:1.2,kind:'block',stepH:0,onGround:false,home:new V3(-2,0,-7)};
-  block.mesh=new THREE.Mesh(boxGeo(1.2,1.2,1.2,2,0,0,0),M.wall);block.mesh.castShadow=block.mesh.receiveShadow=true;scene.add(block.mesh);
-  block.col=box(0,1,0,1,0,1,null,{kind:'block'});block.col.body=block;syncBlock();
-  // runes
-  runes.push(makeRune(0,new V3(-8.3,2.4,-8),'rest','Courtyard ledge'),makeRune(1,new V3(6.4,3.8,-38.8),'perched','Ravine column'),makeRune(2,new V3(-8.6,0,-47.3),'vault','Waterworks vault'));
-}
-function makeLever(x,z,rot,id){
-  const g=new THREE.Group();g.position.set(x,0,z);g.rotation.y=rot;scene.add(g);
-  box(-.22,.22,0,.42,-.16,.16,M.wall,{parent:g,collide:false});
-  const handle=new THREE.Group();handle.position.y=.42;g.add(handle);
-  const stick=new THREE.Mesh(new THREE.CylinderGeometry(.035,.04,.55,8),M.wood);stick.position.y=.27;stick.castShadow=true;handle.add(stick);
-  const knob=new THREE.Mesh(new THREE.SphereGeometry(.06,10,8),M.iron);knob.position.y=.55;handle.add(knob);
-  handle.rotation.z=-.7;
-  box(x-.22,x+.22,0,.42,z-.22,z+.22,null);
-  return {id,pos:new V3(x,0,z),handle,t:0,pulled:false};
-}
-function makePlate(x,z,hw,need,label){
-  const m=new THREE.Mesh(boxGeo(hw*2,.12,hw*2,3,0,0,0),M.plate);m.position.set(x,0,z);m.receiveShadow=true;scene.add(m);
-  const ring=new THREE.Mesh(new THREE.RingGeometry(hw*.55,hw*.68,32),M.plateRing.clone());ring.rotation.x=-Math.PI/2;ring.position.set(x,.065,z);scene.add(ring);
-  return {x,z,hw,need,label,on:false,mesh:m,ring};
-}
-function makeRune(i,pos,state,where){
-  const m=new THREE.Mesh(rockGeo(.2,.3,.2,1,i*3.3,.18),M.rune);m.castShadow=true;scene.add(m);
-  const light=new THREE.PointLight('#6fe0c4',.9,4.5,2);scene.add(light);
-  return {i,where,state,pos:pos.clone(),home:pos.clone(),vel:new V3(),hw:.2,h:.42,kind:'rune',stepH:.1,onGround:false,mesh:m,light,t:0};
-}
-function syncBlock(){const b=block,c=block.col;c.min.set(b.pos.x-b.hw,b.pos.y,b.pos.z-b.hw);c.max.set(b.pos.x+b.hw,b.pos.y+b.h,b.pos.z+b.hw);}
-
-// ================= characters =================
-const golem={kind:'golem',pos:new V3(),vel:new V3(),hw:.6,h:2.3,stepH:.45,yaw:Math.PI,onGround:false,coyote:0,holding:false,charging:false,charge:0,runes:0,cp:0,pushing:false,walk:0,anim:0,prev:new V3(),delta:new V3(),stepSound:0};
-const sprite={kind:'sprite',pos:new V3(),vel:new V3(),hw:.14,h:.4,stepH:.14,yaw:Math.PI,onGround:false,coyote:0,held:false,gliding:false,thrownT:0,cp:0,walk:0,anim:0,airT:0};
-golem.col={min:new V3(),max:new V3(),kind:'golem',on:true};colliders.push(golem.col);
-function syncGolemCol(){const g=golem;golem.col.min.set(g.pos.x-.52,g.pos.y,g.pos.z-.52);golem.col.max.set(g.pos.x+.52,g.pos.y+g.h,g.pos.z+.52);golem.col.on=!sprite.held;}
-
-function buildGolem(){
-  const R=new THREE.Group();scene.add(R);golem.root=R;
-  const part=(rx,ry,rz,seed,mat,parent,x,y,z)=>{const m=new THREE.Mesh(rockGeo(rx,ry,rz,1,seed,.22),mat||M.golem);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;};
-  const hips=new THREE.Group();hips.position.y=1.0;R.add(hips);golem.hips=hips;
-  part(.48,.26,.34,1,null,hips,0,0,0);
-  golem.legs=[-1,1].map(s=>{const p=new THREE.Group();p.position.set(s*.3,-.05,0);hips.add(p);part(.24,.42,.26,2+s,null,p,0,-.42,0);part(.27,.14,.33,4+s,null,p,0,-.88,.06);return p;});
-  const torso=new THREE.Group();torso.position.y=.12;hips.add(torso);golem.torso=torso;
-  part(.62,.5,.46,6,null,torso,0,.55,0);
-  part(.42,.28,.36,7,null,torso,0,.95,-.05);
-  const head=new THREE.Group();head.position.set(0,1.18,.12);torso.add(head);golem.head=head;
-  part(.28,.24,.28,8,null,head,0,0,0);
-  for(const s of [-1,1]){const e=new THREE.Mesh(new THREE.BoxGeometry(.09,.035,.04),M.eye);e.position.set(s*.1,.02,.25);head.add(e);}
-  part(.12,.08,.12,9,M.moss,head,-.08,.2,-.02);
-  golem.arms=[-1,1].map(s=>{const sh=new THREE.Group();sh.position.set(s*.74,.86,0);torso.add(sh);
-    part(.3,.26,.3,10+s,null,sh,0,0,0);part(.16,.1,.18,12+s,M.moss,sh,s*.05,.2,0);
-    const up=part(.17,.32,.18,14+s,null,sh,s*.06,-.42,0);
-    const fist=part(.24,.22,.24,16+s,null,sh,s*.08,-.86,.04);return sh;});
-  golem.gems=[];for(let i=0;i<3;i++){const g=new THREE.Mesh(new THREE.OctahedronGeometry(.08),M.gem);g.scale.y=1.3;g.position.set((i-1)*.2,.55,.47);g.visible=false;torso.add(g);golem.gems.push(g);}
-  for(let i=0;i<3;i++){const s=new THREE.Mesh(new THREE.BoxGeometry(.13,.16,.06),M.socket);s.position.set((i-1)*.2,.55,.43);torso.add(s);}
-}
-function buildSprite(){
-  const R=new THREE.Group();scene.add(R);sprite.root=R;
-  const body=new THREE.Mesh(new THREE.SphereGeometry(.07,16,12),M.spriteBody);body.scale.set(1,1.45,.9);body.position.y=.15;body.castShadow=true;R.add(body);
-  const head=new THREE.Mesh(new THREE.SphereGeometry(.068,16,12),M.spriteBody);head.position.y=.31;head.castShadow=true;R.add(head);sprite.head=head;
-  for(const s of [-1,1]){const e=new THREE.Mesh(new THREE.SphereGeometry(.012,6,6),M.spriteDark);e.position.set(s*.026,.318,.058);R.add(e);}
-  const leaf=new THREE.Mesh(new THREE.PlaneGeometry(.06,.12),M.leaf);leaf.position.set(.02,.4,-.01);leaf.rotation.z=-.5;R.add(leaf);
-  const wm=new THREE.MeshBasicMaterial({map:TEX.wing,transparent:true,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,opacity:.85});
-  sprite.wings=[-1,1].map(s=>{const p=new THREE.Group();p.position.set(s*.02,.24,-.05);R.add(p);const w=new THREE.Mesh(new THREE.PlaneGeometry(.24,.17),wm);w.position.x=s*.12;w.scale.x=s;p.add(w);return p;});
-  const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:TEX.glow,color:'#bfe4ff',transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:.75}));halo.scale.set(.75,.75,.75);halo.position.y=.24;R.add(halo);sprite.halo=halo;
-  sprite.light=new THREE.PointLight('#cfe6ff',1.5,5.5,2);sprite.light.position.y=.3;R.add(sprite.light);
-}
-
-// ================= particles =================
-const PMAX=900;
-const pPos=new Float32Array(PMAX*3),pCol=new Float32Array(PMAX*3),pSize=new Float32Array(PMAX),pAlpha=new Float32Array(PMAX);
-const pGeo=new THREE.BufferGeometry();
-pGeo.setAttribute('position',new THREE.BufferAttribute(pPos,3));pGeo.setAttribute('aColor',new THREE.BufferAttribute(pCol,3));pGeo.setAttribute('aSize',new THREE.BufferAttribute(pSize,1));pGeo.setAttribute('aAlpha',new THREE.BufferAttribute(pAlpha,1));
-const pMat=new THREE.ShaderMaterial({uniforms:{uScale:{value:innerHeight*Math.min(2,window.devicePixelRatio||1)*.5}},transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
-  vertexShader:'uniform float uScale;attribute vec3 aColor;attribute float aSize;attribute float aAlpha;varying vec3 vC;varying float vA;void main(){vC=aColor;vA=aAlpha;vec4 mv=modelViewMatrix*vec4(position,1.);gl_PointSize=aSize*uScale/max(.1,-mv.z);gl_Position=projectionMatrix*mv;}',
-  fragmentShader:'varying vec3 vC;varying float vA;void main(){float r=length(gl_PointCoord-.5);float a=smoothstep(.5,0.,r);gl_FragColor=vec4(vC,a*vA);}'});
-const pts=new THREE.Points(pGeo,pMat);pts.frustumCulled=false;scene.add(pts);
-const parts=[];
-function emit(x,y,z,vx,vy,vz,r,g,b,size,life,grav,drag){if(parts.length>=PMAX-120)return;parts.push({x,y,z,vx,vy,vz,r,g,b,size,life,max:life,grav:grav||0,drag:drag||0,persist:false});}
-const fireflies=[],dust=[];
-function initAmbientParticles(){
-  for(let i=0;i<40;i++)fireflies.push({x:lerp(-9,9,Math.random()),y:.5+Math.random()*3,z:lerp(-64,-81,Math.random()),ph:Math.random()*10});
-  for(let i=0;i<70;i++)dust.push({x:(Math.random()-.5)*30,y:Math.random()*6,z:(Math.random()-.5)*30,ph:Math.random()*10});
-}
-function updateParticles(dt,t,focus){
-  let n=0;
-  for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.life-=dt;if(p.life<=0){parts.splice(i,1);continue;}
-    p.vy-=p.grav*dt;const d=Math.exp(-p.drag*dt);p.vx*=d;p.vy*=d;p.vz*=d;p.x+=p.vx*dt;p.y+=p.vy*dt;p.z+=p.vz*dt;}
-  const put=(x,y,z,r,g,b,s,a)=>{if(n>=PMAX)return;pPos[n*3]=x;pPos[n*3+1]=y;pPos[n*3+2]=z;pCol[n*3]=r;pCol[n*3+1]=g;pCol[n*3+2]=b;pSize[n]=s;pAlpha[n]=a;n++;};
-  for(const p of parts){const k=p.life/p.max;put(p.x,p.y,p.z,p.r,p.g,p.b,p.size,Math.min(1,k*2));}
-  for(const f of fireflies){f.ph+=dt;const x=f.x+Math.sin(f.ph*.7)*.8,y=f.y+Math.sin(f.ph*1.3)*.4,z=f.z+Math.cos(f.ph*.5)*.8;const a=(.5+.5*Math.sin(f.ph*2.3))*(G.ending?1:.7);put(x,y,z,.95,.85,.45,.09,a);}
-  for(const d of dust){d.ph+=dt*.3;let x=focus.x+d.x+Math.sin(d.ph)*.6,z=focus.z+d.z+Math.cos(d.ph*.8)*.6,y=d.y+Math.sin(d.ph*1.4)*.3;put(x,y,z,1,.9,.7,.035,.35);}
-  pGeo.setDrawRange(0,n);pGeo.attributes.position.needsUpdate=true;pGeo.attributes.aColor.needsUpdate=true;pGeo.attributes.aSize.needsUpdate=true;pGeo.attributes.aAlpha.needsUpdate=true;
-}
-
-// ================= physics =================
-const GRAV=22;
-const GOLEM={speed:3.4,jumpV:Math.sqrt(2*GRAV*1.4)},SPR={speed:5.2,jumpV:Math.sqrt(2*GRAV*1.1)};
-function ov(b,c){return b.pos.x-b.hw<c.max.x&&b.pos.x+b.hw>c.min.x&&b.pos.z-b.hw<c.max.z&&b.pos.z+b.hw>c.min.z&&b.pos.y<c.max.y&&b.pos.y+b.h>c.min.y;}
-function ovBox(a,c){return a.min.x<c.max.x&&a.max.x>c.min.x&&a.min.z<c.max.z&&a.max.z>c.min.z&&a.min.y<c.max.y&&a.max.y>c.min.y;}
-function listFor(b){const out=[],r=b.hw+3;for(const c of colliders){if(!c.on||c===b.col)continue;if(c.kind==='golem'&&b.kind!=='sprite')continue;
-  if(c.max.x<b.pos.x-r||c.min.x>b.pos.x+r||c.max.z<b.pos.z-r||c.min.z>b.pos.z+r)continue;out.push(c);}return out;}
-function freeAt(b,list){for(const c of list)if(ov(b,c))return false;return true;}
-function pushBlock(ax,d){
-  const b=block;if(!b.onGround)return false;const old=b.pos[ax];b.pos[ax]+=d;syncBlock();
-  for(const c of colliders){if(!c.on||c===b.col||c.kind==='golem')continue;if(ovBox(b.col,c)){b.pos[ax]=old;syncBlock();return false;}}
-  return true;
-}
-function moveBody(b,dt,list){
-  const wasGround=b.onGround;b.onGround=false;b.ground=null;
-  const dy=b.vel.y*dt;b.pos.y+=dy;
-  for(const c of list){if(!ov(b,c))continue;const prevY=b.pos.y-dy;
-    if(dy<=0&&prevY>=c.max.y-.05){b.pos.y=c.max.y;b.vel.y=0;b.onGround=true;b.ground=c;}
-    else if(dy>0&&prevY+b.h<=c.min.y+.05){b.pos.y=c.min.y-b.h-1e-4;b.vel.y=0;}}
-  for(const ax of ['x','z']){const d=b.vel[ax]*dt;if(d===0)continue;b.pos[ax]+=d;
-    for(const c of list){if(!ov(b,c))continue;
-      const rise=c.max.y-b.pos.y;
-      if((b.onGround||wasGround)&&rise>0&&rise<=b.stepH){const oy=b.pos.y;b.pos.y=c.max.y+.001;if(freeAt(b,list)){b.onGround=true;continue;}b.pos.y=oy;}
-      if(c.kind==='block'&&b.kind==='golem'&&(b.onGround||wasGround)&&rise>.35){if(pushBlock(ax,d)&&!ov(b,c)){b.pushing=true;continue;}}
-      if(d>0)b.pos[ax]=c.min[ax]-b.hw-1e-4;else b.pos[ax]=c.max[ax]+b.hw+1e-4;b.vel[ax]=0;}}
-}
-function depenetrate(b,c){
-  if(!c.on||!ov(b,c))return;
-  const top=c.max.y-b.pos.y;if(top>0&&top<.25){b.pos.y=c.max.y;return;}
-  const px1=c.max.x-(b.pos.x-b.hw),px2=(b.pos.x+b.hw)-c.min.x,pz1=c.max.z-(b.pos.z-b.hw),pz2=(b.pos.z+b.hw)-c.min.z,m=Math.min(px1,px2,pz1,pz2);
-  if(m===px1)b.pos.x+=px1;else if(m===px2)b.pos.x-=px2;else if(m===pz1)b.pos.z+=pz1;else b.pos.z-=pz2;
-}
-function approach(v,t,m){return v<t?Math.min(t,v+m):Math.max(t,v-m);}
-function angLerp(a,b,t){let d=((b-a+Math.PI)%(Math.PI*2)+Math.PI*2)%(Math.PI*2)-Math.PI;return a+d*t;}
-const dxz=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
-
-// ================= game state =================
-const G={phase:'loading',time:0,falls:0,throws:0,placed:0,ending:false,endT:0,lastFall:'',fallN:0,paused:false};
-function headPos(out){const f=fwd(golem.yaw);return out.set(golem.pos.x+f.x*.15,golem.pos.y+golem.h+.08,golem.pos.z+f.z*.15);}
-const _f=new V3();function fwd(y){return _f.set(Math.sin(y),0,Math.cos(y));}
-
-function resetLevel(){
-  G.time=0;G.falls=0;G.throws=0;G.placed=0;G.ending=false;G.endT=0;G.fallN=0;
-  gate.open=false;gate.t=0;bridge.open=false;bridge.t=0;port.open=false;port.t=0;latch.t=0;
-  for(const l of levers){l.pulled=false;l.t=0;}crank.used=false;crank.t=0;
-  block.pos.copy(block.home);block.vel.set(0,0,0);syncBlock();
-  runes.forEach(r=>{r.state=['rest','perched','vault'][r.i];r.pos.copy(r.home);r.vel.set(0,0,0);r.t=0;});
-  golem.runes=0;golem.holding=false;golem.charging=false;golem.cp=0;sprite.held=false;sprite.cp=0;
-  placeAt(golem,CP[0].g);placeAt(sprite,CP[0].s);golem.yaw=sprite.yaw=Math.PI;
-  W.basinWater.visible=false;W.jet.visible=false;W.fLight.intensity=0;W.sockets.forEach(s=>s.visible=false);
-  hintsShown.clear();camSnap=true;
-}
-function placeAt(b,p){b.pos.set(p[0],p[1],p[2]);b.vel.set(0,0,0);b.onGround=false;}
-
-// ---- interactions ----
-function golemAction(){
-  const g=golem;
-  if(g.runes>0&&dxz(g.pos,F)<4.7){placeRunes();return;}
-  for(const r of runes){if((r.state==='rest'||r.state==='free')&&dxz(g.pos,r.pos)<1.9){const dy=r.pos.y-g.pos.y;if(dy>-.7&&dy<2.2){r.state='carried';g.runes++;return;}}}
-  if(!sprite.held&&dxz(g.pos,sprite.pos)<1.75){const dy=sprite.pos.y-g.pos.y;if(dy>-.7&&dy<2.75){sprite.held=true;g.holding=true;sprite.vel.set(0,0,0);sprite.gliding=false;return;}}
-}
-function placeRunes(){for(const r of runes)if(r.state==='carried'){r.state='placed';G.placed++;}golem.runes=0;}
-function throwSprite(){
-  const g=golem,c=g.charge,f=fwd(g.yaw),hs=3.4+5.4*c,vs=9.2-1.2*c;
-  g.holding=false;g.charging=false;sprite.held=false;
-  headPos(sprite.pos);sprite.pos.x+=f.x*.3;sprite.pos.z+=f.z*.3;
-  if(!freeAt(sprite,listFor(sprite)))headPos(sprite.pos);
-  sprite.vel.set(f.x*hs,vs,f.z*hs);sprite.thrownT=1.0;sprite.yaw=g.yaw;G.throws++;
-}
-function spriteTarget(){
-  const s=sprite;let best=null,bd=1.2;
-  const consider=(obj,p,label)=>{const d=dxz(s.pos,p);if(d<bd&&Math.abs(p.y-s.pos.y)<1.0){bd=d;best={obj,label};}};
-  for(const l of levers)if(!l.pulled)consider(l,l.pos,'Pull the lever');
-  if(!crank.used)consider(crank,crank.pos,'Turn the crank');
-  const r1=runes[1];if(r1.state==='perched')consider(r1,r1.pos,'Nudge the rune stone off');
-  return best;
-}
-function spriteAction(){
-  const t=spriteTarget();if(!t)return;
-  if(t.obj===crank){crank.used=true;bridge.open=true;}
-  else if(t.obj.kind==='rune'){const r=t.obj;r.state='free';r.pos.y+=.05;r.vel.set(-3.8,3.2,2.0);r.onGround=false;}
-  else{t.obj.pulled=true;if(t.obj.id==='gate')gate.open=true;else{const r=runes[2];if(r.state==='vault'){r.state='rolling';r.t=0;}}}
-}
-
-// ---- per-step simulation ----
-const _h=new V3();
-function stepSim(dt,IG,IS){
-  if(G.phase!=='play')return;
-  if(!G.ending)G.time+=dt;
-  if(G.ending){IG=NOIN;IS=NOIN;}
-  const g=golem,s=sprite;
-  g.prev.copy(g.pos);
-  // ---- golem ----
-  if(IG.actP){if(g.holding){g.charging=true;g.charge=0;}else golemAction();}
-  if(g.charging){g.charge=Math.min(1,g.charge+dt/.8);if(!IG.act)throwSprite();}
-  {const len=Math.hypot(IG.mx,IG.mz),k=len>1?1/len:1,mx=IG.mx*k,mz=IG.mz*k;
-   const spd=GOLEM.speed*(g.holding?.8:1)*(g.charging?.35:1)*(g.pushing?.6:1);g.pushing=false;
-   const acc=(g.onGround?16:6)*dt*GOLEM.speed;
-   g.vel.x=approach(g.vel.x,mx*spd,acc);g.vel.z=approach(g.vel.z,mz*spd,acc);
-   if(len>.15)g.yaw=angLerp(g.yaw,Math.atan2(mx,mz),1-Math.exp(-dt*9));
-   if(IG.jumpP&&g.coyote>0&&!g.holding&&!g.charging){g.vel.y=GOLEM.jumpV;g.coyote=0;}
-   g.vel.y-=GRAV*dt;
-   moveBody(g,dt,listFor(g));
-   g.coyote=g.onGround?.12:g.coyote-dt;}
-  g.delta.subVectors(g.pos,g.prev);syncGolemCol();
-  // ---- block ----
-  {block.vel.y-=GRAV*dt;block.vel.x=block.vel.z=0;const l=listFor(block);moveBody(block,dt,l);syncBlock();if(block.pos.y<-4){block.pos.copy(block.home);block.vel.set(0,0,0);syncBlock();}}
-  // ---- sprite ----
-  if(s.held){headPos(s.pos);s.yaw=g.yaw;s.vel.set(0,0,0);s.onGround=false;s.gliding=false;
-    if(IS.jumpP){s.held=false;g.holding=false;g.charging=false;const f=fwd(g.yaw);s.vel.set(IS.mx*2.6+f.x*.6,SPR.jumpV,IS.mz*2.6+f.z*.6);syncGolemCol();}}
-  else{
-    if(IS.actP)spriteAction();
-    if(s.ground===golem.col)s.pos.add(g.delta);
-    depenetrate(s,golem.col);depenetrate(s,block.col);
-    const len=Math.hypot(IS.mx,IS.mz),k=len>1?1/len:1,mx=IS.mx*k,mz=IS.mz*k;
-    s.gliding=!s.onGround&&IS.jump&&s.vel.y<0;
-    const tgt=s.onGround?SPR.speed:(s.gliding?3.2:4.6),acc=s.onGround?42*dt:(len<.15?0:(s.thrownT>0?4:13)*dt);
-    s.vel.x=approach(s.vel.x,mx*tgt,acc);s.vel.z=approach(s.vel.z,mz*tgt,acc);
-    if(s.gliding&&s.thrownT<=0){const hsp=Math.hypot(s.vel.x,s.vel.z);if(hsp>3.6){const kk=Math.max(3.6,hsp-6*dt)/hsp;s.vel.x*=kk;s.vel.z*=kk;}}
-    if(len>.15)s.yaw=angLerp(s.yaw,Math.atan2(mx,mz),1-Math.exp(-dt*14));
-    else if(!s.onGround&&Math.hypot(s.vel.x,s.vel.z)>1)s.yaw=angLerp(s.yaw,Math.atan2(s.vel.x,s.vel.z),1-Math.exp(-dt*8));
-    if(IS.jumpP&&s.coyote>0){s.vel.y=SPR.jumpV;s.coyote=0;}
-    s.vel.y-=GRAV*dt;if(s.gliding)s.vel.y=Math.max(s.vel.y,-1.6);
-    moveBody(s,dt,listFor(s));
-    s.coyote=s.onGround?.1:s.coyote-dt;s.thrownT-=dt;if(s.onGround)s.thrownT=0;
-    s.airT=s.onGround?0:s.airT+dt;
-  }
-  // ---- runes ----
-  for(const r of runes){
-    if(r.state==='rolling'){r.t+=dt/1.4;const a=Math.min(1,r.t);r.pos.set(lerp(-8.6,-4.9,a),0,-47.3);if(a>=1){r.state='free';r.vel.set(.8,0,0);}}
-    else if(r.state==='free'){r.vel.y-=GRAV*dt;const dr=Math.exp(-(r.onGround?7:.6)*dt);r.vel.x*=dr;r.vel.z*=dr;moveBody(r,dt,listFor(r).filter(c=>c.kind!=='golem'));
-      if(r.pos.y<-4){r.pos.set(r.i===1?4.4:-4.5,0,r.i===1?-40:-47.3);r.vel.set(0,0,0);}}
-  }
-  // ---- plates & doors ----
-  for(const p of plates){let w=0;const on=(b,wt)=>{if(Math.abs(b.pos.x-p.x)<p.hw+.05&&Math.abs(b.pos.z-p.z)<p.hw+.05&&b.pos.y<.25&&b.pos.y>-.2&&b.onGround)w+=wt;};
-    on(g,10);on(block,10);if(!s.held)on(s,1);for(const r of runes)if(r.state==='free')on(r,2);p.on=w>=p.need;}
-  if(!port.open){if(plates[0].on&&plates[1].on)latch.t+=dt;else latch.t=Math.max(0,latch.t-dt*1.5);if(latch.t>=1.1){port.open=true;latch.t=1.1;}}
-  gate.t=approach(gate.t,gate.open?1:0,dt/2.4);bridge.t=approach(bridge.t,bridge.open?1:0,dt/2.6);port.t=approach(port.t,port.open?1:0,dt/2.2);
-  for(const l of levers)l.t=approach(l.t,l.pulled?1:0,dt/.35);crank.t=approach(crank.t,crank.used?1:0,dt/2.6);
-  applyDoorColliders();
-  // ---- falls & checkpoints ----
-  for(const b of [g,s]){
-    if(b===s&&s.held)continue;
-    if(b.onGround&&b.pos.y>-.5){for(let i=CP.length-1;i>b.cp;i--)if(b.pos.z<=CP[i].z){b.cp=i;break;}}
-    if(b.pos.y<-5){
-      const p=CP[b.cp][b===g?'g':'s'];placeAt(b,p);G.falls++;G.fallN++;G.lastFall=b===g?'Golem':'Sprite';
-      if(b===g&&g.holding){g.holding=false;g.charging=false;s.held=false;placeAt(s,CP[s.cp].s);}
-      if(b===g)syncGolemCol();
-    }
-  }
-  // ---- ending ----
-  if(!G.ending&&G.placed>=3&&!s.held&&dxz(s.pos,W.spout)<.95&&s.pos.y>3.4&&s.pos.y<5){G.ending=true;G.endT=0;}
-  if(G.ending){G.endT+=dt;if(G.endT>7.5){G.phase='end';}}
-}
-const NOIN={mx:0,mz:0,jump:0,jumpP:0,act:0,actP:0};
-function applyDoorColliders(){
-  gate.col.min.y=gate.base.y0+gate.t*3.5;gate.col.max.y=gate.base.y1+gate.t*3.5;
-  port.col.min.y=port.base.y0+port.t*3.5;port.col.max.y=port.base.y1+port.t*3.5;
-  bridge.col.on=bridge.t>=.97;
-}
-
-// ================= input =================
-const keys={};
-const GAME_KEYS=['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter','Slash','ShiftRight','Tab'];
-addEventListener('keydown',e=>{
-  if(e.target&&e.target.tagName==='INPUT')return;
-  if(GAME_KEYS.includes(e.code))e.preventDefault();
-  initAudio();
-  if(e.repeat)return;keys[e.code]=true;
-  if(e.code==='Escape'){togglePause();}
-  if(e.code==='KeyM')setMuted(!muted);
-  if(e.code==='KeyH'){cardsCollapsed=!cardsCollapsed;$('cardG').classList.toggle('collapsed',cardsCollapsed);$('cardS').classList.toggle('collapsed',cardsCollapsed);}
-  if(G.phase==='brief'&&mode==='local'){if(e.code==='Space')readyG=true;if(e.code==='Enter'||e.code==='KeyO')readyS=true;updateReady();}
-});
-addEventListener('keyup',e=>{keys[e.code]=false;});
-addEventListener('blur',()=>{for(const k in keys)keys[k]=false;});
-let cardsCollapsed=false;
-function padState(i){const ps=navigator.getGamepads?navigator.getGamepads():[];const pads=[];for(const p of ps)if(p&&p.connected)pads.push(p);const p=pads[i];if(!p)return null;
-  const dz=v=>Math.abs(v)<.22?0:v;return {mx:dz(p.axes[0]||0),mz:dz(p.axes[1]||0),jump:!!(p.buttons[0]&&p.buttons[0].pressed),act:!!((p.buttons[2]&&p.buttons[2].pressed)||(p.buttons[1]&&p.buttons[1].pressed))};}
-const K=(...c)=>c.some(k=>keys[k])?1:0;
-function rawLocal(which){ // which: 'g'|'s'
-  let r;
-  if(which==='g')r={mx:K('KeyD')-K('KeyA'),mz:K('KeyS')-K('KeyW'),jump:K('Space'),act:K('KeyE','KeyF')};
-  else r={mx:K('ArrowRight','KeyL')-K('ArrowLeft','KeyJ'),mz:K('ArrowDown','KeyK')-K('ArrowUp','KeyI'),jump:K('Enter','KeyO'),act:K('ShiftRight','KeyU','Slash')};
-  const p=padState(which==='g'?0:1);if(p){if(p.mx||p.mz){r.mx=p.mx;r.mz=p.mz;}r.jump=r.jump||p.jump;r.act=r.act||p.act;}
-  return r;
-}
-function rawOnline(){
-  const r={mx:K('KeyD','ArrowRight')-K('KeyA','ArrowLeft'),mz:K('KeyS','ArrowDown')-K('KeyW','ArrowUp'),jump:K('Space','Enter'),act:K('KeyE','KeyF','ShiftRight')};
-  const p=padState(0);if(p){if(p.mx||p.mz){r.mx=p.mx;r.mz=p.mz;}r.jump=r.jump||p.jump;r.act=r.act||p.act;}return r;
-}
-function edge(state,raw){const o={mx:raw.mx,mz:raw.mz,jump:raw.jump,act:raw.act,jumpP:raw.jump&&!state.j?1:0,actP:raw.act&&!state.a?1:0};state.j=raw.jump;state.a=raw.act;return o;}
-const edgeG={j:0,a:0},edgeS={j:0,a:0},edgeMe={j:0,a:0};
-
-// ================= audio =================
-let AC=null,master=null,muted=false,noiseBuf=null,amb={};
-function initAudio(){
-  if(AC){if(AC.state==='suspended')AC.resume();return;}
-  try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){return;}
-  master=AC.createGain();master.gain.value=muted?0:.7;master.connect(AC.destination);
-  noiseBuf=AC.createBuffer(1,AC.sampleRate*2,AC.sampleRate);const d=noiseBuf.getChannelData(0);let b=0;for(let i=0;i<d.length;i++){const w=Math.random()*2-1;b=.98*b+.02*w;d[i]=w*.5+b*3;}
-  const loop=(type,f,q,vol)=>{const n=AC.createBufferSource();n.buffer=noiseBuf;n.loop=true;const fl=AC.createBiquadFilter();fl.type=type;fl.frequency.value=f;fl.Q.value=q;const g=AC.createGain();g.gain.value=vol;n.connect(fl);fl.connect(g);g.connect(master);n.start();return {g,fl};};
-  amb.wind=loop('bandpass',380,.6,.05);amb.water=loop('lowpass',900,.5,0);amb.glide=loop('bandpass',2200,2,0);amb.grind=loop('lowpass',300,1,0);amb.fount=loop('bandpass',1400,.4,0);
-  birdLoop();
-}
-function birdLoop(){if(!AC)return;setTimeout(birdLoop,2500+Math.random()*6000);if(G.phase!=='play'||muted||document.hidden)return;
-  const base=2200+Math.random()*1600,n=2+Math.floor(Math.random()*4);for(let i=0;i<n;i++)tone(base*(1+Math.random()*.2),base*(.8+Math.random()*.5),.09,'sine',.018,i*.13);}
-function tone(f0,f1,dur,type,vol,delay){if(!AC)return;const t0=AC.currentTime+(delay||0),o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.setValueAtTime(f0,t0);o.frequency.exponentialRampToValueAtTime(Math.max(20,f1),t0+dur);
-  g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(vol,t0+.012);g.gain.exponentialRampToValueAtTime(.0008,t0+dur);o.connect(g);g.connect(master);o.start(t0);o.stop(t0+dur+.05);}
-function noiseHit(dur,vol,freq,type,delay){if(!AC)return;const t0=AC.currentTime+(delay||0),n=AC.createBufferSource();n.buffer=noiseBuf;const f=AC.createBiquadFilter();f.type=type||'lowpass';f.frequency.value=freq;const g=AC.createGain();
-  g.gain.setValueAtTime(vol,t0);g.gain.exponentialRampToValueAtTime(.0008,t0+dur);n.connect(f);f.connect(g);g.connect(master);n.start(t0,Math.random());n.stop(t0+dur+.05);}
-const SFX={
-  thud:v=>{noiseHit(.18,.22*v,160);tone(70,40,.18,'sine',.25*v);},
-  hop:()=>{tone(880,1320,.12,'sine',.06);tone(1320,1760,.1,'sine',.03,.05);},
-  land:()=>tone(660,520,.06,'sine',.03),
-  clunk:()=>{noiseHit(.15,.25,700);tone(180,90,.2,'square',.05);},
-  rumble:d=>{noiseHit(d,.28,120);noiseHit(d*.8,.12,500,'bandpass');},
-  creak:()=>{for(let i=0;i<5;i++)tone(240+i*30,180,.25,'sawtooth',.02,i*.35);noiseHit(2,.1,300);},
-  chime:()=>{[523,659,784].forEach((f,i)=>tone(f,f,1.2,'sine',.07,i*.08));tone(1568,1568,1.4,'sine',.03,.24);},
-  place:()=>{noiseHit(.2,.25,400);[392,494,587].forEach((f,i)=>tone(f,f,1.4,'sine',.07,i*.1));},
-  lift:()=>tone(330,500,.15,'triangle',.06),
-  toss:()=>{noiseHit(.25,.18,1600,'bandpass');tone(500,900,.2,'sine',.05);},
-  splash:()=>{noiseHit(.5,.4,1800);noiseHit(.9,.2,500);},
-  click:()=>{tone(1200,900,.05,'square',.04);noiseHit(.06,.15,2000,'highpass');},
-  swell:()=>{[262,330,392,523,659].forEach((f,i)=>{tone(f,f*1.001,4.5,'sine',.05,i*.35);tone(f*2,f*2,3,'sine',.015,i*.35+.1);});noiseHit(5,.3,1200,'bandpass',.2);},
-};
-function setMuted(m){muted=m;if(master)master.gain.value=m?0:.7;$('bMute').textContent=m?'Unmute sound':'Mute sound';}
-function updateAudio(dt){
-  if(!AC)return;const t=AC.currentTime,focus=camTarget;
-  const nearWater=Math.max(0,1-Math.abs(focus.z+30)/14)*.12+Math.max(0,1-Math.abs(focus.z+56)/8)*.04*(focus.x<0?1:.4);
-  amb.water.g.gain.setTargetAtTime(G.phase==='play'?nearWater:0,t,.4);
-  amb.wind.g.gain.setTargetAtTime(G.phase==='play'||G.phase==='title'?.05+Math.sin(t*.13)*.02:.02,t,.8);
-  amb.glide.g.gain.setTargetAtTime(sprite.gliding&&G.phase==='play'?.04:0,t,.05);
-  amb.grind.g.gain.setTargetAtTime(golem.pushVis>0?.25:0,t,.08);
-  amb.fount.g.gain.setTargetAtTime(G.ending||G.phase==='end'?.12:0,t,.8);
-}
-
-// ================= watchers (sounds, toasts) — run on every client =================
-const WATCH={};
-function watch(key,val,fn){if(!(key in WATCH)){WATCH[key]=val;return;}if(WATCH[key]!==val){const old=WATCH[key];WATCH[key]=val;fn(val,old);}}
-function resetWatch(){for(const k in WATCH)delete WATCH[k];}
-function runWatchers(){
-  watch('gate',gate.open,v=>{if(v){SFX.clunk();SFX.rumble(2.4);toast('The gate grinds open');}});
-  watch('bridge',bridge.open,v=>{if(v){SFX.clunk();SFX.creak();toast('The drawbridge lowers');}});
-  watch('port',port.open,v=>{if(v){SFX.clunk();SFX.rumble(2.2);toast('The portcullis locks open');}});
-  watch('pa',plates[0].on,v=>{if(v)SFX.click();});watch('pb',plates[1].on,v=>{if(v)SFX.click();});
-  levers.forEach((l,i)=>watch('lv'+i,l.pulled,v=>{if(v)SFX.clunk();}));
-  runes.forEach((r,i)=>watch('r'+i,r.state,(v,o)=>{
-    if(v==='carried'){SFX.chime();const n=runes.filter(x=>x.state==='carried'||x.state==='placed').length;toast('Rune stone recovered ('+n+'/3)');}
-    if(v==='placed'){SFX.place();}
-    if(v==='free'&&o==='perched'){SFX.click();}
-    if(v==='rolling'){SFX.rumble(1.4);}
-  }));
-  watch('placed',G.placed,(v)=>{if(v>=3)toast('All three runes are set. Wake the spout!');else if(v>0)toast(v+' of 3 runes set in the fountain');});
-  watch('fallN',G.fallN,()=>{SFX.splash();toast(G.lastFall+' fell. Back to the checkpoint');});
-  watch('held',sprite.held,v=>{if(v)SFX.lift();});
-  watch('throws',G.throws,()=>SFX.toss());
-  watch('ending',G.ending,v=>{if(v){SFX.swell();toast('The fountain wakes');}});
-  watch('sg',sprite.onGround,(v)=>{if(v&&!sprite.held)SFX.land();});
-}
-
-// ================= HUD helpers =================
-let toastT=0,hintT=0;
-function toast(t){$('toast').textContent=t;$('toast').style.opacity=1;toastT=3.2;}
-const hintsShown=new Set();
-function hint(id,text){if(hintsShown.has(id))return;hintsShown.add(id);$('hint').textContent=text;$('hint').style.opacity=1;hintT=8;}
-function keysFor(role){
-  if(mode==='online')return role==='g'?
-    [['Move','WASD / Arrows'],['Jump','Space'],['Pick up · throw','E (hold to charge)']]:
-    [['Move','WASD / Arrows'],['Jump · glide','Space (hold)'],['Interact','E']];
-  return role==='g'?[['Move','W A S D'],['Jump','Space'],['Pick up · throw','E (hold to charge)']]:
-    [['Move','Arrow keys or I J K L'],['Jump · glide','Enter or O (hold)'],['Interact','Right Shift, U or /']];
-}
-function fillKeys(el,role){el.textContent='';for(const [a,b] of keysFor(role)){const s1=document.createElement('span');s1.textContent=a;const s2=document.createElement('span');
-  let main=b,extra='';const pi=b.indexOf(' (');if(pi>=0){main=b.slice(0,pi);extra=b.slice(pi);}
-  main.split(/( or | \/ |, )/).forEach(part=>{if(!part)return;if(/^( or | \/ |, )$/.test(part)){s2.appendChild(document.createTextNode(part));}else{const k=document.createElement('kbd');k.textContent=part;s2.appendChild(k);}});
-  if(extra)s2.appendChild(document.createTextNode(extra));el.append(s1,s2);}}
-function actKey(role){return mode==='online'?'E':(role==='g'?'E':'Right Shift');}
-function jumpKey(role){return mode==='online'?'Space':(role==='g'?'Space':'Enter');}
-function golemPrompt(){
-  const g=golem,k=actKey('g');
-  if(G.ending)return '';
-  if(g.charging)return 'Release '+k+' to throw';
-  if(g.holding)return 'Tap '+k+' for a high lob, or hold '+k+' to charge a long throw';
-  if(g.runes>0&&dxz(g.pos,F)<4.7)return k+': set the rune stones in the fountain';
-  for(const r of runes)if((r.state==='rest'||r.state==='free')&&dxz(g.pos,r.pos)<1.9){const dy=r.pos.y-g.pos.y;if(dy>-.7&&dy<2.2)return k+': take the rune stone';}
-  if(!sprite.held&&dxz(g.pos,sprite.pos)<1.75){const dy=sprite.pos.y-g.pos.y;if(dy>-.7&&dy<2.75)return k+': pick up Sprite';}
-  if(dxz(g.pos,block.pos)<1.8&&g.pos.y<block.pos.y+.3)return 'Walk into the block to push it';
-  return '';
-}
-function spritePrompt(){
-  const s=sprite;if(G.ending)return '';
-  if(s.held)return jumpKey('s')+': leap from Golem\'s hands. Or wait to be thrown';
-  const t=spriteTarget();if(t)return actKey('s')+': '+t.label.toLowerCase();
-  if(!s.onGround&&!s.gliding&&s.vel.y<0)return 'Hold '+jumpKey('s')+' to glide';
-  if(G.placed>=3&&dxz(s.pos,W.spout)<4)return 'Get onto the spout at the top of the fountain';
-  return '';
-}
-function objectiveText(){
-  if(G.ending)return 'The fountain wakes.';
-  if(!gate.open)return 'Open the north gate. Its lever is in a small room behind the east wall, and only Sprite fits through the gap.';
-  if(!bridge.open)return 'Cross the ravine. Golem can pick Sprite up and throw it over to the drawbridge crank.';
-  if(!port.open)return 'Open the portcullis. Hold both pressure plates at once: Golem on the heavy one, Sprite on the small one inside the walled alcove.';
-  if(G.placed<3){const missing=runes.filter(r=>r.state!=='carried'&&r.state!=='placed');if(missing.length)return 'Find the missing rune stones ('+missing.map(r=>r.where.toLowerCase()).join(', ')+'), then bring them to the fountain.';
-    return 'Golem: stand by the fountain and set the rune stones into its rim.';}
-  return 'Wake the fountain. Get Sprite onto the spout at the top. Golem can lift Sprite, and Sprite can leap from its hands.';
-}
-let hudCache={};
-function setText(id,t){if(hudCache[id]!==t){hudCache[id]=t;$(id).textContent=t;}}
-function updateHUD(dt){
-  setText('objText',objectiveText());
-  const rl=$('runeList');const sig=runes.map(r=>r.state).join();
-  if(hudCache.runes!==sig){hudCache.runes=sig;rl.textContent='';for(const r of runes){const d=document.createElement('div');const st=r.state==='carried'?'carried':r.state==='placed'?'placed':'';d.className=st;
-    const a=document.createElement('span');a.textContent=r.where;const b=document.createElement('b');b.textContent=st==='carried'?'With Golem':st==='placed'?'In the fountain':'Not found';d.append(a,b);rl.appendChild(d);}}
-  const inWW=(golem.pos.z<-44||sprite.pos.z<-44)&&!port.open;$('plates').hidden=!inWW;
-  if(inWW){$('plA').classList.toggle('on',plates[0].on);$('plB').classList.toggle('on',plates[1].on);$('latch').firstChild.style.width=(latch.t/1.1*100)+'%';}
-  const m=Math.floor(G.time/60),s=Math.floor(G.time%60);setText('timer',m+':'+(s<10?'0':'')+s);
-  setText('promptG',golemPrompt());setText('promptS',spritePrompt());
-  const ch=$('charge');const showCh=golem.charging&&(mode==='local'||myRole==='g');ch.hidden=!showCh;if(showCh)ch.firstChild.style.width=(golem.charge*100)+'%';
-  if(toastT>0){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;}
-  if(hintT>0){hintT-=dt;if(hintT<=0)$('hint').style.opacity=0;}
-  // contextual first-time hints (for the characters this player controls)
-  const mineG=mode==='local'||myRole==='g',mineS=mode==='local'||myRole==='s';
-  if(G.time>2&&G.time<3)hint('start','Your goal is in the top-left corner. Prompts appear on your control card when something can be used.');
-  if(mineS&&!gate.open&&dxz(sprite.pos,{x:10.5,z:-15.4})<4)hint('hole','Sprite: that small gap in the east wall is just big enough for you.');
-  if(mineG&&runes[0].state==='rest'&&dxz(golem.pos,block.pos)<3)hint('block','Golem: push the stone block against the ledge, then climb up to the rune stone.');
-  if(gate.open&&!bridge.open&&(golem.pos.z<-24||sprite.pos.z<-24))hint('ravine','Too far to jump. Golem: pick Sprite up with '+actKey('g')+'. Hold it to charge a long throw across, and Sprite can glide.');
-  if(bridge.open&&runes[1].state==='perched'&&dxz(golem.pos,runes[1].pos)<6)hint('column','The rune stone is too high. Golem: tap '+actKey('g')+' for a short high lob to land Sprite on top of the column.');
-  if(gate.open&&runes[2].state==='vault'&&dxz(sprite.pos,{x:-6.2,z:-47.3})<4&&mineS)hint('vault','Sprite: crawl into the vault through the slot and pull the lever.');
-  if(!port.open&&(golem.pos.z<-50||sprite.pos.z<-50))hint('plates','The portcullis needs two plates held at the same time. Golem takes the heavy one, and Sprite slips into the alcove on the right.');
-  if(port.open&&(golem.pos.z<-64||sprite.pos.z<-64))hint('fountain','Golem: set the runes into the fountain. Then lift Sprite and let it leap onto the spout.');
-  if(mineS&&sprite.airT>.45&&!sprite.held)hint('glide','Sprite: hold jump while falling to glide.');
-}
-
-// ================= visuals =================
-const camTarget=new V3(0,1,0);let camSnap=true,camDist=12;const PITCH=0.93;
-function updateCamera(dt,t){
-  if(G.phase==='title'||G.phase==='loading'){const a=t*.05;camera.position.set(Math.sin(a)*16,9.5,-8+Math.cos(a)*16);camTarget.set(0,1.5,-10);camera.lookAt(camTarget);return;}
-  const mid=_h.set((golem.pos.x+sprite.pos.x)/2,(golem.pos.y+sprite.pos.y)/2+1,(golem.pos.z+sprite.pos.z)/2);
-  const sep=Math.hypot(golem.pos.x-sprite.pos.x,(golem.pos.z-sprite.pos.z)*1.4);
-  let want=clamp(10+sep*.8,11,26);
-  if(G.ending){want=lerp(want,16,Math.min(1,G.endT/3));mid.set(F.x,2.2,F.z);}
-  const k=camSnap?1:1-Math.exp(-dt*3.5);camTarget.lerp(mid,k);camDist=lerp(camDist,want,camSnap?1:1-Math.exp(-dt*2));camSnap=false;
-  const yaw=G.ending?Math.sin(G.endT*.25)*.5:0;
-  camera.position.set(camTarget.x+Math.sin(yaw)*Math.cos(PITCH)*camDist,camTarget.y+Math.sin(PITCH)*camDist,camTarget.z+Math.cos(yaw)*Math.cos(PITCH)*camDist);
-  camera.lookAt(camTarget);
-}
-function updateVisuals(dt,t){
-  // sun follows action
-  const sun=W.sun;sun.target.position.copy(camTarget);sun.position.copy(camTarget).addScaledVector(W.sunDir,60);
-  const sc=sun.shadow.camera,ext=clamp(camDist*1.1,16,30);if(Math.abs(sc.right-ext)>.5){sc.left=-ext;sc.right=ext;sc.top=ext;sc.bottom=-ext;sc.updateProjectionMatrix();}
-  W.sky.position.copy(camera.position);
-  grassUniform.value=t;
-  // doors
-  gate.group.position.y=gate.t*3.5;port.group.position.y=port.t*3.5;bridge.pivot.rotation.x=-1.45*(1-bridge.t);
-  crank.wheel.rotation.x=crank.t*Math.PI*6;
-  for(const l of levers)l.handle.rotation.z=lerp(-.7,.7,l.t);
-  for(const p of plates){p.mesh.position.y=p.on?-.04:0;p.ring.material.emissiveIntensity=p.on?1.6:.15;}
-  // block
-  block.mesh.position.set(block.pos.x,block.pos.y+.6,block.pos.z);
-  // runes
-  for(const r of runes){
-    const vis=r.state!=='carried'&&r.state!=='placed';r.mesh.visible=vis;r.light.intensity=vis?.9:0;
-    if(vis){const hover=(r.state==='rest'||r.state==='perched')?.28+Math.sin(t*1.8+r.i)*.06:.22;r.mesh.position.set(r.pos.x,r.pos.y+hover,r.pos.z);r.mesh.rotation.y=t*.6+r.i;r.light.position.set(r.pos.x,r.pos.y+.7,r.pos.z);
-      if(Math.random()<dt*6)emit(r.pos.x+(Math.random()-.5)*.4,r.pos.y+.3,r.pos.z+(Math.random()-.5)*.4,0,.4,0,.4,.9,.8,.06,1.2,0,.5);}
-  }
-  W.sockets.forEach((s,i)=>s.visible=i<G.placed);
-  // golem
-  const g=golem,gr=g.root;gr.position.copy(g.pos);gr.rotation.y=g.yaw;
-  const hs=Math.hypot(g.vel.x,g.vel.z);g.anim=lerp(g.anim,clamp(hs/GOLEM.speed,0,1),1-Math.exp(-dt*8));
-  g.walk+=dt*hs*2.1;const sw=Math.sin(g.walk)*g.anim;
-  g.legs[0].rotation.x=sw*.55;g.legs[1].rotation.x=-sw*.55;
-  g.hips.position.y=1.0+Math.abs(Math.cos(g.walk))*.05*g.anim;g.torso.rotation.z=sw*.05;
-  const carry=g.holding?1:0;g.carryA=lerp(g.carryA||0,carry,1-Math.exp(-dt*10));
-  g.arms[0].rotation.x=lerp(-sw*.5,-2.75,g.carryA);g.arms[1].rotation.x=lerp(sw*.5,-2.75,g.carryA);
-  g.arms[0].rotation.z=lerp(-.08,.35,g.carryA);g.arms[1].rotation.z=lerp(.08,-.35,g.carryA);
-  g.torso.rotation.x=lerp(.06,g.charging?-.25*g.charge:-.05,g.carryA)+(g.pushVis>0?.25:0);
-  g.pushVis=Math.max(0,(g.pushVis||0)-dt);if(g.pushing)g.pushVis=.15;
-  g.gems.forEach((m,i)=>m.visible=i<g.runes);
-  const step=Math.floor(g.walk/Math.PI);if(step!==g.stepSound&&g.anim>.3&&g.onGround){g.stepSound=step;SFX.thud(.6+g.anim*.4);if(!reduceMotion&&g.anim>.5)shakeT=Math.max(shakeT,.08);}
-  // sprite
-  const s=sprite,sr=s.root;sr.position.copy(s.pos);sr.rotation.y=s.yaw;
-  const ss=Math.hypot(s.vel.x,s.vel.z);s.walk+=dt*(6+ss*3);
-  const flap=s.gliding?Math.sin(t*30)*.35+.9:(s.onGround?Math.sin(t*6)*.12+.25:Math.sin(t*22)*.5+.6);
-  s.wings[0].rotation.y=-flap;s.wings[1].rotation.y=flap;
-  sr.position.y+=s.onGround?Math.abs(Math.sin(s.walk))*.03*Math.min(1,ss):(.02*Math.sin(t*4));
-  s.halo.material.opacity=.6+Math.sin(t*3)*.12;
-  if(Math.random()<dt*(s.onGround?8:25))emit(s.pos.x+(Math.random()-.5)*.1,s.pos.y+.22,s.pos.z+(Math.random()-.5)*.1,(Math.random()-.5)*.2,.15+Math.random()*.2,(Math.random()-.5)*.2,.75,.88,1,.05,.9,-.1,.6);
-  // ending
-  if(G.ending||G.phase==='end'){
-    const e=G.phase==='end'?8:G.endT;W.jet.visible=true;const js=Math.min(1,e/1.2);W.jet.scale.set(1,js,1);W.jet.position.y=3.6+.7*js;
-    W.basinWater.visible=true;W.basinWater.position.y=lerp(.14,.68,Math.min(1,e/5));W.fLight.intensity=Math.min(2.2,e*.6);
-    if(Math.random()<dt*40){const a=Math.random()*6.28,sp=.6+Math.random()*1.4;emit(F.x,5,F.z,Math.cos(a)*sp,1+Math.random()*1.5,Math.sin(a)*sp,.75,.95,.95,.07,1.4,9,.2);}
-  }
-}
-let shakeT=0;
-
-// ================= online =================
-// Two transports with the same small interface (presence / peers / leave):
-// a direct peer-to-peer link (PeerJS, works from any browser and from the plain file),
-// and the claude.ai live room as a fallback when the peer link can't be made.
-let mode=null,myRole='g',room=null,R=null,role=null,code='',lastSeen=0,partnerSeenEver=false,lastPartnerPres=null,netPaused=false,netBusy=false;
-const HAS_P2P=typeof window.Peer==='function';
-const NET_READY='Online is ready. One of you creates a room, the other joins with its code.';
-const roomP=(async()=>{try{if(!window.claude||typeof window.claude.use!=='function')return null;return await window.claude.use('room');}catch(e){return null;}})();
-function netOk(){return HAS_P2P||!!room;}
-function setNetReady(){['bHostG','bHostS','bJoin'].forEach(id=>$(id).disabled=!netOk()||netBusy);
-  $('netNote').textContent=netOk()?NET_READY:'Online play could not load. Check the internet connection and reload the page. Playing on one keyboard works anywhere.';}
-setNetReady();roomP.then(r=>{room=r;if(!netBusy)setNetReady();});
-function randCode(){const A='ABCDEFGHJKMNPQRSTUVWXYZ';let s='';for(let i=0;i<4;i++)s+=A[Math.floor(Math.random()*A.length)];return s;}
-const P2P_ID='bigsmall-sunken-garden-';
-function p2pRoom(isHost,c){
-  return new Promise((resolve,reject)=>{
-    let peer;try{peer=isHost?new Peer(P2P_ID+c.toLowerCase(),{debug:0}):new Peer(P2P_ID+'guest-'+Math.random().toString(36).slice(2,12),{debug:0});}catch(e){reject('error');return;}
-    const conns=new Set();let mine=null,dirty=false,dead=false,opened=false,cur=null,curT=0;
-    const kill=()=>{dead=true;clearInterval(tick);clearInterval(watch);try{peer.destroy();}catch(e){}};
-    const api={
-      presence(o){mine=o;dirty=true;return Promise.resolve();},
-      peers(){const out=[];for(const k of conns)if(k.open&&k.pres)out.push({sameTab:false,presence:k.pres});return out;},
-      leave(){kill();return Promise.resolve();}
-    };
-    const tick=setInterval(()=>{if(dead||!dirty||!mine)return;dirty=false;for(const k of conns)if(k.open){try{k.send(mine);}catch(e){}}},33);
-    function wire(k){conns.add(k);k.pres=null;
-      k.on('open',()=>{dirty=true;});
-      k.on('data',d=>{if(d&&typeof d==='object')k.pres=d;});
-      const gone=()=>{k.gone=true;conns.delete(k);};k.on('close',gone);k.on('error',gone);}
-    function connect(){
-      if(dead)return;
-      if(peer.disconnected){try{peer.reconnect();}catch(e){}return;}
-      if(cur&&!cur.gone){try{cur.close();}catch(e){}}conns.clear();
-      try{cur=peer.connect(P2P_ID+c.toLowerCase(),{serialization:'json',reliable:true});}catch(e){cur=null;return;}
-      curT=performance.now();if(cur)wire(cur);}
-    // guest: keep trying until the host's room answers, and reconnect if the link drops
-    const watch=isHost?0:setInterval(()=>{if(dead||!opened)return;if(!cur||cur.gone||(!cur.open&&performance.now()-curT>6000))connect();},2000);
-    peer.on('open',()=>{if(dead)return;opened=true;if(!isHost)connect();resolve(api);});
-    peer.on('connection',k=>{if(!isHost||dead)return;for(const o of conns){try{o.close();}catch(e){}}conns.clear();wire(k);});
-    peer.on('disconnected',()=>{if(!dead)setTimeout(()=>{try{if(!dead&&peer.disconnected)peer.reconnect();}catch(e){}},1500);});
-    peer.on('error',e=>{const t=(e&&e.type)||'error';if(!opened){kill();reject(t);}});
-    setTimeout(()=>{if(!opened&&!dead){kill();reject('timeout');}},15000);
-  });
-}
-// returns true when connected to a room transport, 'taken' when the room code is already in use, false on failure
-async function enterRoom(){
-  lastSeen=performance.now();partnerSeenEver=false;lastPartnerPres=null;R=null;
-  if(HAS_P2P){for(let i=0;i<3;i++){try{R=await p2pRoom(role==='host',code);return true;}catch(e){if(e==='unavailable-id')return 'taken';await new Promise(r=>setTimeout(r,800));}}}
-  if(room){let r=room;try{r=await room.join('bs-'+code.toLowerCase());}catch(e){r=room;}R=r;return true;}
-  return false;
-}
-function clearPresence(){if(R)R.presence({c:null,r:null,hr:null,st:null,in:null}).catch(()=>{});}
-async function leaveOnline(){const r=R;clearPresence();R=null;if(r&&r!==room&&r.leave){try{await r.leave();}catch(e){}}}
-function findPartner(){if(!R)return null;const want=role==='host'?'g':'h';for(const p of R.peers()){if(p.sameTab)continue;const pr=p.presence;if(pr&&pr.c===code&&pr.r===want)return p;}return null;}
-const r2=v=>Math.round(v*100)/100;
-function packState(){
-  return {ph:G.phase,t:r2(G.time),
-    g:[r2(golem.pos.x),r2(golem.pos.y),r2(golem.pos.z),r2(golem.yaw),r2(golem.vel.x),r2(golem.vel.z),golem.holding?1:0,golem.charging?1:0,r2(golem.charge),golem.runes,golem.onGround?1:0,golem.pushVis>0?1:0],
-    s:[r2(sprite.pos.x),r2(sprite.pos.y),r2(sprite.pos.z),r2(sprite.yaw),r2(sprite.vel.x),r2(sprite.vel.y),r2(sprite.vel.z),sprite.held?1:0,sprite.gliding?1:0,sprite.onGround?1:0],
-    b:[r2(block.pos.x),r2(block.pos.y),r2(block.pos.z)],
-    r:runes.map(r=>[RS.indexOf(r.state),r2(r.pos.x),r2(r.pos.y),r2(r.pos.z)]),
-    d:[gate.open?1:0,bridge.open?1:0,port.open?1:0,r2(latch.t),plates[0].on?1:0,plates[1].on?1:0,levers[0].pulled?1:0,levers[1].pulled?1:0,crank.used?1:0,r2(gate.t),r2(bridge.t),r2(port.t)],
-    pl:G.placed,en:G.ending?1:0,et:r2(G.endT),f:G.falls,fn:G.fallN,lf:G.lastFall,th:G.throws};
-}
-const RS=['rest','perched','vault','rolling','free','carried','placed'];
-const tgtG=new V3(),tgtS=new V3();
-function applyState(st){
-  if(!st||!Array.isArray(st.g))return;
-  const ph=['brief','play','end'].includes(st.ph)?st.ph:'brief';
-  if(ph==='play'&&G.phase!=='play'){camSnap=true;}
-  G.phase=ph;G.time=+st.t||0;
-  const g=st.g,s=st.s;
-  tgtG.set(+g[0],+g[1],+g[2]);golem.yaw=+g[3];golem.vel.set(+g[4],0,+g[5]);golem.holding=!!g[6];golem.charging=!!g[7];golem.charge=+g[8];golem.runes=g[9]|0;golem.onGround=!!g[10];golem.pushing=!!g[11];
-  tgtS.set(+s[0],+s[1],+s[2]);sprite.yaw=+s[3];sprite.vel.set(+s[4],+s[5],+s[6]);sprite.held=!!s[7];sprite.gliding=!!s[8];sprite.onGround=!!s[9];
-  if(Array.isArray(st.b))block.pos.set(+st.b[0],+st.b[1],+st.b[2]);
-  if(Array.isArray(st.r))st.r.forEach((a,i)=>{const r=runes[i];if(!r||!Array.isArray(a))return;r.state=RS[a[0]]||r.state;r.pos.set(+a[1],+a[2],+a[3]);});
-  const d=st.d||[];gate.open=!!d[0];bridge.open=!!d[1];port.open=!!d[2];latch.t=+d[3]||0;plates[0].on=!!d[4];plates[1].on=!!d[5];levers[0].pulled=!!d[6];levers[1].pulled=!!d[7];crank.used=!!d[8];
-  gate.t=+d[9]||0;bridge.t=+d[10]||0;port.t=+d[11]||0;
-  G.placed=st.pl|0;G.ending=!!st.en;G.endT=+st.et||0;G.falls=st.f|0;G.lastFall=String(st.lf||'');G.fallN=st.fn|0;G.throws=st.th|0;
-}
-function guestSmooth(dt){
-  const k=1-Math.exp(-dt*16);
-  if(golem.pos.distanceTo(tgtG)>4)golem.pos.copy(tgtG);else golem.pos.lerp(tgtG,k);
-  if(sprite.pos.distanceTo(tgtS)>4||sprite.held)sprite.pos.copy(tgtS);else sprite.pos.lerp(tgtS,k);
-  for(const l of levers)l.t=approach(l.t,l.pulled?1:0,dt/.35);crank.t=approach(crank.t,crank.used?1:0,dt/2.6);
-}
-let guestJN=0,guestAN=0,lastPush=0,lastIn='';
-function pushGuest(now){const r=rawOnline();
-  if(r.jump&&!edgeMe.j)guestJN++;if(r.act&&!edgeMe.a)guestAN++;edgeMe.j=r.jump;edgeMe.a=r.act;
-  const inp=[r2(r.mx),r2(r.mz),r.jump,guestJN,r.act,guestAN];const sig=inp.join();
-  if(sig!==lastIn||now-lastPush>300){lastIn=sig;lastPush=now;R.presence({c:code,r:'g',in:inp}).catch(()=>{});}}
-const partnerEdge={jn:-1,an:-1};
-function partnerInput(p){
-  const a=p&&p.presence&&Array.isArray(p.presence.in)?p.presence.in:null;if(!a)return NOIN;
-  const jn=a[3]|0,an=a[5]|0;const jumpP=partnerEdge.jn>=0&&jn!==partnerEdge.jn?1:0,actP=partnerEdge.an>=0&&an!==partnerEdge.an?1:0;partnerEdge.jn=jn;partnerEdge.an=an;
-  return {mx:clamp(+a[0]||0,-1,1),mz:clamp(+a[1]||0,-1,1),jump:a[2]?1:0,act:a[4]?1:0,jumpP,actP};
-}
-
-// ================= screens =================
-function show(id){if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();for(const s of ['scrTitle','scrBrief','scrPause','scrEnd'])$(s).hidden=s!==id;$('hud').hidden=!(G.phase==='play');}
-let readyG=false,readyS=false;
-function updateReady(){
-  $('readyG').classList.toggle('on',readyG);$('readyS').classList.toggle('on',readyS);
-  $('readyG').innerHTML='';$('readyS').innerHTML='';
-  const mk=(el,name,key,on)=>{el.append(name+': '+(on?'ready':'press '));if(!on){const k=document.createElement('kbd');k.textContent=key;el.append(k,' when ready');}};
-  mk($('readyG'),'Golem','Space',readyG);mk($('readyS'),'Sprite','Enter',readyS);
-  if(mode==='local'&&readyG&&readyS&&G.phase==='brief')startPlay();
-}
-function openBrief(){
-  G.phase='brief';readyG=readyS=false;
-  fillKeys($('keysG'),'g');fillKeys($('keysS'),'s');
-  const online=mode==='online';
-  $('lobbyInfo').hidden=!online;$('readyRow').hidden=online;$('lobbyText').hidden=!online;
-  $('briefEyebrow').textContent=online?'Online room':'Before you set out';
-  $('whoG').textContent=online?(myRole==='g'?'(you)':'(partner)'):'(left hand)';$('whoS').textContent=online?(myRole==='s'?'(you)':'(partner)'):'(right hand)';
-  $('bBegin').hidden=online&&role!=='host';
-  updateReady();show('scrBrief');
-}
-function startPlay(){
-  if(mode!=='online'||role==='host'){resetLevel();}
-  G.phase='play';G.paused=false;resetWatch();hudCache={};
-  fillKeys($('ckeysG'),'g');fillKeys($('ckeysS'),'s');fillKeys($('pkeysG'),'g');fillKeys($('pkeysS'),'s');
-  const online=mode==='online';
-  $('cardG').hidden=online&&myRole!=='g';$('cardS').hidden=online&&myRole!=='s';
-  $('cardG').classList.toggle('solo',online);$('cardS').classList.toggle('solo',online);
-  $('cardGName').textContent=online&&myRole==='g'?'Golem (you)':'Golem';$('cardSName').textContent=online&&myRole==='s'?'Sprite (you)':'Sprite';
-  show(null);camSnap=true;
-}
-function togglePause(){
-  if(G.phase!=='play')return;
-  const open=$('scrPause').hidden;
-  if(open){G.paused=mode==='local';$('pauseEyebrow').textContent=mode==='local'?'Paused':'Menu (the game keeps running online)';$('pauseObj').textContent=objectiveText();$('bRestart').hidden=mode==='online'&&role!=='host';$('scrPause').hidden=false;}
-  else{G.paused=false;$('scrPause').hidden=true;}
-}
-function toTitle(){if(mode==='online')leaveOnline();mode=null;G.phase='title';G.paused=false;show('scrTitle');}
-function showEnd(){
-  const dl=$('endStats');dl.textContent='';const m=Math.floor(G.time/60),s=Math.floor(G.time%60);
-  const add=(a,b)=>{const dt=document.createElement('dt');dt.textContent=a;const dd=document.createElement('dd');dd.textContent=b;dl.append(dt,dd);};
-  add('Time',m+' min '+s+' s');add('Rune stones','3 of 3');add('Sprite throws',String(G.throws));add('Falls into the ravine',String(G.falls));
-  $('bAgain').hidden=mode==='online'&&role!=='host';show('scrEnd');
-}
-$('bLocal').onclick=()=>{initAudio();mode='local';myRole='g';role=null;resetLevel();openBrief();};
-$('bOnline').onclick=()=>{initAudio();$('onlineBox').hidden=!$('onlineBox').hidden;};
-function netWorking(on,msg){netBusy=on;setNetReady();if(msg)$('netNote').textContent=msg;}
-const host=async r=>{if(!netOk()||netBusy)return;initAudio();netWorking(true,'Creating a room...');mode='online';role='host';myRole=r;
-  let ok=false;for(let i=0;i<4&&ok!==true;i++){code=randCode();ok=await enterRoom();}
-  if(ok!==true){mode=null;role=null;netWorking(false,'Could not create a room. Check the internet connection and try again.');return;}
-  netWorking(false);$('lobbyCode').textContent=code;resetLevel();openBrief();};
-$('bHostG').onclick=()=>host('g');$('bHostS').onclick=()=>host('s');
-$('bJoin').onclick=async()=>{if(!netOk()||netBusy)return;initAudio();const c=$('codeIn').value.toUpperCase().replace(/[^A-Z]/g,'');if(c.length!==4){$('netNote').textContent='Room codes are 4 letters. Check the code your partner sent.';return;}
-  netWorking(true,'Connecting...');mode='online';role='guest';myRole='s';code=c;const ok=await enterRoom();
-  if(ok!==true){mode=null;role=null;netWorking(false,'Could not connect. Check the internet connection and try again.');return;}
-  netWorking(false);$('lobbyCode').textContent=code;resetLevel();openBrief();};
-$('codeIn').addEventListener('keydown',e=>{if(e.key==='Enter')$('bJoin').click();});
-$('bBegin').onclick=()=>{initAudio();if(mode==='local')startPlay();else if(role==='host'&&findPartner())startPlay();};
-$('bBriefBack').onclick=toTitle;
-$('bResume').onclick=togglePause;
-$('bRestart').onclick=()=>{$('scrPause').hidden=true;resetLevel();G.paused=false;resetWatch();};
-$('bMute').onclick=()=>setMuted(!muted);
-$('bQuit').onclick=()=>{$('scrPause').hidden=true;toTitle();};
-$('bAgain').onclick=()=>{startPlay();};
-$('bEndMenu').onclick=toTitle;
-function lobbyTick(){
-  if(G.phase!=='brief'||mode!=='online')return;
-  const p=findPartner();
-  if(role==='host'){$('bBegin').disabled=!p;$('lobbyText').textContent=p?'Your partner is here. They play '+(myRole==='g'?'Sprite':'Golem')+'. Press Begin when you have both read the controls.':'Send this code to your partner. They choose Play online, type it and press Join room.';}
-  else{$('lobbyText').textContent=p?'Connected. Waiting for your partner to press Begin. You play '+(myRole==='g'?'Golem':'Sprite')+'.':'Looking for room '+code+'. Ask your partner to create the room first, and check the code.';
-    $('whoG').textContent=myRole==='g'?'(you)':'(partner)';$('whoS').textContent=myRole==='s'?'(you)':'(partner)';}
-}
-
-// ================= main loop =================
-let last=performance.now(),acc=0;const STEP=1/60;
-function frame(now){
-  requestAnimationFrame(frame);
-  const dt=Math.min(.05,(now-last)/1000);last=now;const t=now/1000;
-  netPaused=false;
-  if(mode==='online'&&R){
-    const p=findPartner();if(p){lastSeen=now;partnerSeenEver=true;}
-    if(role==='host'){
-      const pin=partnerInput(p);
-      if(G.phase==='play'&&!G.paused){
-        netPaused=now-lastSeen>2500;
-        if(!netPaused){acc+=dt;let first=true;while(acc>=STEP){const me=edge(edgeMe,rawOnline());const mine=first?me:Object.assign({},me,{jumpP:0,actP:0});const theirs=first?pin:Object.assign({},pin,{jumpP:0,actP:0});
-          if(myRole==='g')stepSim(STEP,mine,theirs);else stepSim(STEP,theirs,mine);acc-=STEP;first=false;}} else acc=0;
-      }
-      R.presence({c:code,r:'h',hr:myRole,st:packState()}).catch(()=>{});
-    } else {
-      if(p&&p.presence!==lastPartnerPres){lastPartnerPres=p.presence;myRole=p.presence.hr==='s'?'g':'s';
-        const was=G.phase;applyState(p.presence.st);
-        if(was!=='play'&&G.phase==='play')startPlay();}
-      if(G.phase==='play'){guestSmooth(dt);netPaused=partnerSeenEver&&now-lastSeen>2500;}
-      pushGuest(now);
-    }
-    lobbyTick();
-  } else if(mode==='local'&&G.phase==='play'&&!G.paused){
-    acc+=dt;let first=true;while(acc>=STEP){const ig=edge(edgeG,rawLocal('g')),is=edge(edgeS,rawLocal('s'));
-      if(!first){ig.jumpP=ig.actP=0;is.jumpP=is.actP=0;}stepSim(STEP,ig,is);acc-=STEP;first=false;}
-  } else acc=0;
-  if(G.phase==='play'){
-    if(golem.pushing)golem.pushVis=.15;
-    runWatchers();updateHUD(dt);
-    if(netPaused&&$('scrPause').hidden){$('pauseEyebrow').textContent='Waiting';$('pauseObj').textContent='Your partner disconnected. The game continues as soon as they are back in room '+code+'.';$('scrPause').hidden=false;}
-    if(!netPaused&&mode==='online'&&$('pauseEyebrow').textContent==='Waiting'){$('scrPause').hidden=true;$('pauseEyebrow').textContent='Menu';}
-  }
-  if(G.phase==='end'&&$('scrEnd').hidden){$('hud').hidden=true;showEnd();}
-  if(mode==='online'&&role==='guest'&&G.phase==='brief'&&!$('scrEnd').hidden){openBrief();}
-  updateCamera(dt,t);
-  if(shakeT>0&&!reduceMotion){shakeT-=dt;camera.position.y+=(Math.random()-.5)*.05;}
-  if(G.phase!=='loading'){updateVisuals(dt,t);updateParticles(dt,t,camTarget);updateAudio(dt);}
-  renderer.render(scene,camera);
-}
-document.addEventListener('visibilitychange',()=>{if(!AC)return;if(document.hidden)AC.suspend();else if(!muted)AC.resume();});
-
-// ================= boot =================
-function boot(){
-  try{
-    buildTextures();buildMaterials();buildWorld();buildInteractives();buildGolem();buildSprite();initAmbientParticles();
-    resetLevel();
-  }catch(e){console.error(e);$('loading').textContent='Something went wrong while building the garden: '+e.message;return;}
-  $('loading').hidden=true;G.phase='title';show('scrTitle');
-  if(matchMedia('(pointer: coarse)').matches&&!matchMedia('(pointer: fine)').matches){$('netNote').textContent='This game needs a keyboard or gamepads. On a phone or tablet it can only be watched.';}
-  requestAnimationFrame(t=>{last=t;frame(t);});
-}
-// expose a small debug handle for testing
-window.__bs={G,golem,sprite,get block(){return block;},runes,gate,bridge,port,plates,levers,get crank(){return crank;},latch,stepSim,resetLevel,startLocal:()=>{mode='local';resetLevel();startPlay();},NOIN,W};
-setTimeout(boot,30);
-})();
-</script>
-
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.149.0/examples/jsm/"}}</script>
+<script type="module" src="game.js"></script>
 </body>
 </html>
