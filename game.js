@@ -1,4 +1,4 @@
-// Big & Small v2. Built from v2src/*.js. Three.js r149 (ES modules), KayKit characters (CC0, Kay Lousberg).
+// Big & Small. Built from dev/src/*.js by dev/build.sh. Three.js r149 (ES modules), KayKit characters (CC0, Kay Lousberg).
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 (() => {
