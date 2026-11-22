@@ -52,14 +52,14 @@ function buildTextures(){
   // grass: two greens in big soft patches
   TEX.grass=genTex(256,(u,v,o)=>{
     const n=fbm(u*3,v*3,3,3,11),d=fbm(u*2+7,v*2,2,2,12);
-    o[0]=lerp(92,118,n);o[1]=lerp(150,172,n);o[2]=lerp(78,92,n);
-    mixc(o,132,166,98,smooth(.55,.75,d)*.4);});
+    o[0]=lerp(104,130,n);o[1]=lerp(168,190,n);o[2]=lerp(86,100,n);
+    mixc(o,148,186,108,smooth(.55,.75,d)*.4);});
   // paving: large square slabs, gentle grout
   TEX.pave=genTex(256,(u,v,o)=>{
     const C=3,px=u*C,py=v*C,ix=Math.floor(px),iy=Math.floor(py),fx=px-ix,fy=py-iy;
     const e=Math.min(fx,1-fx,fy,1-fy),id=hash2(ix%C,iy%C,23),n=fbm(u*4,v*4,4,2,31);
-    const tone=.95+.08*id+(n-.5)*.06;o[0]=186*tone;o[1]=170*tone;o[2]=146*tone;
-    mixc(o,160,146,122,(1-smooth(.015,.035,e))*.9);});
+    const tone=.95+.08*id+(n-.5)*.06;o[0]=192*tone;o[1]=190*tone;o[2]=182*tone;
+    mixc(o,150,146,138,(1-smooth(.015,.035,e))*.9);});
   TEX.wood=genTex(128,(u,v,o)=>{
     const P=4,pu=u*P,pi=Math.floor(pu),fu=pu-pi,g=fbm(fu*2+pi*7.3,v*6,1e6,2,51);
     const t=.92+.14*g+(hash2(pi,0,53)-.5)*.12;o[0]=178*t;o[1]=118*t;o[2]=72*t;
@@ -103,11 +103,13 @@ const M={};
 function buildMaterials(){
   const lam=o=>new THREE.MeshLambertMaterial(o);
   M.wall=lam({map:TEX.wall});
-  M.wallTop=lam({color:'#e3c99c'});
-  M.stone=lam({color:'#d9c29b'});
+  // palette: sandstone walls, terracotta trim on every top/edge, cream carved stone, blue-grey movable block, teal = runes only
+  M.wallTop=lam({color:'#b9784a'});
+  M.stone=lam({color:'#d3bb93'});
+  M.block=lam({color:'#5b88c0'});M.blockTop=lam({color:'#86acd8'});
   M.ground=lam({map:TEX.grass});
   M.pave=lam({map:TEX.pave});
-  M.rock=lam({color:'#b9b2a6',flatShading:true});
+  M.rock=lam({color:'#7b746a',flatShading:true});
   M.cliff=lam({color:'#c9a983',flatShading:true});
   M.cliffDark=lam({color:'#a88a68',flatShading:true});
   M.wood=lam({map:TEX.wood});
@@ -118,12 +120,12 @@ function buildMaterials(){
   M.bark=lam({color:'#8d6446',flatShading:true});
   M.terracotta=lam({color:'#df8d5d',flatShading:true});
   M.tuft=lam({color:'#5fae45',flatShading:true});
-  M.rune=new THREE.MeshStandardMaterial({color:'#7d8c8a',emissive:new THREE.Color('#38f2cf'),emissiveMap:TEX.glyph,emissiveIntensity:1.4,roughness:.6,flatShading:true});
+  M.rune=new THREE.MeshStandardMaterial({color:'#2fd6c0',emissive:new THREE.Color('#14b59f'),emissiveIntensity:.9,roughness:.35,metalness:.1,flatShading:true});
   M.gem=new THREE.MeshStandardMaterial({color:'#1ec9b3',emissive:'#4ff6d8',emissiveIntensity:1.2,roughness:.3});
-  M.socket=lam({color:'#55606a'});
+  M.socket=lam({color:'#4a3a33'});
   M.water=new THREE.MeshStandardMaterial({color:'#3fc3d8',roughness:.15,metalness:.1,transparent:true,opacity:.88});
   M.jet=new THREE.MeshStandardMaterial({color:'#dff7ff',emissive:'#7fd9ec',emissiveIntensity:.35,roughness:.1,transparent:true,opacity:.7,depthWrite:false});
-  M.plate=lam({color:'#e3cfa2'});
+  M.plate=lam({color:'#6c5a4b'});
   M.plateRing=new THREE.MeshBasicMaterial({color:'#1fb3a3'});
   M.handle=lam({color:'#e8553d'});
   M.gold=new THREE.MeshStandardMaterial({color:'#f2c14e',roughness:.4,metalness:.4});
@@ -146,6 +148,7 @@ function tileFor(m){return TILE.get(m)||2;}
 const colliders=[];
 const fadeables=[]; // meshes that turn see-through when they hide a player
 function markFade(mesh,linked){mesh.userData.fade={o:1,t:1,linked:linked||[]};fadeables.push(mesh);}
+function markFadeGroup(list){const lead=list[0];markFade(lead,list.slice(1));for(const m of list.slice(1)){m.userData.fade={leader:lead};fadeables.push(m);}}
 function box(xa,xb,ya,yb,za,zb,mat,opt){
   opt=opt||{};
   const x0=Math.min(xa,xb),x1=Math.max(xa,xb),y0=Math.min(ya,yb),y1=Math.max(ya,yb),z0=Math.min(za,zb),z1=Math.max(za,zb);
@@ -245,9 +248,9 @@ function buildWorld(){
     fragmentShader:'varying vec3 vD;void main(){float h=clamp(vD.y,0.,1.);vec3 zen=vec3(.38,.66,.93);vec3 hor=vec3(.81,.91,.95);vec3 c=mix(hor,zen,pow(h,.6));gl_FragColor=vec4(c,1.);}'});
   W.sky=new THREE.Mesh(new THREE.SphereGeometry(400,32,16),skyMat);scene.add(W.sky);
   // ---------- light: bright day, soft shadows ----------
-  scene.add(new THREE.HemisphereLight('#e6f4ff','#8fa878',0.85));
+  scene.add(new THREE.HemisphereLight('#e3f0ff','#7f9a6a',0.62));
   W.sunDir=new V3(-0.45,0.8,0.4).normalize();
-  const sun=new THREE.DirectionalLight('#fff4e0',1.05);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
+  const sun=new THREE.DirectionalLight('#fff2dc',0.92);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
   const sc=sun.shadow.camera;sc.left=-24;sc.right=24;sc.top=24;sc.bottom=-24;sc.near=1;sc.far=140;sun.shadow.bias=-0.0005;sun.shadow.normalBias=0.03;sun.shadow.radius=4;
   scene.add(sun);scene.add(sun.target);W.sun=sun;
 
@@ -274,7 +277,7 @@ function buildWorld(){
   // rune ledge
   box(-10,-6.5,0,2.4,-6,-10,M.wall);box(-10.06,-6.44,2.4,2.52,-5.94,-10.06,M.wallTop,{collide:false,fade:false});
   // gate wall
-  wall(-11,-2,-22,-23,4.5); wall(2,11,-22,-23,4.5); box(-2,2,3.6,4.5,-22,-23,M.wall); invis(-2,2,4.5,14,-22,-23);
+  wall(-11,-2,-22,-23,4.5); wall(2,11,-22,-23,4.5); box(-2,2,3.6,4.5,-22,-23,M.wall,{fade:true}); invis(-2,2,4.5,14,-22,-23);
   // decor
   addColumn(6.5,-3,3.2,.42,false);addColumn(6.5,-9,1.6,.42,true);addColumn(-6.5,1,2.4,.42,true);addColumn(-4,-19,3.4,.42,false);addColumn(4.5,-19,3.4,.42,false);
   const fallen=new THREE.Mesh(new THREE.CylinderGeometry(.4,.42,2.6,12),M.stone);fallen.rotation.z=Math.PI/2;fallen.rotation.y=.6;fallen.position.set(4.6,.4,-12.5);fallen.castShadow=fallen.receiveShadow=true;scene.add(fallen);box(3.4,5.8,0,.8,-12,-13.2,null);
@@ -308,7 +311,7 @@ function buildWorld(){
   const ch=new THREE.Mesh(new THREE.PlaneGeometry(.9,10),M.water);ch.rotation.x=-Math.PI/2;ch.position.set(-8.6,.22,-56);scene.add(ch);
   const pipe=new THREE.Mesh(new THREE.CylinderGeometry(.18,.18,10,10),M.iron);pipe.rotation.x=Math.PI/2;pipe.position.set(9.7,2.4,-50);pipe.castShadow=true;scene.add(pipe);
   // portcullis wall
-  wall(-11,-2,-62,-62.6,4.5);wall(2,11,-62,-62.6,4.5);box(-2,2,3.6,4.5,-62,-62.6,M.wall);invis(-2,2,4.5,14,-62,-62.6);
+  wall(-11,-2,-62,-62.6,4.5);wall(2,11,-62,-62.6,4.5);box(-2,2,3.6,4.5,-62,-62.6,M.wall,{fade:true});invis(-2,2,4.5,14,-62,-62.6);
   addUrn(-3.5,-60.5,1);addUrn(3.5,-60.5,1);addRock(3,.15,-46,.45,9.9,false);
   // ---------- AREA 4: fountain chamber ----------
   floorSlab(-11,11,-62.6,-83,M.pave,false);
@@ -327,7 +330,7 @@ function buildFountain(){
   box(F.x-2.8,F.x+2.8,0,.8,F.z+2.8,F.z-2.8,null);
   const col=new THREE.Mesh(new THREE.CylinderGeometry(.42,.55,2.6,14),M.stone);col.position.set(F.x,.8+1.3,F.z);col.castShadow=col.receiveShadow=true;scene.add(col);
   const bpts=[[.01,0],[.3,.02],[.62,.2],[.72,.34],[.62,.36],[.4,.22],[.01,.2]].map(p=>new THREE.Vector2(p[0],p[1]));
-  const bowl=new THREE.Mesh(new THREE.LatheGeometry(bpts,28),M.wallTop);bowl.position.set(F.x,3.38,F.z);bowl.castShadow=true;scene.add(bowl);
+  const bowl=new THREE.Mesh(new THREE.LatheGeometry(bpts,28),M.stone);bowl.position.set(F.x,3.38,F.z);bowl.castShadow=true;scene.add(bowl);
   markFade(col,[bowl]);
   box(F.x-.72,F.x+.72,.8,3.6,F.z-.72,F.z+.72,null);
   W.spout=new V3(F.x,3.6,F.z);
@@ -368,10 +371,10 @@ const gate={t:0,open:false},bridge={t:0,open:false},port={t:0,open:false},latch=
 const levers=[],plates=[];let crank=null,block=null;const runes=[];
 function buildInteractives(){
   // gate (wood + iron)
-  gate.group=new THREE.Group();
-  for(let i=0;i<6;i++){box(-2+i*.667,-2+(i+1)*.667-.04,0,3.6,-22.32,-22.68,M.wood,{parent:gate.group,collide:false});}
-  for(const y of [.6,1.8,3.0]) box(-2,2,y,y+.16,-22.25,-22.75,M.iron,{parent:gate.group,collide:false});
-  scene.add(gate.group);
+  gate.group=new THREE.Group();const gParts=[];
+  for(let i=0;i<6;i++){gParts.push(box(-2+i*.667,-2+(i+1)*.667-.04,0,3.6,-22.32,-22.68,M.wood,{parent:gate.group,collide:false}).mesh);}
+  for(const y of [.6,1.8,3.0]) gParts.push(box(-2,2,y,y+.16,-22.25,-22.75,M.iron,{parent:gate.group,collide:false}).mesh);
+  scene.add(gate.group);markFadeGroup(gParts);
   gate.col=box(-2,2,0,3.6,-22.25,-22.75,null,{kind:'door'});gate.base={y0:0,y1:3.6};
   // drawbridge (pivot at far edge)
   bridge.pivot=new THREE.Group();bridge.pivot.position.set(0,0,-33);scene.add(bridge.pivot);
@@ -380,10 +383,10 @@ function buildInteractives(){
   bridge.col=box(-1.5,1.5,-.3,0,-27,-33,null,{kind:'door'});bridge.col.on=false;
   box(-1.9,-1.6,0,2.2,-33.1,-33.5,M.stone);box(1.6,1.9,0,2.2,-33.1,-33.5,M.stone);
   // portcullis
-  port.group=new THREE.Group();
-  for(let i=0;i<9;i++)box(-2+i*.5-.05,-2+i*.5+.05,0,3.6,-62.22,-62.38,M.iron,{parent:port.group,collide:false});
-  for(const y of [.4,1.3,2.2,3.1])box(-2,2,y,y+.1,-62.2,-62.4,M.iron,{parent:port.group,collide:false});
-  scene.add(port.group);
+  port.group=new THREE.Group();const pParts=[];
+  for(let i=0;i<9;i++)pParts.push(box(-2+i*.5-.05,-2+i*.5+.05,0,3.6,-62.22,-62.38,M.iron,{parent:port.group,collide:false}).mesh);
+  for(const y of [.4,1.3,2.2,3.1])pParts.push(box(-2,2,y,y+.1,-62.2,-62.4,M.iron,{parent:port.group,collide:false}).mesh);
+  scene.add(port.group);markFadeGroup(pParts);
   port.col=box(-2,2,0,3.6,-62.1,-62.5,null,{kind:'door'});port.base={y0:0,y1:3.6};
   // levers
   levers.push(makeLever(13.9,-15.4,-Math.PI/2,'gate'),makeLever(-9.3,-46.1,Math.PI/2,'vault'));
@@ -395,10 +398,11 @@ function buildInteractives(){
   for(let k=0;k<4;k++){const sp=new THREE.Mesh(new THREE.BoxGeometry(.06,.62,.06),M.gold);sp.rotation.z=k*Math.PI/4;crank.wheel.add(sp);}
   const axle=new THREE.Mesh(new THREE.CylinderGeometry(.07,.07,.4,8),M.iron);axle.position.set(2.9,1.05,-34.4);axle.rotation.z=Math.PI/2;scene.add(axle);
   // plates
-  plates.push(makePlate(-5,-55,1.0,8,'heavy'),makePlate(8.3,-55.8,.5,1,'light'));
+  plates.push(makePlate(-5,-55,1.0,8,'heavy','#f2873a'),makePlate(8.3,-55.8,.5,1,'light','#22bf9c'));
   // push block
   block={pos:new V3(-2,0,-7),vel:new V3(),hw:.6,h:1.2,kind:'block',stepH:0,onGround:false,home:new V3(-2,0,-7)};
-  block.mesh=new THREE.Mesh(boxGeo(1.2,1.2,1.2,2.4,0,0,0),M.wall);block.mesh.castShadow=block.mesh.receiveShadow=true;scene.add(block.mesh);
+  block.mesh=new THREE.Mesh(new THREE.BoxGeometry(1.2,1.2,1.2),M.block);block.mesh.castShadow=block.mesh.receiveShadow=true;scene.add(block.mesh);
+  const btop=new THREE.Mesh(new THREE.BoxGeometry(1.26,.14,1.26),M.blockTop);btop.position.y=.6;btop.castShadow=true;block.mesh.add(btop);
   block.col=box(0,1,0,1,0,1,null,{kind:'block'});block.col.body=block;syncBlock();
   // runes
   runes.push(makeRune(0,new V3(-8.3,2.4,-8),'rest','Courtyard ledge'),makeRune(1,new V3(6.4,3.8,-38.8),'perched','Ravine column'),makeRune(2,new V3(-8.6,0,-47.3),'vault','Waterworks vault'));
@@ -414,13 +418,13 @@ function makeLever(x,z,rot,id){
   box(x-.22,x+.22,0,.42,z-.22,z+.22,null);
   return {id,pos:new V3(x,0,z),handle,t:0,pulled:false};
 }
-function makePlate(x,z,hw,need,label){
+function makePlate(x,z,hw,need,label,ringColor){
   const m=new THREE.Mesh(boxGeo(hw*2,.12,hw*2,3,0,0,0),M.plate);m.position.set(x,0,z);m.receiveShadow=true;scene.add(m);
-  const ring=new THREE.Mesh(new THREE.RingGeometry(hw*.55,hw*.7,32),M.plateRing.clone());ring.rotation.x=-Math.PI/2;ring.position.set(x,.065,z);ring.material.transparent=true;ring.material.opacity=.5;scene.add(ring);
+  const ring=new THREE.Mesh(new THREE.RingGeometry(hw*.5,hw*.72,32),M.plateRing.clone());ring.material.color.set(ringColor);ring.rotation.x=-Math.PI/2;ring.position.set(x,.065,z);ring.material.transparent=true;ring.material.opacity=.5;scene.add(ring);
   return {x,z,hw,need,label,on:false,mesh:m,ring};
 }
 function makeRune(i,pos,state,where){
-  const m=new THREE.Mesh(lowPoly(.22,.32,.22,0,i*3.3,.2),M.rune);m.castShadow=true;scene.add(m);
+  const m=new THREE.Mesh(new THREE.OctahedronGeometry(.3,0),M.rune);m.scale.set(.85,1.25,.85);m.castShadow=true;scene.add(m);
   const light=new THREE.PointLight('#6ff0d4',.8,4,2);scene.add(light);
   const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:TEX.glow,color:'#5ff3cf',transparent:true,depthWrite:false,opacity:.7}));glow.scale.set(1.3,1.3,1);scene.add(glow);
   return {i,where,state,pos:pos.clone(),home:pos.clone(),vel:new V3(),hw:.2,h:.42,kind:'rune',stepH:.1,onGround:false,mesh:m,light,glow,t:0};
@@ -966,16 +970,16 @@ function setOpacity(o,a){
   const m=o.material;m.transparent=a<.999;m.opacity=a;m.depthWrite=a>.98;
 }
 function updateFades(dt){
-  for(const m of fadeables)m.userData.fade.t=1;
+  for(const m of fadeables){const f=m.userData.fade;if(!f.leader)f.t=1;}
   if(G.phase==='play'||G.phase==='end'){
     const probes=[[golem,1.4],[golem,.4],[sprite,.25]];
     for(const [b,hgt] of probes){
       _tp.set(b.pos.x,b.pos.y+hgt,b.pos.z);_dir.subVectors(_tp,camera.position);const dist=_dir.length();if(dist<.5)continue;_dir.divideScalar(dist);
       _ray.set(camera.position,_dir);_ray.far=dist-.25;
-      for(const h of _ray.intersectObjects(fadeables,false))h.object.userData.fade.t=.16;
+      for(const h of _ray.intersectObjects(fadeables,false)){const f=h.object.userData.fade;(f.leader?f.leader.userData.fade:f).t=.1;}
     }
   }
-  for(const m of fadeables){const f=m.userData.fade;if(f.o===1&&f.t===1)continue;
+  for(const m of fadeables){const f=m.userData.fade;if(f.leader||(f.o===1&&f.t===1))continue;
     f.o=approach(f.o,f.t,dt*(f.t<f.o?5:2.5));
     setOpacity(m,f.o);for(const o of f.linked)setOpacity(o,f.o);}
 }
@@ -1286,9 +1290,9 @@ function lobbyTick(){
 
 // ================= main loop =================
 let last=performance.now(),acc=0;const STEP=1/60;
-function frame(now){
-  requestAnimationFrame(frame);
-  const dt=Math.min(.05,(now-last)/1000);last=now;const t=now/1000;
+function frame(now){requestAnimationFrame(frame);tick(now);}
+function tick(now){
+  const dt=clamp((now-last)/1000,0,.05);last=now;const t=now/1000;
   netPaused=false;
   if(mode==='online'&&R){
     const p=findPartner();if(p){lastSeen=now;partnerSeenEver=true;}
@@ -1343,7 +1347,7 @@ async function boot(){
 }
 // small debug handle used by automated tests
 window.__bs={G,golem,sprite,get block(){return block;},runes,gate,bridge,port,plates,levers,get crank(){return crank;},latch,stepSim,resetLevel,startLocal:()=>{mode='local';resetLevel();startPlay();},NOIN,W,fadeables,camera,
-  get camYaw(){return camYaw;},rotateCam,set dbgDist(v){dbgDist=v;},get models(){return MODELS;}};
+  get camYaw(){return camYaw;},rotateCam,set dbgDist(v){dbgDist=v;},advance:(sec)=>{let n=performance.now();for(let i=0;i<sec*60;i++){n+=1000/60;tick(n);}},get models(){return MODELS;}};
 boot();
 
 })();

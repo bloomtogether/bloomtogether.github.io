@@ -100,7 +100,8 @@ kbd{font-family:var(--display);font-size:13px;font-weight:600;display:inline-blo
 #runeList .placed{color:var(--spriteD)}#runeList .placed::before{background:var(--rune)}
 #plates{display:flex;gap:8px;align-items:center;font-size:13px;font-weight:800;color:var(--ink2)}
 #plates i{display:inline-block;width:14px;height:14px;border-radius:50%;border:2px solid var(--line2);background:#fff}
-#plates i.on{background:var(--rune);border-color:var(--rune)}
+#plates i#plA{border-color:var(--giant)}#plates i#plB{border-color:var(--sprite)}
+#plates i#plA.on{background:var(--giant)}#plates i#plB.on{background:var(--sprite)}
 #latch{flex:1;height:8px;border-radius:4px;background:rgba(36,48,57,.1);overflow:hidden}
 #latch b{display:block;height:100%;width:0;background:var(--rune)}
 #topRight{top:max(14px,env(safe-area-inset-top,0px));right:max(14px,env(safe-area-inset-right,0px));padding:8px 14px;display:flex;gap:12px;align-items:center;font-size:13px}
