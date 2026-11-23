@@ -168,4 +168,4 @@ function wall(xa,xb,za,zb,h,extend){
   if(extend!==false)invis(xa,xb,h,14,za,zb);
   return c;
 }
-function floorSlab(xa,xb,za,zb,mat,deep){box(xa,xb,-0.4,0,za,zb,mat,{cast:false,fade:false});box(xa,xb,deep?-12:-2,-0.4,za,zb,deep?M.cliff:mat,{cast:false,fade:false});}
+function floorSlab(xa,xb,za,zb,mat,deep){if(CH1R.on&&mat===M.ground)CH1R.grassRects.push([xa,xb,za,zb]);box(xa,xb,-0.4,0,za,zb,mat,{cast:false,fade:false});box(xa,xb,deep?-12:-2,-0.4,za,zb,deep?M.cliff:mat,{cast:false,fade:false});}

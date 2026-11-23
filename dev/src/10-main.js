@@ -171,7 +171,8 @@ async function boot(){
     curBuild='ch1';
     const R=beginRegion('ch1',{name:'Chapter 1: The Sunken Garden',short:'Sunken Garden',chapter:1,fog:[70,190],spawn:{g:CP[0].g,s:CP[0].s},
       hazard:b=>b.pos.x>POOL.x0&&b.pos.x<POOL.x1&&b.pos.z>POOL.z0&&b.pos.z<POOL.z1&&b.pos.y<POOL.y-.3});
-    buildWorld();buildInteractives();buildCh1Extras();endRegion(R);buildSeedInstances('ch1');curBuild='';
+    if(REAL.ready)ch1RealBegin();
+    buildWorld();buildInteractives();buildCh1Extras();if(REAL.ready)ch1RealFinish();endRegion(R);buildSeedInstances('ch1');curBuild='';
     storyHooks();
     buildGolem();buildSprite();initAmbientParticles();
     enterRegion('ch1');resetLevel();enterRegion('vale');

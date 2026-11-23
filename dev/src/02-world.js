@@ -14,7 +14,7 @@ function lowPoly(rx,ry,rz,detail,seed,amp){
   g.computeVertexNormals();return g;
 }
 function addRock(x,y,z,s,seed,collide,mat){
-  const m=new THREE.Mesh(lowPoly(s,s*.65,s*.85,0,seed*13,.35),mat||M.rock);m.position.set(x,y,z);m.rotation.y=seed;m.castShadow=true;m.receiveShadow=true;ROOT.add(m);
+  const m=new THREE.Mesh(CH1R.on?realRockGeo(s,s*.65,s*.85,seed):lowPoly(s,s*.65,s*.85,0,seed*13,.35),mat||M.rock);m.position.set(x,y,z);m.rotation.y=seed;m.castShadow=true;m.receiveShadow=true;ROOT.add(m);
   if(collide) box(x-s*.7,x+s*.7,0,y+s*.55,z-s*.7,z+s*.7,null);
   return m;
 }
@@ -28,10 +28,11 @@ function addColumn(x,z,h,r,broken,collide){
 function addUrn(x,z,s){
   const pts=[[0,0],[.25,0],[.32,.08],[.42,.35],[.38,.6],[.24,.75],[.26,.86],[.32,.9]].map(p=>new THREE.Vector2(p[0]*s,p[1]*s));
   const m=new THREE.Mesh(new THREE.LatheGeometry(pts,10),M.terracotta);m.position.set(x,0,z);m.castShadow=m.receiveShadow=true;ROOT.add(m);
-  const plant=new THREE.Mesh(lowPoly(.3*s,.22*s,.3*s,0,x*7+z,.3),M.leaf2);plant.position.set(x,.95*s,z);plant.castShadow=true;ROOT.add(plant);
+  if(!CH1R.on){const plant=new THREE.Mesh(lowPoly(.3*s,.22*s,.3*s,0,x*7+z,.3),M.leaf2);plant.position.set(x,.95*s,z);plant.castShadow=true;ROOT.add(plant);}
   box(x-.35*s,x+.35*s,0,.9*s,z-.35*s,z+.35*s,null);
 }
 function addTree(x,z,s,seed){
+  if(CH1R.on){CH1R.trees.push([x,z,.3+s*.18]);return;}
   const h=2.4*s,trunk=new THREE.Mesh(new THREE.CylinderGeometry(.16*s,.26*s,h,6),M.bark);trunk.position.set(x,h/2,z);trunk.castShadow=true;ROOT.add(trunk);
   const parts=[];const n=2+Math.floor(hash2(seed,1,7)*2);
   for(let i=0;i<n;i++){const a=hash2(seed,i,8)*6.28,r=i?(.6+hash2(seed,i,9)*.5)*s:0,fs=(i?1.0:1.35)*s*(.9+hash2(seed,i,10)*.3);
@@ -40,11 +41,12 @@ function addTree(x,z,s,seed){
   markFade(parts[0],[trunk,...parts.slice(1)]);
 }
 function addCypress(x,z,s,seed){
+  if(CH1R.on){CH1R.trees.push([x,z,.26+s*.16]);return;}
   const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.12*s,.18*s,1.0*s,6),M.bark);trunk.position.set(x,.5*s,z);ROOT.add(trunk);
   const f=new THREE.Mesh(lowPoly(.85*s,2.8*s,.85*s,1,seed*17,.12),M.leafDark);f.position.set(x,3.4*s,z);f.castShadow=true;ROOT.add(f);
   markFade(f,[trunk]);
 }
-function addBush(x,z,s,seed){const b=new THREE.Mesh(lowPoly(.7*s,.5*s,.7*s,0,seed*11,.3),seed%2?M.leaf:M.leaf2);b.position.set(x,.3*s,z);b.castShadow=true;b.receiveShadow=true;ROOT.add(b);}
+function addBush(x,z,s,seed){if(CH1R.on)return;const b=new THREE.Mesh(lowPoly(.7*s,.5*s,.7*s,0,seed*11,.3),seed%2?M.leaf:M.leaf2);b.position.set(x,.3*s,z);b.castShadow=true;b.receiveShadow=true;ROOT.add(b);}
 
 // glowing frame + floating icon marking a crawl hole only the Sprite fits through.
 // (x0..x1, z0..z1) is the opening; face: which side(s) to frame ('x+' etc), icon at ix,iz
@@ -96,7 +98,7 @@ function buildWorld(){
   const water=new THREE.Mesh(new THREE.PlaneGeometry(180,6.2),M.water.clone());water.material.opacity=.95;water.rotation.x=-Math.PI/2;water.position.set(0,-7,-30);ROOT.add(water);W.ravineWater=water;
   for(let i=0;i<30;i++){const x=-70+i*4.8+hash2(i,2,3)*3,z=-30+(hash2(i,4,5)-.5)*4.5;addRock(x,-6.6,z,.8+hash2(i,6,7)*1.2,i*1.7,false,i%2?M.cliff:M.cliffDark);}
   // distant soft hills
-  for(let i=0;i<10;i++){const a=i/10*Math.PI*2,r=140+hash2(i,1,2)*40,s=35+hash2(i,3,4)*30;const m=new THREE.Mesh(lowPoly(s,s*.32,s,1,i,.1),i%2?M.leaf:M.leaf2);m.position.set(Math.cos(a)*r,-3,-40+Math.sin(a)*r);ROOT.add(m);}
+  if(!CH1R.on)for(let i=0;i<10;i++){const a=i/10*Math.PI*2,r=140+hash2(i,1,2)*40,s=35+hash2(i,3,4)*30;const m=new THREE.Mesh(lowPoly(s,s*.32,s,1,i,.1),i%2?M.leaf:M.leaf2);m.position.set(Math.cos(a)*r,-3,-40+Math.sin(a)*r);ROOT.add(m);}
 
   // ---------- AREA 1: courtyard ----------
   floorSlab(-11,11,5,-22,M.ground,false);
@@ -155,7 +157,7 @@ function buildWorld(){
   addCypress(-15,-70,1.4,13);addCypress(15,-74,1.4,14);addTree(-17,-86,1.6,15);addTree(17,-88,1.6,16);addTree(0,-92,1.7,17);addCypress(-6,-90,1.5,18);addCypress(7,-91,1.5,19);
   for(let i=0;i<22;i++){const side=i%2?1:-1,x=side*(24+hash2(i,1,99)*40),z=10-hash2(i,2,99)*110;if((z<-25&&z>-35)||inPlayZone(x,z,3))continue;(i%3?addTree:addCypress)(x,z,1.1+hash2(i,3,99)*.6,40+i);}
   for(let i=0;i<30;i++){const side=i%2?1:-1,x=side*(13+hash2(i,5,98)*12),z=8-hash2(i,6,98)*100;if((z<-25&&z>-35)||inPlayZone(x,z,1))continue;addBush(x,z,.8+hash2(i,7,98)*.8,i);}
-  buildTufts();
+  if(!CH1R.on)buildTufts();
 }
 
 function buildFountain(){

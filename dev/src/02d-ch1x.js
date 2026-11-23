@@ -9,7 +9,8 @@ const exitGate={pos:new V3(0,0,4.4)};
 
 function buildCh1Extras(){
   // ---------- exit gate back to the Vale (south wall gets an opening) ----------
-  const g=prop('gate');g.position.set(0,-.05,4.5);g.rotation.y=Math.PI;g.scale.setScalar(.82);ROOT.add(g);
+  const g=prop('gate');if(CH1R.on)realifyProp(g);g.position.set(0,-.05,4.5);g.rotation.y=Math.PI;g.scale.setScalar(.82);ROOT.add(g);
+  {const gm=[];g.traverse(o=>{if(o.isMesh)gm.push(o);});if(gm.length)markFadeGroup(gm);}
   for(const s of [-1,1])box(s>0?2.62:-4.3,s>0?4.3:-2.62,0,6.5,3.3,5.7,null,{surface:'stone'});
   const veil=new THREE.Mesh(new THREE.PlaneGeometry(5.2,7.6),new THREE.MeshBasicMaterial({color:'#7ff0cf',transparent:true,opacity:.28,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}));
   veil.position.set(0,3.9,4.9);ROOT.add(veil);exitGate.veil=veil;
@@ -24,7 +25,7 @@ function buildCh1Extras(){
   box(34,35,0,.4,-6,-23,M.stone);box(35,40,0,.8,-6,-23,M.wall,{fade:false});box(34.94,40,.8,.92,-5.94,-23,M.wallTop,{fade:false});
   addUrn(38.6,-7.2,1.1);addUrn(38.6,-21.6,1.1);addBush(37.5,-12,1.3,3);addBush(37.8,-18,1.1,4);
   // the seesaw
-  const ss=prop('seesaw');ss.position.set(SEESAW.x,0,SEESAW.z);ROOT.add(ss);
+  const ss=prop('seesaw',true);if(CH1R.on)realifyProp(ss);ss.position.set(SEESAW.x,0,SEESAW.z);ROOT.add(ss);
   const ful=propPart(ss,'Seesaw_Fulcrum');if(ful)ful.scale.y=.72;
   seesaw.plank=propPart(ss,'Seesaw_Plank');if(seesaw.plank)seesaw.plank.position.y=SEESAW.pivot;
   box(SEESAW.x-.9,SEESAW.x+.9,0,.62,SEESAW.z-.8,SEESAW.z+.8,null,{surface:'stone'});

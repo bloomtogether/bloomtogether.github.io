@@ -131,7 +131,7 @@ function buildVale(){
   box(VALE_HILL.x-1.6,VALE_HILL.x+1.6,hy-1,hy+.35,VALE_HILL.z-1.6,VALE_HILL.z+1.6,REAL.ready?stoneReal():M.pave,{fade:false,surface:'stone'});
   // ---------- forests (batched) ----------
   buildValeForest();
-  if(REAL.ready)buildGrass();else buildValeTufts();
+  if(REAL.ready){GRASS=newGrassField(grassAllowed,valeH,()=>VALE.wake);buildGrass(GRASS);}else buildValeTufts();
   // ---------- collectibles ----------
   addPetal('m0',VALE_HILL.x,hy+.35,VALE_HILL.z);
   const vs=[[-6,70],[6,64],[-3,46],[3,-36],[-4,-60],[4,-84],[24,30],[-26,-18],[-30,30],[34,-6],[60,-58],[66,-74],[80,-62],[-60,-28],[-48,92],[48,92],[-96,6],[96,-30],[-36,-42],[42,-30]];

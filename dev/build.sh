@@ -12,7 +12,7 @@ OUT=../game.js
   echo "import {Water} from 'three/addons/objects/Water.js';"
   echo "(() => {"
   echo '"use strict";'
-  for f in src/01-core.js src/02-world.js src/02b-regions.js src/02c-vale.js src/02d-ch1x.js src/02e-real.js src/03-chars.js src/04-sim.js src/05-input.js src/06-audio.js src/06b-music.js src/07-hud.js src/07b-story.js src/08-visuals.js src/09-net.js src/10-main.js; do cat "$f"; echo; done
+  for f in src/01-core.js src/02-world.js src/02b-regions.js src/02c-vale.js src/02d-ch1x.js src/02e-real.js src/02f-ch1real.js src/03-chars.js src/04-sim.js src/05-input.js src/06-audio.js src/06b-music.js src/07-hud.js src/07b-story.js src/08-visuals.js src/09-net.js src/10-main.js; do cat "$f"; echo; done
   echo "})();"
 } > "$OUT"
 node --check "$OUT" 2>&1 && echo BUILD_OK

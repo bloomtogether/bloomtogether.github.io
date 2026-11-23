@@ -176,7 +176,7 @@ function wall(xa,xb,za,zb,h,extend){
   if(extend!==false)invis(xa,xb,h,14,za,zb);
   return c;
 }
-function floorSlab(xa,xb,za,zb,mat,deep){box(xa,xb,-0.4,0,za,zb,mat,{cast:false,fade:false});box(xa,xb,deep?-12:-2,-0.4,za,zb,deep?M.cliff:mat,{cast:false,fade:false});}
+function floorSlab(xa,xb,za,zb,mat,deep){if(CH1R.on&&mat===M.ground)CH1R.grassRects.push([xa,xb,za,zb]);box(xa,xb,-0.4,0,za,zb,mat,{cast:false,fade:false});box(xa,xb,deep?-12:-2,-0.4,za,zb,deep?M.cliff:mat,{cast:false,fade:false});}
 
 // ================= world =================
 const F={x:0,z:-72}; // fountain center
@@ -194,7 +194,7 @@ function lowPoly(rx,ry,rz,detail,seed,amp){
   g.computeVertexNormals();return g;
 }
 function addRock(x,y,z,s,seed,collide,mat){
-  const m=new THREE.Mesh(lowPoly(s,s*.65,s*.85,0,seed*13,.35),mat||M.rock);m.position.set(x,y,z);m.rotation.y=seed;m.castShadow=true;m.receiveShadow=true;ROOT.add(m);
+  const m=new THREE.Mesh(CH1R.on?realRockGeo(s,s*.65,s*.85,seed):lowPoly(s,s*.65,s*.85,0,seed*13,.35),mat||M.rock);m.position.set(x,y,z);m.rotation.y=seed;m.castShadow=true;m.receiveShadow=true;ROOT.add(m);
   if(collide) box(x-s*.7,x+s*.7,0,y+s*.55,z-s*.7,z+s*.7,null);
   return m;
 }
@@ -208,10 +208,11 @@ function addColumn(x,z,h,r,broken,collide){
 function addUrn(x,z,s){
   const pts=[[0,0],[.25,0],[.32,.08],[.42,.35],[.38,.6],[.24,.75],[.26,.86],[.32,.9]].map(p=>new THREE.Vector2(p[0]*s,p[1]*s));
   const m=new THREE.Mesh(new THREE.LatheGeometry(pts,10),M.terracotta);m.position.set(x,0,z);m.castShadow=m.receiveShadow=true;ROOT.add(m);
-  const plant=new THREE.Mesh(lowPoly(.3*s,.22*s,.3*s,0,x*7+z,.3),M.leaf2);plant.position.set(x,.95*s,z);plant.castShadow=true;ROOT.add(plant);
+  if(!CH1R.on){const plant=new THREE.Mesh(lowPoly(.3*s,.22*s,.3*s,0,x*7+z,.3),M.leaf2);plant.position.set(x,.95*s,z);plant.castShadow=true;ROOT.add(plant);}
   box(x-.35*s,x+.35*s,0,.9*s,z-.35*s,z+.35*s,null);
 }
 function addTree(x,z,s,seed){
+  if(CH1R.on){CH1R.trees.push([x,z,.3+s*.18]);return;}
   const h=2.4*s,trunk=new THREE.Mesh(new THREE.CylinderGeometry(.16*s,.26*s,h,6),M.bark);trunk.position.set(x,h/2,z);trunk.castShadow=true;ROOT.add(trunk);
   const parts=[];const n=2+Math.floor(hash2(seed,1,7)*2);
   for(let i=0;i<n;i++){const a=hash2(seed,i,8)*6.28,r=i?(.6+hash2(seed,i,9)*.5)*s:0,fs=(i?1.0:1.35)*s*(.9+hash2(seed,i,10)*.3);
@@ -220,11 +221,12 @@ function addTree(x,z,s,seed){
   markFade(parts[0],[trunk,...parts.slice(1)]);
 }
 function addCypress(x,z,s,seed){
+  if(CH1R.on){CH1R.trees.push([x,z,.26+s*.16]);return;}
   const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.12*s,.18*s,1.0*s,6),M.bark);trunk.position.set(x,.5*s,z);ROOT.add(trunk);
   const f=new THREE.Mesh(lowPoly(.85*s,2.8*s,.85*s,1,seed*17,.12),M.leafDark);f.position.set(x,3.4*s,z);f.castShadow=true;ROOT.add(f);
   markFade(f,[trunk]);
 }
-function addBush(x,z,s,seed){const b=new THREE.Mesh(lowPoly(.7*s,.5*s,.7*s,0,seed*11,.3),seed%2?M.leaf:M.leaf2);b.position.set(x,.3*s,z);b.castShadow=true;b.receiveShadow=true;ROOT.add(b);}
+function addBush(x,z,s,seed){if(CH1R.on)return;const b=new THREE.Mesh(lowPoly(.7*s,.5*s,.7*s,0,seed*11,.3),seed%2?M.leaf:M.leaf2);b.position.set(x,.3*s,z);b.castShadow=true;b.receiveShadow=true;ROOT.add(b);}
 
 // glowing frame + floating icon marking a crawl hole only the Sprite fits through.
 // (x0..x1, z0..z1) is the opening; face: which side(s) to frame ('x+' etc), icon at ix,iz
@@ -276,7 +278,7 @@ function buildWorld(){
   const water=new THREE.Mesh(new THREE.PlaneGeometry(180,6.2),M.water.clone());water.material.opacity=.95;water.rotation.x=-Math.PI/2;water.position.set(0,-7,-30);ROOT.add(water);W.ravineWater=water;
   for(let i=0;i<30;i++){const x=-70+i*4.8+hash2(i,2,3)*3,z=-30+(hash2(i,4,5)-.5)*4.5;addRock(x,-6.6,z,.8+hash2(i,6,7)*1.2,i*1.7,false,i%2?M.cliff:M.cliffDark);}
   // distant soft hills
-  for(let i=0;i<10;i++){const a=i/10*Math.PI*2,r=140+hash2(i,1,2)*40,s=35+hash2(i,3,4)*30;const m=new THREE.Mesh(lowPoly(s,s*.32,s,1,i,.1),i%2?M.leaf:M.leaf2);m.position.set(Math.cos(a)*r,-3,-40+Math.sin(a)*r);ROOT.add(m);}
+  if(!CH1R.on)for(let i=0;i<10;i++){const a=i/10*Math.PI*2,r=140+hash2(i,1,2)*40,s=35+hash2(i,3,4)*30;const m=new THREE.Mesh(lowPoly(s,s*.32,s,1,i,.1),i%2?M.leaf:M.leaf2);m.position.set(Math.cos(a)*r,-3,-40+Math.sin(a)*r);ROOT.add(m);}
 
   // ---------- AREA 1: courtyard ----------
   floorSlab(-11,11,5,-22,M.ground,false);
@@ -335,7 +337,7 @@ function buildWorld(){
   addCypress(-15,-70,1.4,13);addCypress(15,-74,1.4,14);addTree(-17,-86,1.6,15);addTree(17,-88,1.6,16);addTree(0,-92,1.7,17);addCypress(-6,-90,1.5,18);addCypress(7,-91,1.5,19);
   for(let i=0;i<22;i++){const side=i%2?1:-1,x=side*(24+hash2(i,1,99)*40),z=10-hash2(i,2,99)*110;if((z<-25&&z>-35)||inPlayZone(x,z,3))continue;(i%3?addTree:addCypress)(x,z,1.1+hash2(i,3,99)*.6,40+i);}
   for(let i=0;i<30;i++){const side=i%2?1:-1,x=side*(13+hash2(i,5,98)*12),z=8-hash2(i,6,98)*100;if((z<-25&&z>-35)||inPlayZone(x,z,1))continue;addBush(x,z,.8+hash2(i,7,98)*.8,i);}
-  buildTufts();
+  if(!CH1R.on)buildTufts();
 }
 
 function buildFountain(){
@@ -714,7 +716,7 @@ function buildVale(){
   box(VALE_HILL.x-1.6,VALE_HILL.x+1.6,hy-1,hy+.35,VALE_HILL.z-1.6,VALE_HILL.z+1.6,REAL.ready?stoneReal():M.pave,{fade:false,surface:'stone'});
   // ---------- forests (batched) ----------
   buildValeForest();
-  if(REAL.ready)buildGrass();else buildValeTufts();
+  if(REAL.ready){GRASS=newGrassField(grassAllowed,valeH,()=>VALE.wake);buildGrass(GRASS);}else buildValeTufts();
   // ---------- collectibles ----------
   addPetal('m0',VALE_HILL.x,hy+.35,VALE_HILL.z);
   const vs=[[-6,70],[6,64],[-3,46],[3,-36],[-4,-60],[4,-84],[24,30],[-26,-18],[-30,30],[34,-6],[60,-58],[66,-74],[80,-62],[-60,-28],[-48,92],[48,92],[-96,6],[96,-30],[-36,-42],[42,-30]];
@@ -795,7 +797,8 @@ const exitGate={pos:new V3(0,0,4.4)};
 
 function buildCh1Extras(){
   // ---------- exit gate back to the Vale (south wall gets an opening) ----------
-  const g=prop('gate');g.position.set(0,-.05,4.5);g.rotation.y=Math.PI;g.scale.setScalar(.82);ROOT.add(g);
+  const g=prop('gate');if(CH1R.on)realifyProp(g);g.position.set(0,-.05,4.5);g.rotation.y=Math.PI;g.scale.setScalar(.82);ROOT.add(g);
+  {const gm=[];g.traverse(o=>{if(o.isMesh)gm.push(o);});if(gm.length)markFadeGroup(gm);}
   for(const s of [-1,1])box(s>0?2.62:-4.3,s>0?4.3:-2.62,0,6.5,3.3,5.7,null,{surface:'stone'});
   const veil=new THREE.Mesh(new THREE.PlaneGeometry(5.2,7.6),new THREE.MeshBasicMaterial({color:'#7ff0cf',transparent:true,opacity:.28,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}));
   veil.position.set(0,3.9,4.9);ROOT.add(veil);exitGate.veil=veil;
@@ -810,7 +813,7 @@ function buildCh1Extras(){
   box(34,35,0,.4,-6,-23,M.stone);box(35,40,0,.8,-6,-23,M.wall,{fade:false});box(34.94,40,.8,.92,-5.94,-23,M.wallTop,{fade:false});
   addUrn(38.6,-7.2,1.1);addUrn(38.6,-21.6,1.1);addBush(37.5,-12,1.3,3);addBush(37.8,-18,1.1,4);
   // the seesaw
-  const ss=prop('seesaw');ss.position.set(SEESAW.x,0,SEESAW.z);ROOT.add(ss);
+  const ss=prop('seesaw',true);if(CH1R.on)realifyProp(ss);ss.position.set(SEESAW.x,0,SEESAW.z);ROOT.add(ss);
   const ful=propPart(ss,'Seesaw_Fulcrum');if(ful)ful.scale.y=.72;
   seesaw.plank=propPart(ss,'Seesaw_Plank');if(seesaw.plank)seesaw.plank.position.y=SEESAW.pivot;
   box(SEESAW.x-.9,SEESAW.x+.9,0,.62,SEESAW.z-.8,SEESAW.z+.8,null,{surface:'stone'});
@@ -910,7 +913,7 @@ function loadTex(url,srgb,rep,tries){tries=tries||0;return new Promise(res=>texL
 const DRACO=new DRACOLoader();DRACO.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.149.0/examples/jsm/libs/draco/gltf/');
 async function loadReal(){
   const T=REAL.tex,jobs=[];
-  for(const n of ['ground','path','riverbed','rock','masonry'])for(const [k,s] of [['col',1],['nrm',0],['rgh',0]])jobs.push(loadTex('assets/tex/'+n+'_'+k+'.jpg',s&&n==='masonry').then(t=>T[n+'_'+k]=t));
+  for(const n of ['ground','path','riverbed','rock','masonry','sandstone','paving'])for(const [k,s] of [['col',1],['nrm',0],['rgh',0]])jobs.push(loadTex('assets/tex/'+n+'_'+k+'.jpg',s&&/masonry|sandstone|paving/.test(n)).then(t=>T[n+'_'+k]=t));
   jobs.push(loadTex('assets/tex/waternormals.jpg',0).then(t=>T.water=t));
   jobs.push(loadTex('assets/env/sky_4k.jpg',1,false).then(t=>T.sky=t));
   jobs.push(new Promise(res=>new RGBELoader().load('assets/env/sky_1k.hdr',t=>{T.hdr=t;res();},undefined,()=>res())));
@@ -961,8 +964,9 @@ normal=normalize(mat3(Tv,Bv,normal)*normalize(nT));`)
   return m;
 }
 // ----- grass: real blades around the camera, laid out in 8 m chunks that follow the players -----
-const GRASS={chunk:8,R:3,per:2300,slots:[],map:new Map(),center:[1e9,1e9]};
-function buildGrass(){
+function newGrassField(allowed,height,wake){return {chunk:8,R:3,per:2300,slots:[],center:[1e9,1e9],allowed,height,wake};}
+let GRASS=null,GRASS_CH1=null;
+function buildGrass(GRASS){
   const n=(GRASS.R*2+1)**2,count=n*GRASS.per;
   const blade=new THREE.BufferGeometry();
   // a tapered blade: 3 segments + tip, bends forward with height
@@ -1012,22 +1016,22 @@ function grassAllowed(x,z){
   if(VALE.plot&&Math.hypot(x-VALE.plot.x,z-VALE.plot.z)<5.2)return 0;
   return clamp((pd-1.3)/1.5,0,1)*(r<16?.5:1);
 }
-function fillChunk(slot,cx,cz){
+function fillChunk(GRASS,slot,cx,cz){
   const S=GRASS.chunk,base=slot.i*GRASS.per,o=GRASS.ofs,r=GRASS.rnd;let seed=(cx*73856093)^(cz*19349663);
   const rnd=()=>{seed=Math.imul(seed^(seed>>>15),2246822507)+0x6D2B79F5|0;return ((seed>>>0)%100000)/100000;};
-  for(let k=0;k<GRASS.per;k++){const x=(cx+rnd())*S,z=(cz+rnd())*S,j=(base+k)*4;const a=grassAllowed(x,z);const keep=rnd()<a;
-    o[j]=x;o[j+1]=keep?valeH(x,z):0;o[j+2]=z;o[j+3]=keep?.22+rnd()*.38:0;r[j]=rnd();r[j+1]=rnd();r[j+2]=rnd();r[j+3]=rnd();}
+  for(let k=0;k<GRASS.per;k++){const x=(cx+rnd())*S,z=(cz+rnd())*S,j=(base+k)*4;const a=GRASS.allowed(x,z);const keep=rnd()<a;
+    o[j]=x;o[j+1]=keep?GRASS.height(x,z):0;o[j+2]=z;o[j+3]=keep?.22+rnd()*.38:0;r[j]=rnd();r[j+1]=rnd();r[j+2]=rnd();r[j+3]=rnd();}
   slot.key=cx+','+cz;
 }
-function updateGrass(t){
-  if(!GRASS.mesh||G.region!=='vale')return;
+function updateGrass(GRASS,t){
+  if(!GRASS||!GRASS.mesh)return;
   const S=GRASS.chunk,cx=Math.floor(camTarget.x/S),cz=Math.floor(camTarget.z/S);
-  GRASS.mat.uniforms.uTime.value=t;GRASS.mat.uniforms.uCam.value.copy(camTarget);GRASS.mat.uniforms.uWake.value=VALE.wake;
+  GRASS.mat.uniforms.uTime.value=t;GRASS.mat.uniforms.uCam.value.copy(camTarget);GRASS.mat.uniforms.uWake.value=GRASS.wake();
   GRASS.mat.uniforms.uPush.value[0].copy(golem.pos);GRASS.mat.uniforms.uPush.value[1].copy(sprite.pos);
   if(cx===GRASS.center[0]&&cz===GRASS.center[1])return;
   GRASS.center=[cx,cz];const want=new Set();for(let i=-GRASS.R;i<=GRASS.R;i++)for(let j=-GRASS.R;j<=GRASS.R;j++)want.add((cx+i)+','+(cz+j));
   const free=GRASS.slots.filter(s=>!want.has(s.key));const have=new Set(GRASS.slots.map(s=>s.key));
-  for(const k of want)if(!have.has(k)){const s=free.pop();const [a,b]=k.split(',').map(Number);fillChunk(s,a,b);}
+  for(const k of want)if(!have.has(k)){const s=free.pop();const [a,b]=k.split(',').map(Number);fillChunk(GRASS,s,a,b);}
   GRASS.geo.attributes.ofs.needsUpdate=true;GRASS.geo.attributes.rnd.needsUpdate=true;
 }
 // ----- water: reflective, slightly green like a slow river -----
@@ -1060,31 +1064,32 @@ function leafify(src){
  if(diffuseColor.a<alphaTest)discard;`);};
   m.alphaTest=.45;m.side=THREE.DoubleSide;m.transparent=false;REAL.leafMats.push(m);
   const dm=new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking,map:m.map,alphaTest:.45});return {mat:m,depth:dm};}
-function buildRealForest(spots){
+function buildRealForest(spots,opt){
   if(!REAL.treeSrc)return;
+  opt=opt||{};const hAt=opt.h||valeH,isNearSpot=opt.near||(sp=>Math.max(Math.abs(sp[0]),Math.abs(sp[1]))<110);
   // the forest uses the dense Jacaranda canopy (shared with the Heart Tree) over the lighter wood
   const parts=treeParts(REAL.treeSrc).filter(p=>!/Leaves/.test(p.name));
   if(REAL.heartSrc){let lv=null;REAL.heartSrc.traverse(o=>{if(o.isMesh&&/Leaves/.test(o.name))lv=o;});if(lv)parts.push({name:'Leaves',geo:lv.geometry,mat:lv.material.clone()});}
   const m4=new THREE.Matrix4(),q=new THREE.Quaternion(),s=new V3(),p=new V3(),col=new THREE.Color();
   const wood=parts.find(x=>!/Leaves/.test(x.name)),leaves=parts.find(x=>/Leaves/.test(x.name));
-  const lf=leafify(leaves.mat);leaves.mat=lf.mat;const depth=lf.depth;VALE.foliageMat=lf.mat;
+  const lf=leafify(leaves.mat);leaves.mat=lf.mat;const depth=lf.depth;if(!opt.h)VALE.foliageMat=lf.mat;
   wood.mat=new THREE.MeshLambertMaterial({map:wood.mat.map,color:wood.mat.color.clone()});
   // a light trunk for distant trees: the canopy hides the branches anyway
   const stub=new THREE.CylinderGeometry(.55,1.0,9,7,1,true);stub.translate(0,4.5,0);
-  const near=spots.filter(sp=>Math.max(Math.abs(sp[0]),Math.abs(sp[1]))<110),far=spots.filter(sp=>Math.max(Math.abs(sp[0]),Math.abs(sp[1]))>=110);
+  const near=spots.filter(isNearSpot),far=spots.filter(sp=>!isNearSpot(sp));
   const groups=[];
   for(const [list,isNear] of [[near,true],[far,false]]){const sect=new Map();
     list.forEach(sp=>{const k=Math.floor((Math.atan2(sp[1],sp[0])+Math.PI)/(Math.PI*2)*10)+(Math.hypot(sp[0],sp[1])>60?10:0);if(!sect.has(k))sect.set(k,[]);sect.get(k).push(sp);});
     for(const lst of sect.values())groups.push({lst,isNear});}
   const shared=(src)=>{const g=new THREE.BufferGeometry();g.index=src.index;for(const k in src.attributes)g.setAttribute(k,src.attributes[k]);return g;};
   for(const {lst,isNear} of groups){
-    const box3=new THREE.Box3();for(const [x,z,sc] of lst){const y=valeH(x,z);box3.expandByPoint(new V3(x-14*sc,y-1,z-14*sc));box3.expandByPoint(new V3(x+14*sc,y+22*sc,z+14*sc));}
+    const box3=new THREE.Box3();for(const [x,z,sc] of lst){const y=hAt(x,z);box3.expandByPoint(new V3(x-14*sc,y-1,z-14*sc));box3.expandByPoint(new V3(x+14*sc,y+22*sc,z+14*sc));}
     const sphere=box3.getBoundingSphere(new THREE.Sphere());
     for(const part of [isNear?wood:{geo:stub,mat:wood.mat,name:'stub'},leaves]){
       const g=shared(part===leaves&&!isNear?(leaves.sparse||(leaves.sparse=sparseLeaves(leaves.geo,.5,1.3))):part.geo);g.boundingSphere=sphere.clone();g.boundingBox=box3.clone();
       const im=new THREE.InstancedMesh(g,part.mat,lst.length);im.castShadow=isNear&&part!==leaves;im.receiveShadow=isNear;
       if(part===leaves)im.customDepthMaterial=depth;
-      lst.forEach(([x,z,sc],i)=>{const j=spots.indexOf(lst[i]);const y=valeH(x,z)-.15;p.set(x,y,z);q.setFromAxisAngle(_yAx,(j*2.399)%6.283);s.set(sc,sc*(.9+((j*7)%5)*.05),sc);m4.compose(p,q,s);im.setMatrixAt(i,m4);
+      lst.forEach(([x,z,sc],i)=>{const j=spots.indexOf(lst[i]);const y=hAt(x,z)-.15;p.set(x,y,z);q.setFromAxisAngle(_yAx,(j*2.399)%6.283);s.set(sc,sc*(.9+((j*7)%5)*.05),sc);m4.compose(p,q,s);im.setMatrixAt(i,m4);
         if(part===leaves){col.setHSL(.2+((j*13)%9)*.008,.2,.86+((j*5)%7)*.02);im.setColorAt(i,col);}});
       im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;ROOT.add(im);REAL.forest.push(im);}}
 }
@@ -1104,8 +1109,9 @@ function realifyProp(root){root.traverse(o=>{if(!o.isMesh)return;const n=o.mater
   if(n==='Stone'||n==='Trim')o.material=n==='Trim'?(stoneReal.trim||(stoneReal.trim=pbr('masonry',1,{color:new THREE.Color('#a89a88')}))):stoneReal();
   else if(n==='Wood')o.material=new THREE.MeshStandardMaterial({map:o.material.map,color:'#8a7a68',roughness:.85});});}
 function updateReal(dt,t){
+  if(G.region==='ch1'){updateGrass(GRASS_CH1,t);return;}
   if(G.region!=='vale')return;
-  updateGrass(t);
+  updateGrass(GRASS,t);
   if(REAL.water){REAL.water.visible=VALE.wake>.02;REAL.water.position.y=lerp(RIVER_WATER-.7,RIVER_WATER,VALE.wake);const sh=REAL.water.material.userData.sh;if(sh)sh.uniforms.uT.value=t;}
 }
 
@@ -1136,6 +1142,81 @@ function sparseLeaves(src,keep,grow){
   const P=g.attributes.position,sum=new Map();for(let i=0;i<n;i++){const r=find(i);const c=sum.get(r)||[0,0,0,0];c[0]+=P.getX(i);c[1]+=P.getY(i);c[2]+=P.getZ(i);c[3]++;sum.set(r,c);}
   for(let i=0;i<n;i++){const c=sum.get(find(i));const cx=c[0]/c[3],cy=c[1]/c[3],cz=c[2]/c[3];P.setXYZ(i,cx+(P.getX(i)-cx)*grow,cy+(P.getY(i)-cy)*grow,cz+(P.getZ(i)-cz)*grow);}
   P.needsUpdate=true;return g;
+}
+
+// ================= Chapter 1, realistic: Poly Haven stone and ground, real grass, Jacaranda trees =================
+// Runs only when the realistic assets loaded (REAL.ready). The level layout and every collider stay the same;
+// only materials and decoration change, so the puzzles play exactly as before.
+const CH1R={on:false,trees:[],grassRects:[],mask:null,x0:-92,z0:-172,cell:.5,nx:0,nz:0};
+
+// a copy of a Poly Haven colour map marked sRGB, for plain PBR materials (the terrain shader decodes its own copy)
+function srgbCopy(t){if(!t)return null;const c=t.clone();c.encoding=THREE.sRGBEncoding;c.needsUpdate=true;return c;}
+function stoneMat(name,color,o,set){const T=REAL.tex;set=set||'sandstone';const m=new THREE.MeshStandardMaterial(Object.assign({map:T[set+'_col'],normalMap:T[set+'_nrm'],roughnessMap:T[set+'_rgh'],
+  color:new THREE.Color(color),roughness:1,metalness:0,envMapIntensity:.7},o||{}));m.name=name;return m;}
+let _rockCol=null;
+function rockMat(name,color){const T=REAL.tex;_rockCol=_rockCol||srgbCopy(T.rock_col);
+  const m=new THREE.MeshStandardMaterial({map:_rockCol,normalMap:T.rock_nrm,roughnessMap:T.rock_rgh,color:new THREE.Color(color),roughness:1,metalness:0,envMapIntensity:.6});m.name=name;return m;}
+
+// swap the shared materials before Chapter 1 is built (the Vale is already built with its own)
+function ch1RealBegin(){
+  CH1R.on=true;
+  const T=REAL.tex;
+  M.wall=stoneMat('wall','#f2ece2');TILE.set(M.wall,3);
+  M.wallTop=stoneMat('wallTop','#c9bfb0');TILE.set(M.wallTop,3);
+  M.stone=stoneMat('stone','#f6f0e6');TILE.set(M.stone,3);
+  M.pave=stoneMat('pave','#d6cec2',null,'paving');TILE.set(M.pave,2.6);
+  M.ground=terrainMaterial();M.ground.name='ground';
+  M.cliffTop=M.ground;
+  M.rock=rockMat('rock','#a8a196');M.cliff=rockMat('cliff','#b8ab96');M.cliffDark=rockMat('cliffDark','#8c8173');TILE.set(M.rock,3);TILE.set(M.cliff,4);TILE.set(M.cliffDark,4);
+  M.plate=rockMat('plate','#857a6c');TILE.set(M.plate,2);
+  M.block=stoneMat('block','#a9bad2',null,'masonry');M.blockTop=stoneMat('blockTop','#c9d5e6',null,'masonry');
+  let woodMap=null;for(const k in PROPS)PROPS[k].traverse(o=>{if(!woodMap&&o.isMesh&&o.material.name==='Wood'&&o.material.map)woodMap=o.material.map;});
+  if(woodMap){woodMap=woodMap.clone();woodMap.wrapS=woodMap.wrapT=THREE.RepeatWrapping;woodMap.needsUpdate=true;}
+  M.wood=new THREE.MeshStandardMaterial({map:woodMap,color:'#8f7d69',roughness:.85,metalness:0,name:'wood'});TILE.set(M.wood,1.6);
+  M.terracotta=new THREE.MeshStandardMaterial({color:'#9c5534',roughness:.78,metalness:0,name:'terracotta'});
+  M.leaf2=new THREE.MeshStandardMaterial({color:'#24361a',roughness:.45,metalness:0,side:THREE.DoubleSide});
+  M.leafDark=new THREE.MeshStandardMaterial({color:'#4a5f2c',roughness:.8,metalness:0});
+  const wn=T.water?T.water.clone():null;if(wn){wn.wrapS=wn.wrapT=THREE.RepeatWrapping;wn.repeat.set(6,6);wn.needsUpdate=true;}
+  M.water=new THREE.MeshStandardMaterial({color:'#2f463d',roughness:.05,metalness:0,normalMap:wn,normalScale:new THREE.Vector2(.25,.25),envMapIntensity:1.15,transparent:true,opacity:.9});
+}
+// river-stone rock: a smooth irregular lump instead of a faceted one
+function realRockGeo(rx,ry,rz,seed){
+  const g=new THREE.SphereGeometry(1,20,14),p=g.attributes.position,n=g.attributes.normal,v=new V3();
+  for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);
+    const k=1+.16*Math.sin(v.x*2.1+seed)*Math.cos(v.z*1.7+seed*1.3)+.07*Math.sin(v.y*4.3+seed*2.1);
+    const x=v.x*rx*k,y=Math.max(v.y,-.55)*ry*k,z=v.z*rz*k;p.setXYZ(i,x,y,z);}
+  g.computeVertexNormals();return g;
+}
+// grass mask: 1 where a ground slab's open top is, cleared under anything standing on it
+function ch1GrassMask(){
+  const C=CH1R;C.nx=Math.ceil(184/C.cell);C.nz=Math.ceil(236/C.cell);const mk=new Uint8Array(C.nx*C.nz);C.mask=mk;
+  const fill=(xa,xb,za,zb,val)=>{const i0=Math.max(0,Math.floor((Math.min(xa,xb)-C.x0)/C.cell)),i1=Math.min(C.nx-1,Math.floor((Math.max(xa,xb)-C.x0)/C.cell));
+    const j0=Math.max(0,Math.floor((Math.min(za,zb)-C.z0)/C.cell)),j1=Math.min(C.nz-1,Math.floor((Math.max(za,zb)-C.z0)/C.cell));
+    for(let j=j0;j<=j1;j++)for(let i=i0;i<=i1;i++)mk[j*C.nx+i]=val;};
+  for(const r of C.grassRects)fill(r[0],r[1],r[2],r[3],1);
+  for(const c of colliders){if(!c.on||c.kind==='golem')continue;if(c.max.y>.05&&c.min.y<.3)fill(c.min.x-.2,c.max.x+.2,c.min.z-.2,c.max.z+.2,0);}
+  fill(-90,90,-26.6,-33.4,0);              // ravine
+  fill(POOL.x0-.4,POOL.x1+.4,POOL.z0-.4,POOL.z1+.4,0);
+  fill(CELLAR.hole.x0-.3,CELLAR.hole.x1+.3,CELLAR.hole.z0-.3,CELLAR.hole.z1+.3,0);
+  fill(-2.2,2.2,6,2,0);                     // the exit gate threshold
+}
+function ch1GrassAllowed(x,z){const C=CH1R;const i=Math.floor((x-C.x0)/C.cell),j=Math.floor((z-C.z0)/C.cell);
+  if(i<0||j<0||i>=C.nx||j>=C.nz)return 0;return C.mask[j*C.nx+i]?.85:0;}
+// after Chapter 1 is built: ground colours, trees, grass, props
+function ch1RealFinish(){
+  // the terrain shader reads layer weights from vertex colours; Chapter 1's ground is the plain grass layer
+  ROOT.traverse(o=>{if(o.isMesh&&o.material===M.ground&&!o.geometry.attributes.color){const n=o.geometry.attributes.position.count;o.geometry.setAttribute('color',new THREE.Float32BufferAttribute(new Float32Array(n*3),3));}});
+  // trees: the hand-placed ones plus a ring that hides the edge of the land
+  const spots=CH1R.trees.slice();let seed=7;const rnd=()=>{seed=Math.imul(seed^(seed>>>15),2246822507)+0x6D2B79F5|0;return ((seed>>>0)%100000)/100000;};
+  const ok=(x,z)=>!((z<-24&&z>-36))&&!inPlayZone(x,z,4)&&!(Math.abs(x)<13&&z<8&&z>-86)&&spots.every(s=>Math.hypot(x-s[0],z-s[1])>8);
+  for(let i=0;i<900&&spots.length<150;i++){
+    const side=Math.floor(rnd()*4);let x,z;
+    if(side<2){x=(side?1:-1)*lerp(46,86,rnd());z=lerp(-160,52,rnd());}else{x=lerp(-86,86,rnd());z=side===2?lerp(14,52,rnd()):lerp(-96,-160,rnd());}
+    if(ok(x,z))spots.push([x,z,.42+rnd()*.22]);}
+  buildRealForest(spots,{h:()=>0,near:sp=>Math.abs(sp[0])<34&&sp[1]>-100});
+  // grass
+  ch1GrassMask();
+  GRASS_CH1=newGrassField(ch1GrassAllowed,()=>0,()=>1);buildGrass(GRASS_CH1);
 }
 
 // ================= characters =================
@@ -2101,10 +2182,10 @@ function updateCamera(dt,t){
   // landmark framing: facing the Heart Tree from the meadow, tilt up so its canopy is in view
   let lookUp=0;if(vale){const tx=-_mid.x,tz=-_mid.z,d=Math.hypot(tx,tz);const fx=-Math.sin(camYaw),fz=-Math.cos(camYaw);
     const facing=d>1?(tx*fx+tz*fz)/d:0;lookUp=smooth(.55,.9,facing)*smooth(24,40,d)*smooth(150,90,d);}
-  const pitchT=vale?lerp(.30,.16,lookUp):.6;camPitch=camSnap?pitchT:lerp(camPitch,pitchT,1-Math.exp(-dt*2));PITCH=camPitch;
+  const pitchT=vale?lerp(.30,.16,lookUp):(REAL.ready?.5:.6);camPitch=camSnap?pitchT:lerp(camPitch,pitchT,1-Math.exp(-dt*2));PITCH=camPitch;
   camLift=camSnap?lookUp*2.6:lerp(camLift,lookUp*2.6,1-Math.exp(-dt*2));
   const fov=vale?50:42;if(Math.abs(camera.fov-fov)>.01){camera.fov=fov;camera.updateProjectionMatrix();}
-  let want=vale?clamp(9.5+Math.max(0,sep-4)*.8,9.5,24):clamp(12+Math.max(0,sep-5)*.85,12,24);
+  let want=vale?clamp(9.5+Math.max(0,sep-4)*.8,9.5,24):clamp(11+Math.max(0,sep-5)*.85,11,23);
   _mid.y+=vale?.9+camLift:.4;
   if(G.region==='ch1'&&(G.ending||G.phase==='end')){want=16;_mid.set(F.x,2.2,F.z);}
   if(G.region==='ch1'&&(golem.pos.y<-1.5||sprite.pos.y<-1.5)&&golem.pos.x>29&&sprite.pos.x>29)want=Math.min(want,13);
@@ -2573,7 +2654,8 @@ async function boot(){
     curBuild='ch1';
     const R=beginRegion('ch1',{name:'Chapter 1: The Sunken Garden',short:'Sunken Garden',chapter:1,fog:[70,190],spawn:{g:CP[0].g,s:CP[0].s},
       hazard:b=>b.pos.x>POOL.x0&&b.pos.x<POOL.x1&&b.pos.z>POOL.z0&&b.pos.z<POOL.z1&&b.pos.y<POOL.y-.3});
-    buildWorld();buildInteractives();buildCh1Extras();endRegion(R);buildSeedInstances('ch1');curBuild='';
+    if(REAL.ready)ch1RealBegin();
+    buildWorld();buildInteractives();buildCh1Extras();if(REAL.ready)ch1RealFinish();endRegion(R);buildSeedInstances('ch1');curBuild='';
     storyHooks();
     buildGolem();buildSprite();initAmbientParticles();
     enterRegion('ch1');resetLevel();enterRegion('vale');

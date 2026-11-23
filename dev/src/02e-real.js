@@ -6,7 +6,7 @@ function loadTex(url,srgb,rep,tries){tries=tries||0;return new Promise(res=>texL
 const DRACO=new DRACOLoader();DRACO.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.149.0/examples/jsm/libs/draco/gltf/');
 async function loadReal(){
   const T=REAL.tex,jobs=[];
-  for(const n of ['ground','path','riverbed','rock','masonry'])for(const [k,s] of [['col',1],['nrm',0],['rgh',0]])jobs.push(loadTex('assets/tex/'+n+'_'+k+'.jpg',s&&n==='masonry').then(t=>T[n+'_'+k]=t));
+  for(const n of ['ground','path','riverbed','rock','masonry','sandstone','paving'])for(const [k,s] of [['col',1],['nrm',0],['rgh',0]])jobs.push(loadTex('assets/tex/'+n+'_'+k+'.jpg',s&&/masonry|sandstone|paving/.test(n)).then(t=>T[n+'_'+k]=t));
   jobs.push(loadTex('assets/tex/waternormals.jpg',0).then(t=>T.water=t));
   jobs.push(loadTex('assets/env/sky_4k.jpg',1,false).then(t=>T.sky=t));
   jobs.push(new Promise(res=>new RGBELoader().load('assets/env/sky_1k.hdr',t=>{T.hdr=t;res();},undefined,()=>res())));
@@ -57,8 +57,9 @@ normal=normalize(mat3(Tv,Bv,normal)*normalize(nT));`)
   return m;
 }
 // ----- grass: real blades around the camera, laid out in 8 m chunks that follow the players -----
-const GRASS={chunk:8,R:3,per:2300,slots:[],map:new Map(),center:[1e9,1e9]};
-function buildGrass(){
+function newGrassField(allowed,height,wake){return {chunk:8,R:3,per:2300,slots:[],center:[1e9,1e9],allowed,height,wake};}
+let GRASS=null,GRASS_CH1=null;
+function buildGrass(GRASS){
   const n=(GRASS.R*2+1)**2,count=n*GRASS.per;
   const blade=new THREE.BufferGeometry();
   // a tapered blade: 3 segments + tip, bends forward with height
@@ -108,22 +109,22 @@ function grassAllowed(x,z){
   if(VALE.plot&&Math.hypot(x-VALE.plot.x,z-VALE.plot.z)<5.2)return 0;
   return clamp((pd-1.3)/1.5,0,1)*(r<16?.5:1);
 }
-function fillChunk(slot,cx,cz){
+function fillChunk(GRASS,slot,cx,cz){
   const S=GRASS.chunk,base=slot.i*GRASS.per,o=GRASS.ofs,r=GRASS.rnd;let seed=(cx*73856093)^(cz*19349663);
   const rnd=()=>{seed=Math.imul(seed^(seed>>>15),2246822507)+0x6D2B79F5|0;return ((seed>>>0)%100000)/100000;};
-  for(let k=0;k<GRASS.per;k++){const x=(cx+rnd())*S,z=(cz+rnd())*S,j=(base+k)*4;const a=grassAllowed(x,z);const keep=rnd()<a;
-    o[j]=x;o[j+1]=keep?valeH(x,z):0;o[j+2]=z;o[j+3]=keep?.22+rnd()*.38:0;r[j]=rnd();r[j+1]=rnd();r[j+2]=rnd();r[j+3]=rnd();}
+  for(let k=0;k<GRASS.per;k++){const x=(cx+rnd())*S,z=(cz+rnd())*S,j=(base+k)*4;const a=GRASS.allowed(x,z);const keep=rnd()<a;
+    o[j]=x;o[j+1]=keep?GRASS.height(x,z):0;o[j+2]=z;o[j+3]=keep?.22+rnd()*.38:0;r[j]=rnd();r[j+1]=rnd();r[j+2]=rnd();r[j+3]=rnd();}
   slot.key=cx+','+cz;
 }
-function updateGrass(t){
-  if(!GRASS.mesh||G.region!=='vale')return;
+function updateGrass(GRASS,t){
+  if(!GRASS||!GRASS.mesh)return;
   const S=GRASS.chunk,cx=Math.floor(camTarget.x/S),cz=Math.floor(camTarget.z/S);
-  GRASS.mat.uniforms.uTime.value=t;GRASS.mat.uniforms.uCam.value.copy(camTarget);GRASS.mat.uniforms.uWake.value=VALE.wake;
+  GRASS.mat.uniforms.uTime.value=t;GRASS.mat.uniforms.uCam.value.copy(camTarget);GRASS.mat.uniforms.uWake.value=GRASS.wake();
   GRASS.mat.uniforms.uPush.value[0].copy(golem.pos);GRASS.mat.uniforms.uPush.value[1].copy(sprite.pos);
   if(cx===GRASS.center[0]&&cz===GRASS.center[1])return;
   GRASS.center=[cx,cz];const want=new Set();for(let i=-GRASS.R;i<=GRASS.R;i++)for(let j=-GRASS.R;j<=GRASS.R;j++)want.add((cx+i)+','+(cz+j));
   const free=GRASS.slots.filter(s=>!want.has(s.key));const have=new Set(GRASS.slots.map(s=>s.key));
-  for(const k of want)if(!have.has(k)){const s=free.pop();const [a,b]=k.split(',').map(Number);fillChunk(s,a,b);}
+  for(const k of want)if(!have.has(k)){const s=free.pop();const [a,b]=k.split(',').map(Number);fillChunk(GRASS,s,a,b);}
   GRASS.geo.attributes.ofs.needsUpdate=true;GRASS.geo.attributes.rnd.needsUpdate=true;
 }
 // ----- water: reflective, slightly green like a slow river -----
@@ -156,31 +157,32 @@ function leafify(src){
  if(diffuseColor.a<alphaTest)discard;`);};
   m.alphaTest=.45;m.side=THREE.DoubleSide;m.transparent=false;REAL.leafMats.push(m);
   const dm=new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking,map:m.map,alphaTest:.45});return {mat:m,depth:dm};}
-function buildRealForest(spots){
+function buildRealForest(spots,opt){
   if(!REAL.treeSrc)return;
+  opt=opt||{};const hAt=opt.h||valeH,isNearSpot=opt.near||(sp=>Math.max(Math.abs(sp[0]),Math.abs(sp[1]))<110);
   // the forest uses the dense Jacaranda canopy (shared with the Heart Tree) over the lighter wood
   const parts=treeParts(REAL.treeSrc).filter(p=>!/Leaves/.test(p.name));
   if(REAL.heartSrc){let lv=null;REAL.heartSrc.traverse(o=>{if(o.isMesh&&/Leaves/.test(o.name))lv=o;});if(lv)parts.push({name:'Leaves',geo:lv.geometry,mat:lv.material.clone()});}
   const m4=new THREE.Matrix4(),q=new THREE.Quaternion(),s=new V3(),p=new V3(),col=new THREE.Color();
   const wood=parts.find(x=>!/Leaves/.test(x.name)),leaves=parts.find(x=>/Leaves/.test(x.name));
-  const lf=leafify(leaves.mat);leaves.mat=lf.mat;const depth=lf.depth;VALE.foliageMat=lf.mat;
+  const lf=leafify(leaves.mat);leaves.mat=lf.mat;const depth=lf.depth;if(!opt.h)VALE.foliageMat=lf.mat;
   wood.mat=new THREE.MeshLambertMaterial({map:wood.mat.map,color:wood.mat.color.clone()});
   // a light trunk for distant trees: the canopy hides the branches anyway
   const stub=new THREE.CylinderGeometry(.55,1.0,9,7,1,true);stub.translate(0,4.5,0);
-  const near=spots.filter(sp=>Math.max(Math.abs(sp[0]),Math.abs(sp[1]))<110),far=spots.filter(sp=>Math.max(Math.abs(sp[0]),Math.abs(sp[1]))>=110);
+  const near=spots.filter(isNearSpot),far=spots.filter(sp=>!isNearSpot(sp));
   const groups=[];
   for(const [list,isNear] of [[near,true],[far,false]]){const sect=new Map();
     list.forEach(sp=>{const k=Math.floor((Math.atan2(sp[1],sp[0])+Math.PI)/(Math.PI*2)*10)+(Math.hypot(sp[0],sp[1])>60?10:0);if(!sect.has(k))sect.set(k,[]);sect.get(k).push(sp);});
     for(const lst of sect.values())groups.push({lst,isNear});}
   const shared=(src)=>{const g=new THREE.BufferGeometry();g.index=src.index;for(const k in src.attributes)g.setAttribute(k,src.attributes[k]);return g;};
   for(const {lst,isNear} of groups){
-    const box3=new THREE.Box3();for(const [x,z,sc] of lst){const y=valeH(x,z);box3.expandByPoint(new V3(x-14*sc,y-1,z-14*sc));box3.expandByPoint(new V3(x+14*sc,y+22*sc,z+14*sc));}
+    const box3=new THREE.Box3();for(const [x,z,sc] of lst){const y=hAt(x,z);box3.expandByPoint(new V3(x-14*sc,y-1,z-14*sc));box3.expandByPoint(new V3(x+14*sc,y+22*sc,z+14*sc));}
     const sphere=box3.getBoundingSphere(new THREE.Sphere());
     for(const part of [isNear?wood:{geo:stub,mat:wood.mat,name:'stub'},leaves]){
       const g=shared(part===leaves&&!isNear?(leaves.sparse||(leaves.sparse=sparseLeaves(leaves.geo,.5,1.3))):part.geo);g.boundingSphere=sphere.clone();g.boundingBox=box3.clone();
       const im=new THREE.InstancedMesh(g,part.mat,lst.length);im.castShadow=isNear&&part!==leaves;im.receiveShadow=isNear;
       if(part===leaves)im.customDepthMaterial=depth;
-      lst.forEach(([x,z,sc],i)=>{const j=spots.indexOf(lst[i]);const y=valeH(x,z)-.15;p.set(x,y,z);q.setFromAxisAngle(_yAx,(j*2.399)%6.283);s.set(sc,sc*(.9+((j*7)%5)*.05),sc);m4.compose(p,q,s);im.setMatrixAt(i,m4);
+      lst.forEach(([x,z,sc],i)=>{const j=spots.indexOf(lst[i]);const y=hAt(x,z)-.15;p.set(x,y,z);q.setFromAxisAngle(_yAx,(j*2.399)%6.283);s.set(sc,sc*(.9+((j*7)%5)*.05),sc);m4.compose(p,q,s);im.setMatrixAt(i,m4);
         if(part===leaves){col.setHSL(.2+((j*13)%9)*.008,.2,.86+((j*5)%7)*.02);im.setColorAt(i,col);}});
       im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;ROOT.add(im);REAL.forest.push(im);}}
 }
@@ -200,8 +202,9 @@ function realifyProp(root){root.traverse(o=>{if(!o.isMesh)return;const n=o.mater
   if(n==='Stone'||n==='Trim')o.material=n==='Trim'?(stoneReal.trim||(stoneReal.trim=pbr('masonry',1,{color:new THREE.Color('#a89a88')}))):stoneReal();
   else if(n==='Wood')o.material=new THREE.MeshStandardMaterial({map:o.material.map,color:'#8a7a68',roughness:.85});});}
 function updateReal(dt,t){
+  if(G.region==='ch1'){updateGrass(GRASS_CH1,t);return;}
   if(G.region!=='vale')return;
-  updateGrass(t);
+  updateGrass(GRASS,t);
   if(REAL.water){REAL.water.visible=VALE.wake>.02;REAL.water.position.y=lerp(RIVER_WATER-.7,RIVER_WATER,VALE.wake);const sh=REAL.water.material.userData.sh;if(sh)sh.uniforms.uT.value=t;}
 }
 
