@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Big &amp; Small</title>
-<meta name="description" content="A two-player co-op puzzle adventure: a Giant and a tiny Sprite wake a sunken garden together.">
+<meta name="description" content="A two-player co-op puzzle adventure: a Giant and a tiny Sprite wake the Everbloom Vale, one root at a time.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;700;800&display=swap">
@@ -12,7 +12,7 @@
 </head>
 <body>
 <canvas id="gl" aria-label="Big and Small game view"></canvas>
-<div id="loading"><div class="spin"></div><span id="loadText">Growing the garden…</span></div>
+<div id="loading"><div class="spin"></div><span id="loadText">Growing the Vale…</span></div>
 
 <!-- TITLE -->
 <div class="screen" id="scrTitle" hidden>
@@ -21,7 +21,8 @@
       <div class="eyebrow light">A two-player garden adventure</div>
       <h1 class="logo">Big <span class="amp">&amp;</span> Small</h1>
     </div>
-    <p class="lede">A huge Giant and a tiny Sprite wake in a sunken garden whose fountain has run dry. Find the three rune stones, bring them home, and wake the water. Neither of you can do it alone.</p>
+    <p class="lede">The Heart Tree is asleep and its seven roots have stopped. A huge Giant and a tiny Sprite wake in the Everbloom Vale with no memory of each other. Wake the roots, one realm at a time. Neither of you can do it alone.</p>
+    <p class="note light" id="saveNote" hidden></p>
     <div class="panel btns">
       <button class="btn primary" id="bLocal">Play together on this keyboard <small>2 players · 1 laptop</small></button>
       <button class="btn mint" id="bOnline">Play online <small>2 laptops · room code</small></button>
@@ -38,7 +39,8 @@
         <p class="note" id="netNote">Checking online play…</p>
       </div>
     </div>
-    <p class="note light">Needs a keyboard and a desktop browser. About 20 minutes. Press <kbd>M</kbd> any time to mute.</p>
+    <p class="note light">Book 1, Chapter 1 is ready. Needs a keyboard and a desktop browser. Progress saves on this laptop. <kbd>M</kbd> map, <kbd>Shift</kbd>+<kbd>M</kbd> mute.</p>
+    <div class="row"><button class="btn inline" id="bSettingsT">Settings</button></div>
   </div>
 </div>
 
@@ -49,7 +51,7 @@
       <div><div class="eyebrow" id="briefEyebrow">Before you set out</div><h2>How to play</h2></div>
       <div id="lobbyInfo" hidden style="text-align:right"><div class="eyebrow">Room code</div><div class="code-big" id="lobbyCode">----</div></div>
     </div>
-    <p><b>Goal:</b> find the <b>three rune stones</b>, have the Giant carry them to the dry fountain at the far end, then get the Sprite up onto the fountain's spout to wake it. Every puzzle needs both of you. Fall into the ravine and you're back at the last checkpoint.</p>
+    <p><b>Goal:</b> you start in the <b>Everbloom Vale</b>, around the sleeping Heart Tree. Walk through the glowing North Gate together to enter <b>Chapter 1: The Sunken Garden</b>. There, find the <b>three rune stones</b>, set them in the dry fountain and wake it. Look for <b>golden seeds</b>, <b>memory petals</b> and <b>secrets</b> on the way. Every puzzle needs both of you.</p>
     <div class="roles">
       <div class="role g">
         <div class="rolehead"><span class="badge g">Giant</span><span class="who" id="whoG"></span></div>
@@ -58,6 +60,7 @@
           <li><b>Strong and heavy.</b> Pushes stone blocks and holds down heavy plates.</li>
           <li><b>Lifts and throws the Sprite.</b> Walk close and press interact. <b>Tap</b> again for a short high lob, <b>hold</b> to charge a long throw.</li>
           <li><b>Carries the rune stones.</b></li>
+          <li><b>Ground pound:</b> jump, then press interact in mid-air.</li>
           <li>Too big for small gaps. Can't jump while carrying.</li>
         </ul>
         <div class="keys" id="keysG"></div>
@@ -77,7 +80,7 @@
     <div class="tips">
       <div><b>Goal</b> is always in the top-left corner.</div>
       <div><b>Prompts</b> appear on your card at the bottom when something can be used.</div>
-      <div><kbd>Q</kbd> <kbd>R</kbd> turn the camera. <kbd>Esc</kbd> menu. <kbd>H</kbd> hides the cards.</div>
+      <div><kbd>Q</kbd> <kbd>R</kbd> turn the camera. <kbd>M</kbd> map. <kbd>Esc</kbd> menu, journal and settings. <kbd>H</kbd> hides the cards.</div>
       <div id="tipChat" hidden><kbd>Enter</kbd> chat. <kbd>1</kbd>–<kbd>4</kbd> quick messages.</div>
     </div>
     <div class="row" id="readyRow">
@@ -101,10 +104,16 @@
       <div class="role g"><div class="rolehead"><span class="badge g">Giant</span><span class="who" id="pnameG"></span></div><div class="keys" id="pkeysG"></div></div>
       <div class="role s"><div class="rolehead"><span class="badge s">Sprite</span><span class="who" id="pnameS"></span></div><div class="keys" id="pkeysS"></div></div>
     </div>
-    <p class="note">Giant: tap interact while holding the Sprite for a short high lob, or hold it to charge a long throw. Sprite: jump while held to leap from the Giant's hands, hold jump while falling to glide. <kbd>Q</kbd> <kbd>R</kbd> turn the camera.</p>
+    <p class="note">Giant: tap interact while holding the Sprite for a short high lob, or hold it to charge a long throw. Jump, then interact in mid-air to ground pound. Sprite: jump while held to leap from the Giant's hands, hold jump while falling to glide. <kbd>Q</kbd> <kbd>R</kbd> turn the camera, <kbd>M</kbd> map.</p>
     <div class="row">
       <button class="btn primary inline" id="bResume">Resume</button>
-      <button class="btn inline" id="bRestart">Restart level</button>
+      <button class="btn inline" id="bJournal">Journal</button>
+      <button class="btn inline" id="bMapP">Map</button>
+      <button class="btn inline" id="bSettings">Settings</button>
+    </div>
+    <div class="row">
+      <button class="btn inline" id="bToVale">Return to the Vale</button>
+      <button class="btn inline" id="bRestart">Restart chapter</button>
       <button class="btn inline" id="bMute">Mute sound</button>
       <button class="btn inline" id="bQuit">Quit to title</button>
     </div>
@@ -114,15 +123,75 @@
 <!-- END -->
 <div class="screen" id="scrEnd" hidden>
   <div class="sheet">
-    <div><div class="eyebrow light">The Sunken Garden</div><h1 class="logo" style="font-size:clamp(44px,7vw,76px)">The fountain wakes</h1></div>
+    <div><div class="eyebrow light">Chapter 1 · The Sunken Garden</div><h1 class="logo" style="font-size:clamp(44px,7vw,76px)">The fountain wakes</h1></div>
     <p class="lede" id="endLede">Water runs through the garden again.</p>
     <div class="panel"><dl class="stats" id="endStats"></dl></div>
-    <div class="btns" style="max-width:360px">
-      <button class="btn primary" id="bAgain">Play again</button>
-      <button class="btn" id="bEndMenu">Back to title</button>
+    <div class="btns" style="max-width:380px">
+      <button class="btn primary" id="bAgain">Return to the Vale <small>see what the root woke</small></button>
+      <button class="btn" id="bEndMenu">Keep exploring the garden <small>find what you missed</small></button>
+      <p class="note light" id="endWait" hidden>Waiting for the host to choose.</p>
     </div>
   </div>
 </div>
+
+<!-- STORY CAPTION -->
+<div id="story" hidden><div class="storybox"><div class="eyebrow" id="storyTitle"></div><p id="storyText"></p><div class="storyfoot"><span id="storyDots"></span><span id="storyHelp"></span></div></div></div>
+
+<!-- MEMORY CARD -->
+<div class="screen center" id="scrCard" hidden>
+  <div class="memcard"><canvas id="cardArt" width="640" height="340"></canvas>
+    <div class="memtext"><div class="eyebrow" id="cardEyebrow"></div><h2 id="cardTitle"></h2><p id="cardText"></p><p class="note" id="cardHelp"></p></div></div>
+</div>
+
+<!-- JOURNAL -->
+<div class="screen center" id="scrJournal" hidden>
+  <div class="sheet wide panel" style="gap:14px">
+    <div class="row" style="justify-content:space-between;align-items:flex-end">
+      <div><div class="eyebrow">Journal · Book 1: The Seven Roots</div><h2 id="jTitle">The story so far</h2></div>
+      <div class="row tabs"><button class="btn inline tab" data-tab="story">Story</button><button class="btn inline tab" data-tab="mem">Memories</button><button class="btn inline tab" data-tab="map">Map</button></div>
+    </div>
+    <div id="jStory" class="jpane"></div>
+    <div id="jMem" class="jpane memgrid" hidden></div>
+    <div id="jMemView" class="memview" hidden><canvas id="jMemArt" width="640" height="340"></canvas><div><h3 id="jMemTitle"></h3><p id="jMemText"></p><button class="btn inline" id="bJMemClose">Back</button></div></div>
+    <div id="jMap" class="jpane" hidden><canvas id="jMapCanvas" class="mapcv" width="900" height="560"></canvas></div>
+    <div class="row"><button class="btn primary inline" id="bJClose">Close</button></div>
+  </div>
+</div>
+
+<!-- MAP -->
+<div class="screen center" id="scrMap" hidden>
+  <div class="sheet wide panel" style="gap:12px">
+    <div class="row" style="justify-content:space-between;align-items:flex-end"><div><div class="eyebrow">Map</div><h2 id="mapTitle"></h2></div><span class="note"><kbd>M</kbd> or <kbd>Esc</kbd> to close</span></div>
+    <canvas id="mapCanvas" class="mapcv" width="900" height="560"></canvas>
+    <div id="mapLegend" class="maplegend"></div>
+    <div class="row"><button class="btn inline" id="bMapClose">Close</button></div>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div class="screen center" id="scrSettings" hidden>
+  <div class="sheet panel" style="max-width:560px;gap:16px">
+    <div><div class="eyebrow">Settings</div><h2>Comfort and sound</h2></div>
+    <label class="setting"><span>Music volume</span><input type="range" id="setMusic" min="0" max="100" step="5"></label>
+    <label class="setting"><span>Effects volume</span><input type="range" id="setSfx" min="0" max="100" step="5"></label>
+    <label class="setting check"><input type="checkbox" id="setCam"><span>Reduce camera motion <small>story scenes use still shots</small></span></label>
+    <label class="setting check"><input type="checkbox" id="setFlash"><span>Reduce flashing <small>calmer glows and fewer sparkles</small></span></label>
+    <label class="setting check"><input type="checkbox" id="setShake"><span>Screen shake <small>on ground pounds (off by default)</small></span></label>
+    <p class="note"><kbd>Shift</kbd>+<kbd>M</kbd> mutes everything at any time. Online, the host's laptop keeps the save.</p>
+    <div class="row"><button class="btn primary inline" id="bSetClose">Done</button><button class="btn inline" id="bErase">Erase saved progress</button></div>
+  </div>
+</div>
+
+<!-- WAYSTONE TRAVEL -->
+<div class="screen center" id="scrTravel" hidden>
+  <div class="sheet panel" style="max-width:520px;gap:14px">
+    <div><div class="eyebrow">Waystone</div><h2>Travel together</h2></div>
+    <p class="note">You both travel. Choose any waystone you have woken.</p>
+    <div class="btns" id="travelList"></div>
+    <button class="btn" id="bTravelClose">Stay here</button>
+  </div>
+</div>
+<div id="fade"></div>
 
 <!-- WORLD OVERLAYS (name tags, bubbles, edge arrows) -->
 <div id="overlay" hidden>
@@ -140,7 +209,7 @@
     <div id="plates" hidden><span>Plates</span><i id="plA"></i><i id="plB"></i><div id="latch"><b></b></div></div>
     <div id="runeList"></div>
   </div>
-  <div class="hpanel" id="topRight"><span class="t" id="timer">0:00</span><span class="note"><kbd>Q</kbd><kbd>R</kbd> turn</span><span class="note"><kbd>Esc</kbd> menu</span></div>
+  <div class="hpanel" id="topRight"><span class="reg" id="regName"></span><span class="pill seed" title="Golden seeds"><i></i><b id="seedCount">0</b></span><span class="pill petal" title="Memory petals"><i></i><b id="petalCount">0</b></span><span id="timerWrap"><span class="t" id="timer">0:00</span></span><span class="note"><kbd>M</kbd> map</span><span class="note"><kbd>Esc</kbd> menu</span></div>
   <div class="hpanel card g" id="cardG"><div class="cardhead"><span class="badge g">Giant</span><span class="cname" id="cardGName"></span></div><div class="prompt" id="promptG"></div><div class="keys" id="ckeysG"></div></div>
   <div class="hpanel card s" id="cardS"><div class="cardhead"><span class="badge s">Sprite</span><span class="cname" id="cardSName"></span></div><div class="prompt" id="promptS"></div><div class="keys" id="ckeysS"></div></div>
   <div class="hpanel" id="hint" style="opacity:0"></div>

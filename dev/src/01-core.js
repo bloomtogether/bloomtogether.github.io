@@ -16,6 +16,7 @@ renderer.outputEncoding=THREE.sRGBEncoding;
 renderer.toneMapping=THREE.NoToneMapping;
 const ANISO=Math.min(8,renderer.capabilities.getMaxAnisotropy());
 const scene=new THREE.Scene();
+let ROOT=scene; // where world-building helpers add meshes (each region builds into its own group)
 const HORIZON=new THREE.Color('#cfe9f1');
 scene.fog=new THREE.Fog(HORIZON,70,190);
 const camera=new THREE.PerspectiveCamera(38,innerWidth/innerHeight,0.1,600);
@@ -127,6 +128,7 @@ function buildMaterials(){
   M.holeRim=new THREE.MeshBasicMaterial({color:'#5ff3cf'});
   M.holeDark=new THREE.MeshBasicMaterial({color:'#1d2a2a'});
   M.cliffTop=lam({color:'#9fcf68'});
+  M.crack=lam({map:crackTexture()});
 }
 
 // box geometry with world-scaled UVs so textures keep a constant size
@@ -149,13 +151,15 @@ function box(xa,xb,ya,yb,za,zb,mat,opt){
   const x0=Math.min(xa,xb),x1=Math.max(xa,xb),y0=Math.min(ya,yb),y1=Math.max(ya,yb),z0=Math.min(za,zb),z1=Math.max(za,zb);
   let mesh=null;
   if(mat){mesh=new THREE.Mesh(boxGeo(x1-x0,y1-y0,z1-z0,tileFor(mat),x0,y0,z0),mat);mesh.position.set((x0+x1)/2,(y0+y1)/2,(z0+z1)/2);
-    mesh.castShadow=opt.cast!==false;mesh.receiveShadow=true;(opt.parent||scene).add(mesh);
+    mesh.castShadow=opt.cast!==false;mesh.receiveShadow=true;(opt.parent||ROOT).add(mesh);
     if(opt.fade||(opt.fade!==false&&!opt.parent&&y1-y0>1.1))markFade(mesh,opt.linked);}
   if(opt.collide===false) return {mesh};
-  const c={min:new V3(x0,y0,z0),max:new V3(x1,y1,z1),kind:opt.kind||'static',on:true,mesh};
+  const c={min:new V3(x0,y0,z0),max:new V3(x1,y1,z1),kind:opt.kind||'static',on:true,mesh,surface:opt.surface||surfaceOf(mat)};
   colliders.push(c);return c;
 }
 const invis=(xa,xb,ya,yb,za,zb)=>box(xa,xb,ya,yb,za,zb,null);
+// footstep surface for a material
+function surfaceOf(m){if(!m)return 'stone';if(m===M.ground||m===M.cliffTop||m===M.tuft)return 'grass';if(m===M.wood||m===M.woodPH)return 'wood';return 'stone';}
 // a wall: sandstone body plus a lighter cap that overhangs a little (reads clearly from above)
 function wall(xa,xb,za,zb,h,extend){
   const cap=box(Math.min(xa,xb)-.06,Math.max(xa,xb)+.06,h,h+.16,Math.min(za,zb)-.06,Math.max(za,zb)+.06,M.wallTop,{collide:false,fade:false}).mesh;

@@ -95,7 +95,8 @@ function groundRing(color,size){
 // put the ring on the floor directly below a character (finds the highest surface under it)
 const _rayDown=new THREE.Raycaster(),_down=new V3(0,-1,0);
 function floorBelow(p,skip){let best=-99;for(const c of colliders){if(!c.on||c===skip||c.kind==='golem')continue;if(p.x>c.min.x&&p.x<c.max.x&&p.z>c.min.z&&p.z<c.max.z&&c.max.y<=p.y+.05&&c.max.y>best)best=c.max.y;}
-  if(p.z<-27&&p.z>-33&&best<-1)return -99;return best<-50?0:best;}
+  const th=terrainAt(p.x,p.z);if(th<=p.y+.05&&th>best)best=th;
+  if(G.region==='ch1'&&p.z<-27&&p.z>-33&&Math.abs(p.x)<11&&best<-1)return -99;return best<-50?0:best;}
 
 // ================= particles =================
 const PMAX=700;
@@ -116,6 +117,17 @@ function updateParticles(dt){
     p.vy-=p.grav*dt;const d=Math.exp(-p.drag*dt);p.vx*=d;p.vy*=d;p.vz*=d;p.x+=p.vx*dt;p.y+=p.vy*dt;p.z+=p.vz*dt;}
   const put=(x,y,z,r,g,b,s,a)=>{if(n>=PMAX)return;pPos[n*3]=x;pPos[n*3+1]=y;pPos[n*3+2]=z;pCol[n*3]=r;pCol[n*3+1]=g;pCol[n*3+2]=b;pSize[n]=s;pAlpha[n]=a;n++;};
   for(const p of parts){const k=p.life/p.max;put(p.x,p.y,p.z,p.r,p.g,p.b,p.size,Math.min(1,k*2));}
-  for(const f of fireflies){f.ph+=dt;const x=f.x+Math.sin(f.ph*.7)*.8,y=f.y+Math.sin(f.ph*1.3)*.4,z=f.z+Math.cos(f.ph*.5)*.8;const a=(.5+.5*Math.sin(f.ph*2.3))*(G.ending?1:.6);put(x,y,z,1,.9,.5,.08,a);}
+  if(G.region==='ch1')for(const f of fireflies){f.ph+=dt;const x=f.x+Math.sin(f.ph*.7)*.8,y=f.y+Math.sin(f.ph*1.3)*.4,z=f.z+Math.cos(f.ph*.5)*.8;const a=(.5+.5*Math.sin(f.ph*2.3))*(G.fountainOn?1:.6);put(x,y,z,1,.9,.5,.08,a);}
   pGeo.setDrawRange(0,n);pGeo.attributes.position.needsUpdate=true;pGeo.attributes.aColor.needsUpdate=true;pGeo.attributes.aSize.needsUpdate=true;pGeo.attributes.aAlpha.needsUpdate=true;
+  // dust (soft, not glowing)
+  let m=0;for(let i=dust.length-1;i>=0;i--){const p=dust[i];p.life-=dt;if(p.life<=0){dust.splice(i,1);continue;}const d=Math.exp(-p.drag*dt);p.vx*=d;p.vy=p.vy*d-p.grav*dt;p.vz*=d;p.x+=p.vx*dt;p.y+=p.vy*dt;p.z+=p.vz*dt;p.size+=dt*p.grow;}
+  for(const p of dust){if(m>=DMAX)break;const k=p.life/p.max;dPos[m*3]=p.x;dPos[m*3+1]=p.y;dPos[m*3+2]=p.z;dCol[m*3]=p.r;dCol[m*3+1]=p.g;dCol[m*3+2]=p.b;dSize[m]=p.size;dAlpha[m]=Math.min(1,k*1.6)*p.a;m++;}
+  dGeo.setDrawRange(0,m);for(const k of ['position','aColor','aSize','aAlpha'])dGeo.attributes[k].needsUpdate=true;
 }
+const DMAX=260,dPos=new Float32Array(DMAX*3),dCol=new Float32Array(DMAX*3),dSize=new Float32Array(DMAX),dAlpha=new Float32Array(DMAX),dust=[];
+const dGeo=new THREE.BufferGeometry();
+dGeo.setAttribute('position',new THREE.BufferAttribute(dPos,3));dGeo.setAttribute('aColor',new THREE.BufferAttribute(dCol,3));dGeo.setAttribute('aSize',new THREE.BufferAttribute(dSize,1));dGeo.setAttribute('aAlpha',new THREE.BufferAttribute(dAlpha,1));
+const dMat=pMat.clone();dMat.blending=THREE.NormalBlending;dMat.uniforms=pMat.uniforms;
+const dPts=new THREE.Points(dGeo,dMat);dPts.frustumCulled=false;dPts.renderOrder=3;scene.add(dPts);
+function puff(x,y,z,n,spread,col,size,up){if(dust.length>DMAX-n)return;const c=col||[.82,.74,.62];
+  for(let i=0;i<n;i++){const a=Math.random()*6.28,sp=(spread||1)*(.6+Math.random()*.8);dust.push({x:x+Math.cos(a)*.2,y:y+.08,z:z+Math.sin(a)*.2,vx:Math.cos(a)*sp,vy:(up||.6)*(.5+Math.random()),vz:Math.sin(a)*sp,r:c[0],g:c[1],b:c[2],a:.55,size:size||.35,grow:.5,life:.7+Math.random()*.4,max:1.1,drag:3.2,grav:.4});}}

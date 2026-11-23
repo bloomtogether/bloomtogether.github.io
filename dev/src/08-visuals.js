@@ -3,12 +3,14 @@ const camTarget=new V3(0,1,0);let camSnap=true,camDist=14,camYaw=0,camYawT=0,cam
 function rotateCam(d){camYawT+=d*Math.PI/2;}
 const _mid=new V3();
 function updateCamera(dt,t){
-  if(G.phase==='title'||G.phase==='loading'){const a=t*.04;camera.position.set(Math.sin(a)*18,11,-9+Math.cos(a)*18);camTarget.set(0,1.5,-10);camera.lookAt(camTarget);return;}
+  if(G.phase==='title'||G.phase==='loading'||G.phase==='brief'){const a=t*.035;camera.position.set(Math.sin(a)*78,30,Math.cos(a)*78);camTarget.set(0,18,0);camera.lookAt(camTarget);camSnap=true;return;}
+  if(G.scene&&sceneCamera())return;
   const gy=Math.max(-1,golem.pos.y),sy=Math.max(-1,sprite.pos.y);
   _mid.set((golem.pos.x+sprite.pos.x)/2,(gy+sy)/2+1,(golem.pos.z+sprite.pos.z)/2);
   const sep=Math.hypot(golem.pos.x-sprite.pos.x,golem.pos.z-sprite.pos.z);
   let want=clamp(14.5+Math.max(0,sep-5)*.85,14.5,26);
-  if(G.ending||G.phase==='end'){want=16;_mid.set(F.x,2.2,F.z);}
+  if(G.region==='ch1'&&(G.ending||G.phase==='end')){want=16;_mid.set(F.x,2.2,F.z);}
+  if(G.region==='ch1'&&(golem.pos.y<-1.5||sprite.pos.y<-1.5)&&golem.pos.x>29&&sprite.pos.x>29)want=Math.min(want,13);
   if(dbgDist)want=dbgDist;
   const k=camSnap?1:1-Math.exp(-dt*4);
   camTarget.x=lerp(camTarget.x,_mid.x,k);camTarget.z=lerp(camTarget.z,_mid.z,k);
@@ -18,6 +20,7 @@ function updateCamera(dt,t){
   camSnap=false;
   camera.position.set(camTarget.x+Math.sin(camYaw)*Math.cos(PITCH)*camDist,camTarget.y+Math.sin(PITCH)*camDist,camTarget.z+Math.cos(camYaw)*Math.cos(PITCH)*camDist);
   camera.lookAt(camTarget);
+  if(shakeT>0){shakeT-=dt;const a=shakeT*.3;camera.position.x+=(Math.random()-.5)*a;camera.position.y+=(Math.random()-.5)*a;}
 }
 
 // ================= see-through walls =================
@@ -72,6 +75,7 @@ function refreshNames(){
 
 // ================= characters & world animation =================
 function nextBeaconTarget(){
+  if(G.region!=='ch1'||G.fountainOn)return null;
   if(!gate.open)return levers[0].pos;
   if(!bridge.open)return crank.pos;
   if(runes[2].state==='vault')return levers[1].pos;
@@ -97,10 +101,18 @@ function updateVisuals(dt,t){
       r.light.position.set(r.pos.x,r.pos.y+.7,r.pos.z);r.glow.position.set(r.pos.x,r.pos.y+hover,r.pos.z);r.glow.material.opacity=.45+.25*pulse;}
   }
   W.sockets.forEach((s,i)=>s.visible=i<G.placed);
+  // chapter 1 additions
+  if(G.region==='ch1'){syncSeesaw();crack.mesh.visible=!crack.broken;
+    stones.list.forEach((st,i)=>{st.m.position.y=stones.home[i]-(1-smooth(0,1,stones.t))*1.3;});
+    exitGate.veil.material.opacity=PROG.settings.reduceFlash?.24:.2+.1*Math.sin(t*1.6);
+    if(stones.t>0&&stones.t<1&&Math.random()<dt*20){const st=stones.list[Math.floor(Math.random()*3)];puff(st.m.position.x,POOL.y,st.m.position.z,2,.6,[.85,.95,1],.3,.8);}}
+  for(const r of runes)if(G.region!=='ch1')r.light.intensity=0;
+  updateSeedInstances(t);updatePetals(t);updateWaystones(t);updateVale(dt,t);updateRings(dt);
   updateGiant(dt,t);updateSpriteVis(dt,t);
   // ending: water and light
-  if(G.ending||G.phase==='end'){
-    const e=G.phase==='end'?8:G.endT;W.jet.visible=true;const js=Math.min(1,e/1.2);W.jet.scale.set(1,js,1);W.jet.position.y=3.6+.7*js;
+  W.fLight.intensity=0;
+  if(G.region==='ch1'&&(G.ending||G.phase==='end'||G.fountainOn)){
+    const e=G.ending?G.endT:8;W.jet.visible=true;const js=Math.min(1,e/1.2);W.jet.scale.set(1,js,1);W.jet.position.y=3.6+.7*js;
     W.basinWater.visible=true;W.basinWater.position.y=lerp(.14,.68,Math.min(1,e/5));W.fLight.intensity=Math.min(2,e*.5);
     if(Math.random()<dt*35){const a=Math.random()*6.28,sp=.6+Math.random()*1.4;emit(F.x,5,F.z,Math.cos(a)*sp,1+Math.random()*1.5,Math.sin(a)*sp,.8,.97,1,.07,1.4,9,.2);}
   }
@@ -118,6 +130,7 @@ function updateGiant(dt,t){
   if(g.A){
     let n='Idle',ts=1;
     if(G.ending||G.phase==='end')n='Cheer';
+    else if(g.pound){n='Jump_Idle';ts=.4;}
     else if(!g.onGround&&Math.abs(g.vel.y)>2)n='Jump_Idle';
     else if(g.pushVis>0){n='Walking_B';ts=.75;}
     else if(hs>.35){n='Walking_A';ts=clamp(hs/2.6,.55,1.45);}
@@ -127,7 +140,10 @@ function updateGiant(dt,t){
     if(g.charging&&g.chest){g.chest.rotation.x-=.35*g.charge;}
   }
   g.gems.forEach((m,i)=>{m.visible=i<g.runes;const a=t*1.6+i*2.094;m.position.set(Math.cos(a)*.85,1.15+Math.sin(t*2+i)*.08,Math.sin(a)*.85);m.rotation.y=t*2;});
-  g.walk+=dt*hs*2.1;const step=Math.floor(g.walk/Math.PI);if(step!==g.stepSound&&hs>1&&g.onGround){g.stepSound=step;SFX.thud(.45+Math.min(1,hs/3.4)*.35);}
+  g.walk+=dt*hs*2.1;const step=Math.floor(g.walk/Math.PI);if(step!==g.stepSound&&hs>1&&g.onGround){g.stepSound=step;const sf=surfaceUnder(g);SFX.step(sf,.55+Math.min(1,hs/3.4)*.45);
+    if(sf!=='stone'||Math.random()<.5){const f=fwd(g.yaw),side=(step&1)?.35:-.35;puff(g.pos.x-f.z*side,g.pos.y,g.pos.z+f.x*side,3,.5,sf==='grass'?[.72,.8,.6]:[.82,.76,.66],.3,.4);}}
+  if(g.onGround&&!g.visGround&&(g.lastVy||0)<-6){puff(g.pos.x,g.pos.y,g.pos.z,10,1.4,null,.4,.6);SFX.step(surfaceUnder(g),1.1);}
+  g.visGround=g.onGround;g.lastVy=g.vel.y;
   placeRing(g.ring,g,1.5);
 }
 function updateSpriteVis(dt,t){
@@ -146,6 +162,25 @@ function updateSpriteVis(dt,t){
   s.wings[0].rotation.y=-flap;s.wings[1].rotation.y=flap;
   sr.position.y+=s.onGround?0:.02*Math.sin(t*4);
   s.halo.material.opacity=.4+Math.sin(t*3)*.1;
-  if(Math.random()<dt*(s.onGround?(ss>.5?10:3):22))emit(s.pos.x+(Math.random()-.5)*.12,s.pos.y+.22,s.pos.z+(Math.random()-.5)*.12,(Math.random()-.5)*.2,.15+Math.random()*.2,(Math.random()-.5)*.2,.55,1,.85,.06,.9,-.1,.6);
+  if(Math.random()<dt*(PROG.settings.reduceFlash?.4:1)*(s.onGround?(ss>.5?10:3):(s.gliding?40:22)))emit(s.pos.x+(Math.random()-.5)*.12,s.pos.y+.22,s.pos.z+(Math.random()-.5)*.12,(Math.random()-.5)*.2,.15+Math.random()*.2,(Math.random()-.5)*.2,.55,1,.85,.06,.9,-.1,.6);
   placeRing(s.ring,s,.75);if(s.held)s.ring.visible=false;
+  s.walk+=dt*ss*2.6;const st=Math.floor(s.walk/Math.PI);if(st!==s.stepSound&&ss>1.2&&s.onGround){s.stepSound=st;SFX.tick(surfaceUnder(s));}
 }
+
+// ================= feel: dust, rings, sparkles, celebrations, fades =================
+const _surfP=new V3();
+function surfaceUnder(b){
+  if(b.ground&&b.ground.surface)return b.ground.surface;
+  if(G.region==='vale')return riverDist(b.pos.x,b.pos.z)<RIVER_W+1.5?'stone':'grass';
+  let best=-99,sf='grass';for(const c of colliders){if(!c.on||c.kind==='golem'||!c.mesh)continue;if(b.pos.x>c.min.x&&b.pos.x<c.max.x&&b.pos.z>c.min.z&&b.pos.z<c.max.z&&c.max.y<=b.pos.y+.06&&c.max.y>best){best=c.max.y;sf=c.surface||'stone';}}
+  return sf;
+}
+const rings=[];
+function impactRing(x,y,z,color,size){const m=new THREE.Mesh(new THREE.RingGeometry(.7,1,40),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.8,depthWrite:false,side:THREE.DoubleSide}));
+  m.rotation.x=-Math.PI/2;m.position.set(x,y+.06,z);m.renderOrder=3;scene.add(m);rings.push({m,t:0,size:size||4});}
+function updateRings(dt){for(let i=rings.length-1;i>=0;i--){const r=rings[i];r.t+=dt/.55;const k=smooth(0,1,r.t);r.m.scale.setScalar(.4+k*r.size);r.m.material.opacity=.8*(1-r.t);if(r.t>=1){scene.remove(r.m);r.m.geometry.dispose();r.m.material.dispose();rings.splice(i,1);}}}
+let shakeT=0;
+function poundFx(p){const [x,y,z]=p;SFX.pound();impactRing(x,y,z,'#f2873a',4.2);puff(x,y,z,22,2.6,null,.55,.5);if(PROG.settings.shake&&!reduceMotion)shakeT=.35;}
+function sparkle(p,n){if(PROG.settings.reduceFlash)n=Math.ceil(n/3);for(let i=0;i<n;i++){const a=Math.random()*6.28,sp=.6+Math.random()*1.8;emit(p.x,p.y+.25,p.z,Math.cos(a)*sp,.5+Math.random()*1.6,Math.sin(a)*sp,.7,1,.9,.07,.8,1.5,.8);}}
+function celebrate(){if(golem.A)golem.A.shot('Cheer',1.25);if(sprite.A)sprite.A.shot('Cheer',1.35);if(!PROG.settings.reduceFlash)sparkle(sprite.pos,20);}
+function fadeIn(){const f=$('fade');f.classList.remove('go');f.style.opacity=1;void f.offsetWidth;f.classList.add('go');f.style.opacity=0;}

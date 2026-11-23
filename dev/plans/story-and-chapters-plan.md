@@ -161,3 +161,24 @@ Each chapter is a big region of **25–40 minutes**, with **6–8 co-op puzzles*
 
 ## 8. Open question
 - **Story names:** should the characters also get story names (for example "Bram" the Giant and "Lumi" the Sprite)? Or should the story use only your own names? My suggestion is your own names in dialogue, and "the Giant" and "the Sprite" in narration. If you don't choose, I'll go with that.
+
+---
+
+## 9. Phase 1 status (first slice, November 2026)
+
+**Built and playable:**
+- **World foundation:** one region loaded at a time (the Vale, Chapter 1), a short fade between them, a save on the laptop (the host's save online), waystones with fast travel (3 in the Vale, 1 in Chapter 1).
+- **Story system:** opening scenes with a slow camera glide and storybook captions (prologue, Chapter 1 intro, "the first root wakes"), skippable; character lines in speech bubbles using the players' names; memory cards with painted illustrations; a journal (story so far, memories, map); a map on **M**.
+- **The Vale (first version):** about 230 m of walkable hills inside a ring of mountains, the Heart Tree in the middle (its seven roots light up as they wake), a river that is dry until Chapter 1 is done, three bridges, forests and ruins, a lookout hill, seven region gates (Chapter 1 open, the rest sealed and named), a Seed Garden where every 5 golden seeds planted grow flowers, 20 seeds, 1 petal, 1 secret.
+- **Chapter 1, bigger:** the original puzzles plus a terraced east garden (seesaw, a ledge, a hidden balcony only a ground-pound launch reaches), a secret cellar under a cracked slab, and a flooded west garden (stepping stones, a throw to an island, a lever that raises a stone path). 40 seeds, 3 petals, 3 secrets, an exit gate back to the Vale, a chapter-end screen with stats.
+- **New abilities:** Giant ground pound (jump, then interact in mid-air), seesaw launches. Each is explained the first time it appears.
+- **Feel and sound:** dust on Giant steps and landings, an impact ring on ground pounds, sparkles on Sprite jumps, cheers when a puzzle is solved, footsteps per surface (grass, stone, wood), calm generated music per region.
+- **Settings:** music and effects volume, reduce camera motion, reduce flashing, screen shake (off by default), erase save. Shift+M mutes.
+- **Props:** Heart Tree, region gate, waystone, seesaw, memory petal, golden seed and stone bridge, modelled in Blender with softened Poly Haven textures.
+
+**Still to do for Phase 1:**
+- Chapter 1 is about twice the original area, not yet 3 to 5 times: an upper terrace route and more side areas are still to come.
+- The Vale's side caves and more Vale petals and secrets.
+- Little reactions: waving when the partner comes close, the Sprite sitting on the Giant's shoulder when idle.
+- Streaming regions in and out instead of building both at load, and switching off far detail inside the Vale.
+- A scripted playthrough checked into the repo, and an online test on the live link after the push.

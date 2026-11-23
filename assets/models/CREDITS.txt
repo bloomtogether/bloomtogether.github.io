@@ -1,0 +1,7 @@
+Big & Small props (heart_tree, region_gate, waystone, seesaw, memory_petal, golden_seed, stone_bridge)
+Modelled in Blender for this game. Editable source: dev/blender/phase1-props.blend
+
+Textures are softened, recoloured 512px versions of Poly Haven textures (CC0, https://polyhaven.com):
+- Bark Brown 02, by Rob Tuytel        https://polyhaven.com/a/bark_brown_02
+- Sandstone Blocks 08, by Rob Tuytel  https://polyhaven.com/a/sandstone_blocks_08
+- Wood Planks, by Amal Kumar          https://polyhaven.com/a/wood_planks

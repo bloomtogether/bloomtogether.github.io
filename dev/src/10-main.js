@@ -2,6 +2,7 @@
 function show(id){
   if(document.activeElement&&document.activeElement.blur&&document.activeElement!==$('chatIn'))document.activeElement.blur();
   for(const s of ['scrTitle','scrBrief','scrPause','scrEnd'])$(s).hidden=s!==id;
+  if(overlayOpen&&id!=='scrTitle')closeOverlay();
   $('hud').hidden=!(G.phase==='play');
   const chatOn=mode==='online'&&['brief','play','end'].includes(G.phase);$('chat').hidden=!chatOn;if(!chatOn&&chatOpen)closeChat();
 }
@@ -35,7 +36,7 @@ function updateWho(){
   else{$('whoG').textContent='left hand';$('whoS').textContent='right hand';}
 }
 function startPlay(){
-  if(mode!=='online'||role==='host'){resetLevel();}
+  if(mode!=='online'||role==='host'){const sp=startSpot();G.scene='';G.card='';travel(sp.reg,sp.g,sp.s,Math.PI);G.time=0;}
   if(mode==='local'){names.g=cleanName($('nameG').value);names.s=cleanName($('nameS').value);store('bs_nameG',names.g);store('bs_nameS',names.s);}
   else{names[myRole]=myName;names[myRole==='g'?'s':'g']=partnerName;}
   G.phase='play';G.paused=false;resetWatch();hudCache={};camYaw=camYawT=0;
@@ -49,16 +50,20 @@ function togglePause(){
   if(G.phase!=='play')return;
   if(chatOpen){closeChat();return;}
   const open=$('scrPause').hidden;
-  if(open){G.paused=mode==='local';$('pauseEyebrow').textContent=mode==='local'?'Paused':'Menu (the game keeps running online)';$('pauseObj').textContent=objectiveText();$('bRestart').hidden=mode==='online'&&role!=='host';$('scrPause').hidden=false;}
+  if(open){G.paused=mode==='local';$('pauseEyebrow').textContent=(mode==='local'?'Paused':'Menu (the game keeps running online)')+' · '+curReg.name;$('pauseObj').textContent=objectiveText();
+    const boss=mode!=='online'||role==='host';$('bRestart').hidden=!boss||G.region!=='ch1';$('bToVale').hidden=!boss||G.region!=='ch1';$('scrPause').hidden=false;}
   else{G.paused=false;$('scrPause').hidden=true;}
 }
-function toTitle(){if(mode==='online')leaveOnline();mode=null;G.phase='title';G.paused=false;clearChat();partnerName='';partnerHere=false;names.g=names.s='';show('scrTitle');}
+function toTitle(){if(mode==='online'){leaveOnline();if(role!=='host'){const st=PROG.settings;PROG=freshProgress();loadProgress();PROG.settings=st;}}
+  G.scene='';G.card='';closeOverlay();refreshTitleSave();mode=null;G.phase='title';G.paused=false;clearChat();partnerName='';partnerHere=false;names.g=names.s='';show('scrTitle');}
 function showEnd(){
   const dl=$('endStats');dl.textContent='';const m=Math.floor(G.time/60),s=Math.floor(G.time%60);
   const add=(a,b)=>{const dt=document.createElement('dt');dt.textContent=a;const dd=document.createElement('dd');dd.textContent=b;dl.append(dt,dd);};
-  add('Time',m+' min '+s+' s');add('Rune stones','3 of 3');add(nameOf('s')+' thrown',G.throws+' times');add('Falls into the ravine',String(G.falls));
-  $('endLede').textContent=nameOf('g')+' and '+nameOf('s')+' woke the fountain together. Water runs through the garden again.';
-  $('bAgain').hidden=mode==='online'&&role!=='host';show('scrEnd');
+  add('Time',m+' min '+s+' s');add('Golden seeds',seedsFoundIn('ch1')+' of '+seedsIn('ch1').length);
+  add('Memory petals',PETALS.filter(p=>p.reg==='ch1'&&PROG.petals[p.id]).length+' of 3');add('Secrets',REG.ch1.secrets.filter(x=>PROG.secrets[x.id]).length+' of 3');
+  add(nameOf('s')+' thrown',G.throws+' times');add('Seesaw launches',String(G.ch.launches));add('Falls',String(G.falls));
+  $('endLede').textContent=nameOf('g')+' and '+nameOf('s')+' woke the fountain together. Far away, under the Vale, the first root stirs.';
+  const boss=mode!=='online'||role==='host';$('bAgain').hidden=!boss;$('bEndMenu').hidden=!boss;$('endWait').hidden=boss;show('scrEnd');
 }
 $('bLocal').onclick=()=>{initAudio();mode='local';myRole='g';role=null;clearChat();resetLevel();openBrief();};
 $('bOnline').onclick=()=>{initAudio();const box=$('onlineBox');box.hidden=!box.hidden;if(!box.hidden&&!$('nameIn').value)$('nameIn').focus();};
@@ -77,11 +82,14 @@ $('codeIn').addEventListener('keydown',e=>{if(e.key==='Enter')$('bJoin').click()
 $('bBegin').onclick=()=>{initAudio();if(mode==='local')startPlay();else if(role==='host'&&findPartner())startPlay();};
 $('bBriefBack').onclick=toTitle;
 $('bResume').onclick=togglePause;
-$('bRestart').onclick=()=>{$('scrPause').hidden=true;resetLevel();G.paused=false;resetWatch();};
+$('bRestart').onclick=()=>{$('scrPause').hidden=true;if(G.region==='ch1')resetLevel();G.paused=false;resetWatch();};
+$('bToVale').onclick=()=>{$('scrPause').hidden=true;G.paused=false;returnToVale();};
+$('bJournal').onclick=()=>openJournal('story');$('bMapP').onclick=openMap;$('bSettings').onclick=openSettings;$('bSettingsT').onclick=()=>{initAudio();openSettings();};
 $('bMute').onclick=()=>setMuted(!muted);
 $('bQuit').onclick=()=>{$('scrPause').hidden=true;toTitle();};
-$('bAgain').onclick=()=>{startPlay();};
-$('bEndMenu').onclick=toTitle;
+function returnToVale(){const z=-100.5;G.phase='play';travel('vale',[-1.6,valeH(-1.6,z),z],[1.6,valeH(1.6,z),z],0);show(null);}
+$('bAgain').onclick=returnToVale;
+$('bEndMenu').onclick=()=>{G.phase='play';show(null);};
 let partnerHere=false;
 function notePartner(p){
   const here=!!p;names[myRole]=myName;
@@ -130,29 +138,48 @@ function tick(now){
     if(!netPaused&&mode==='online'&&$('pauseEyebrow').textContent==='Waiting'){$('scrPause').hidden=true;$('pauseEyebrow').textContent='Menu';}
   }
   if(G.phase==='end'&&$('scrEnd').hidden){$('hud').hidden=true;showEnd();}
+  if(G.phase==='play'&&!$('scrEnd').hidden)show(null);
   if(mode==='online'&&role==='guest'&&G.phase==='brief'&&!$('scrEnd').hidden){openBrief();}
   updateCamera(dt,t);
   if(G.phase!=='loading'){updateVisuals(dt,t);updateParticles(dt);updateAudio(dt);updateFades(dt);}
-  updateOverlay();updateChat(dt);
+  updateOverlay();updateChat(dt);updateStoryUI();updateCardUI();
+  if(overlayOpen==='scrMap'&&Math.floor(t*4)!==Math.floor((t-dt)*4))drawMap($('mapCanvas'));
+  if(saveT>0){saveT-=dt;if(saveT<=0)saveProgress();}
   renderer.render(scene,camera);
 }
 document.addEventListener('visibilitychange',()=>{if(!AC)return;if(document.hidden)AC.suspend();else if(!muted)AC.resume();});
 
 // ================= boot =================
 async function boot(){
+  loadProgress();
   try{buildTextures();buildMaterials();}catch(e){console.error(e);fail('Something went wrong while preparing the garden: '+e.message);return;}
   $('loadText').textContent='Waking the Giant and the Sprite…';
-  try{const L=new GLTFLoader();const [a,b]=await Promise.all([L.loadAsync('assets/Barbarian.glb'),L.loadAsync('assets/Rogue_Hooded.glb')]);MODELS={giant:a,sprite:b};}
-  catch(e){console.warn('Character models could not load, using simple shapes.',e);MODELS=null;}
-  try{buildWorld();buildInteractives();buildGolem();buildSprite();initAmbientParticles();resetLevel();}
-  catch(e){console.error(e);fail('Something went wrong while building the garden: '+e.message);return;}
+  const L=new GLTFLoader();
+  const chars=Promise.all([L.loadAsync('assets/Barbarian.glb'),L.loadAsync('assets/Rogue_Hooded.glb')]).then(([a,b])=>{MODELS={giant:a,sprite:b};}).catch(e=>{console.warn('Character models could not load, using simple shapes.',e);MODELS=null;});
+  await Promise.all([chars,loadProps()]);
+  $('loadText').textContent='Growing the Vale…';await new Promise(r=>setTimeout(r,30));
+  try{
+    buildSky();
+    buildVale();
+    curBuild='ch1';
+    const R=beginRegion('ch1',{name:'Chapter 1: The Sunken Garden',short:'Sunken Garden',chapter:1,fog:[70,190],spawn:{g:CP[0].g,s:CP[0].s},
+      hazard:b=>b.pos.x>POOL.x0&&b.pos.x<POOL.x1&&b.pos.z>POOL.z0&&b.pos.z<POOL.z1&&b.pos.y<POOL.y-.3});
+    buildWorld();buildInteractives();buildCh1Extras();endRegion(R);buildSeedInstances('ch1');curBuild='';
+    storyHooks();
+    buildGolem();buildSprite();initAmbientParticles();
+    enterRegion('ch1');resetLevel();enterRegion('vale');
+    const sp=startSpot();placeAt(golem,sp.g);placeAt(sprite,sp.s);
+  }
+  catch(e){console.error(e);fail('Something went wrong while building the Vale: '+e.message);return;}
+  wireSettings();
   try{renderer.compile(scene,camera);}catch(e){}
-  $('loading').hidden=true;G.phase='title';show('scrTitle');
+  $('loading').hidden=true;G.phase='title';show('scrTitle');refreshTitleSave();
   $('nameIn').value=recall('bs_name');
   if(matchMedia('(pointer: coarse)').matches&&!matchMedia('(pointer: fine)').matches){$('netNote').textContent='This game needs a keyboard. On a phone or tablet it can only be watched.';}
   requestAnimationFrame(t=>{last=t;frame(t);});
 }
 // small debug handle used by automated tests
-window.__bs={G,golem,sprite,get block(){return block;},runes,gate,bridge,port,plates,levers,get crank(){return crank;},latch,stepSim,resetLevel,startLocal:()=>{mode='local';resetLevel();startPlay();},NOIN,W,fadeables,camera,
+window.__bs={get PROG(){return PROG;},REG,travel,travelToWaystone,seesaw,crack,stones,SEEDS,PETALS,WAYS,GATES,VALE,playScene,skipScene,storyNext,valeH,saveProgress,eraseProgress,openMap,closeOverlay,get overlay(){return overlayOpen;},
+  G,golem,sprite,get block(){return block;},runes,gate,bridge,port,plates,levers,get crank(){return crank;},latch,stepSim,resetLevel,startLocal:()=>{mode='local';resetLevel();startPlay();},NOIN,W,fadeables,camera,
   get camYaw(){return camYaw;},rotateCam,set dbgDist(v){dbgDist=v;},advance:(sec)=>{let n=performance.now();for(let i=0;i<sec*60;i++){n+=1000/60;tick(n);}},get models(){return MODELS;}};
 boot();

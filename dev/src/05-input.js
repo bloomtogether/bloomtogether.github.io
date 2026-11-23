@@ -15,8 +15,13 @@ addEventListener('keydown',e=>{
   if(GAME_KEYS.includes(e.code))e.preventDefault();
   initAudio();
   if(e.repeat)return;keys[e.code]=true;
-  if(e.code==='Escape'){togglePause();return;}
-  if(e.code==='KeyM')setMuted(!muted);
+  if(e.code==='Escape'){
+    if(overlayOpen){closeOverlay();return;}
+    const boss=mode==='local'||role==='host';
+    if(G.phase==='play'&&G.scene&&boss&&$('scrPause').hidden){skipScene();return;}
+    if(G.phase==='play'&&G.card&&boss&&$('scrPause').hidden){G.card='';return;}
+    togglePause();return;}
+  if(e.code==='KeyM'){if(e.shiftKey||G.phase!=='play')setMuted(!muted);else if(!chatOpen&&!G.scene){if(overlayOpen==='scrMap')closeOverlay();else if(!overlayOpen)openMap();}}
   if(e.code==='KeyH'){cardsCollapsed=!cardsCollapsed;$('cardG').classList.toggle('collapsed',cardsCollapsed);$('cardS').classList.toggle('collapsed',cardsCollapsed);}
   if(G.phase==='play'&&(e.code==='KeyQ'||e.code==='KeyR'))rotateCam(e.code==='KeyQ'?-1:1);
   if(mode==='online'&&(G.phase==='play'||G.phase==='brief'||G.phase==='end')&&$('scrPause').hidden){
@@ -41,7 +46,7 @@ function rawLocal(which){ // which: 'g'|'s'
   return toWorld(r);
 }
 function rawOnline(){
-  if(chatOpen)return {mx:0,mz:0,jump:0,act:0};
+  if(chatOpen||overlayOpen)return {mx:0,mz:0,jump:0,act:0};
   const r={mx:K('KeyD','ArrowRight')-K('KeyA','ArrowLeft'),mz:K('KeyS','ArrowDown')-K('KeyW','ArrowUp'),jump:K('Space'),act:K('KeyE','KeyF','ShiftRight')};
   const p=padState(0);if(p){if(p.mx||p.mz){r.mx=p.mx;r.mz=p.mz;}r.jump=r.jump||p.jump;r.act=r.act||p.act;}return toWorld(r);
 }
