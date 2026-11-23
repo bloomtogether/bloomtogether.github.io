@@ -179,6 +179,9 @@ Each chapter is a big region of **25–40 minutes**, with **6–8 co-op puzzles*
 **Still to do for Phase 1:**
 - Chapter 1 is about twice the original area, not yet 3 to 5 times: an upper terrace route and more side areas are still to come.
 - The Vale's side caves and more Vale petals and secrets.
-- Little reactions: waving when the partner comes close, the Sprite sitting on the Giant's shoulder when idle.
+- Little reactions: the Sprite sitting on the Giant's shoulder when idle. (Waving when the partner comes close after being apart is done.)
 - Streaming regions in and out instead of building both at load, and switching off far detail inside the Vale.
-- A scripted playthrough checked into the repo, and an online test on the live link after the push.
+- An online test on the live link after the push. (Online play between two browser tabs is tested locally.)
+
+**Testing:** `dev/tests/ch1-playthrough.js` plays Chapter 1 from start to finish with real inputs and pathfinding (every puzzle, the seesaw launches, the cellar, the west garden island, and the walk back to the Vale). Run it from the title screen in the browser console:
+`const t = await import('/dev/tests/ch1-playthrough.js'); await t.run();`

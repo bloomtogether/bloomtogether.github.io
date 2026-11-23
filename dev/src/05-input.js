@@ -38,7 +38,10 @@ function padState(i){const ps=navigator.getGamepads?navigator.getGamepads():[];c
 const K=(...c)=>c.some(k=>keys[k])?1:0;
 // screen-relative input -> world direction, following the camera's current turn
 function toWorld(r){const c=Math.cos(camYaw),s=Math.sin(camYaw);const mx=r.mx*c+r.mz*s,mz=-r.mx*s+r.mz*c;r.mx=mx;r.mz=mz;return r;}
+// test hook: the scripted playthrough (dev/tests) steers both characters with world-space input
+let BOT=null;
 function rawLocal(which){ // which: 'g'|'s'
+  if(BOT&&BOT[which])return BOT[which]();
   let r;
   if(which==='g')r={mx:K('KeyD')-K('KeyA'),mz:K('KeyS')-K('KeyW'),jump:K('Space'),act:K('KeyE','KeyF')};
   else r={mx:K('ArrowRight','KeyL')-K('ArrowLeft','KeyJ'),mz:K('ArrowDown','KeyK')-K('ArrowUp','KeyI'),jump:K('Enter','KeyO'),act:K('ShiftRight','KeyU','Slash')};

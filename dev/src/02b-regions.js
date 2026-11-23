@@ -19,7 +19,7 @@ function seedsFoundIn(reg){return seedsIn(reg).filter(s=>PROG.seeds[s.id]).lengt
 const REG={};let curReg=null;
 function beginRegion(id,o){
   const r={id,name:o.name,short:o.short||o.name,group:new THREE.Group(),colliders:[],fadeables:[],terrain:o.terrain||null,hazard:o.hazard||null,
-    fog:o.fog||[70,190],spawn:o.spawn,secrets:o.secrets||[],talk:o.talk||[],chapter:o.chapter||0};
+    fog:o.fog||[70,190],fogReal:o.fogReal||null,spawn:o.spawn,secrets:o.secrets||[],talk:o.talk||[],chapter:o.chapter||0};
   r.group.visible=false;r.group.name='region-'+id;scene.add(r.group);REG[id]=r;ROOT=r.group;colliders.length=0;fadeables.length=0;return r;
 }
 function endRegion(r){r.colliders=colliders.slice();r.fadeables=fadeables.slice();colliders.length=0;fadeables.length=0;ROOT=scene;}
@@ -29,7 +29,7 @@ function enterRegion(id){
   curReg=r;G.region=id;
   colliders.length=0;colliders.push(...r.colliders,golem.col);
   fadeables.length=0;fadeables.push(...r.fadeables);
-  scene.fog.near=r.fog[0];scene.fog.far=r.fog[1];camSnap=true;
+  const fg=REAL.ready&&r.fogReal?r.fogReal:r.fog;scene.fog.near=fg[0];scene.fog.far=fg[1];camSnap=true;
   for(const b of [golem,sprite]){b.safe=null;}
 }
 // smooth ground given by a height function (the Vale's hills). Acts like one more collider under everything.

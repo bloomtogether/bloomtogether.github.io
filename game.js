@@ -468,7 +468,7 @@ function seedsFoundIn(reg){return seedsIn(reg).filter(s=>PROG.seeds[s.id]).lengt
 const REG={};let curReg=null;
 function beginRegion(id,o){
   const r={id,name:o.name,short:o.short||o.name,group:new THREE.Group(),colliders:[],fadeables:[],terrain:o.terrain||null,hazard:o.hazard||null,
-    fog:o.fog||[70,190],spawn:o.spawn,secrets:o.secrets||[],talk:o.talk||[],chapter:o.chapter||0};
+    fog:o.fog||[70,190],fogReal:o.fogReal||null,spawn:o.spawn,secrets:o.secrets||[],talk:o.talk||[],chapter:o.chapter||0};
   r.group.visible=false;r.group.name='region-'+id;scene.add(r.group);REG[id]=r;ROOT=r.group;colliders.length=0;fadeables.length=0;return r;
 }
 function endRegion(r){r.colliders=colliders.slice();r.fadeables=fadeables.slice();colliders.length=0;fadeables.length=0;ROOT=scene;}
@@ -478,7 +478,7 @@ function enterRegion(id){
   curReg=r;G.region=id;
   colliders.length=0;colliders.push(...r.colliders,golem.col);
   fadeables.length=0;fadeables.push(...r.fadeables);
-  scene.fog.near=r.fog[0];scene.fog.far=r.fog[1];camSnap=true;
+  const fg=REAL.ready&&r.fogReal?r.fogReal:r.fog;scene.fog.near=fg[0];scene.fog.far=fg[1];camSnap=true;
   for(const b of [golem,sprite]){b.safe=null;}
 }
 // smooth ground given by a height function (the Vale's hills). Acts like one more collider under everything.
@@ -631,7 +631,7 @@ const CHAPTERS=[
 
 function buildVale(){
   curBuild='vale';
-  const R=beginRegion('vale',{name:'The Everbloom Vale',short:'The Vale',terrain:valeH,fog:[90,330],spawn:VALE_SPAWN,
+  const R=beginRegion('vale',{name:'The Everbloom Vale',short:'The Vale',terrain:valeH,fog:[90,330],fogReal:[120,620],spawn:VALE_SPAWN,
     hazard:b=>VALE.wake>.5&&riverDist(b.pos.x,b.pos.z)<RIVER_W+2.2&&b.pos.y<RIVER_WATER-.35&&!onBridge(b)});
   // ---------- ground ----------
   const S=340,N=170,geo=new THREE.PlaneGeometry(S,S,N,N);geo.rotateX(-Math.PI/2);
@@ -716,7 +716,7 @@ function buildVale(){
   box(VALE_HILL.x-1.6,VALE_HILL.x+1.6,hy-1,hy+.35,VALE_HILL.z-1.6,VALE_HILL.z+1.6,REAL.ready?stoneReal():M.pave,{fade:false,surface:'stone'});
   // ---------- forests (batched) ----------
   buildValeForest();
-  if(REAL.ready){GRASS=newGrassField(grassAllowed,valeH,()=>VALE.wake);buildGrass(GRASS);}else buildValeTufts();
+  if(REAL.ready){GRASS=newGrassField(grassAllowed,valeH,()=>VALE.wake);buildGrass(GRASS);if(VALE.veinTex)GRASS.mat.uniforms.uVein.value=VALE.veinTex;}else buildValeTufts();
   // ---------- collectibles ----------
   addPetal('m0',VALE_HILL.x,hy+.35,VALE_HILL.z);
   const vs=[[-6,70],[6,64],[-3,46],[3,-36],[-4,-60],[4,-84],[24,30],[-26,-18],[-30,30],[34,-6],[60,-58],[66,-74],[80,-62],[-60,-28],[-48,92],[48,92],[-96,6],[96,-30],[-36,-42],[42,-30]];
@@ -778,7 +778,7 @@ function updateVale(dt,t){
   if(VALE.leaf&&REAL.ready)VALE.leaf.material.color.copy(_realLeafSleep).lerp(_wakeLeaf,.35+.4*Math.min(1,PROG.roots/7)+.25*w);
   else if(VALE.leaf)VALE.leaf.material.color.copy(_treeLeafSleep).lerp(_treeLeafWake,.2+.25*Math.min(1,PROG.roots/7)+.1*w);
   if(VALE.blossom)VALE.blossom.material.color.set(PROG.roots>=7?'#ffb3cf':'#e6dade');
-  VALE.roots.forEach((r,i)=>{if(r.vein){const u=r.material.uniforms;u.uT.value=t;u.uOn.value=approach(u.uOn.value,i<PROG.roots?(PROG.settings.reduceFlash?.6:1):0,dt*.6);return;}const on=i<PROG.roots,em=r.material.emissive;if(on){em.set('#1fb3a3');r.material.emissiveIntensity=PROG.settings.reduceFlash?.35:.3+.15*Math.sin(t*1.5+i);}else r.material.emissiveIntensity=0;});
+  VALE.roots.forEach((r,i)=>{if(r.vein){const u=r.material.uniforms;u.uT.value=t;u.uOn.value=approach(u.uOn.value,i<PROG.roots?(PROG.settings.reduceFlash?.6:1):0,dt*.6);if(GRASS&&GRASS.mat)GRASS.mat.uniforms.uRootOn.value[i]=u.uOn.value;return;}const on=i<PROG.roots,em=r.material.emissive;if(on){em.set('#1fb3a3');r.material.emissiveIntensity=PROG.settings.reduceFlash?.35:.3+.15*Math.sin(t*1.5+i);}else r.material.emissiveIntensity=0;});
   VALE.treeLight.intensity=PROG.roots>0?.6:0;
   const planted=Math.floor(PROG.planted/5);VALE.beds.forEach((g,i)=>g.visible=i<planted);
   for(const g of GATES){const ready=g.ready;g.veil.visible=ready;if(ready)g.veil.material.opacity=PROG.settings.reduceFlash?.3:.26+.1*Math.sin(t*1.6);
@@ -951,7 +951,7 @@ vec3 lin(vec3 c){return pow(c,vec3(2.2));}
 vec3 cw=vColor;vec4 w=vec4(clamp(1.-cw.r-cw.g-cw.b,0.,1.),cw.r,cw.g,cw.b);vec2 p=vWP.xz;
 vec2 uG=p/3.2,uP=p/2.6,uR=p/3.,uK=p/4.;
 vec3 cG=mix(lin(texture2D(t_ground_col,uG).rgb),lin(texture2D(t_ground_col,uG*.23+.37).rgb),.4);
-float dc=length(vWP.xz-cameraPosition.xz);cG=mix(cG*vec3(.8,.95,.62),vec3(.055,.095,.025),.45+.25*smoothstep(25.,60.,dc));
+float dc=length(vWP.xz-cameraPosition.xz);float big=texture2D(t_ground_col,p/61.+.13).g*1.6;cG=mix(cG*vec3(.8,.95,.62),vec3(.045,.085,.02)*(.75+.5*big),.45+.4*smoothstep(14.,34.,dc));
 vec3 alb=cG*w.x;if(w.y>.003)alb+=lin(texture2D(t_path_col,uP).rgb)*vec3(.62,.58,.52)*w.y;if(w.z>.003)alb+=lin(texture2D(t_riverbed_col,uR).rgb)*w.z;if(w.w>.003)alb+=lin(texture2D(t_rock_col,uK).rgb)*w.w;
 diffuseColor.rgb*=alb;`)
     .replace('#include <roughnessmap_fragment>',`float roughnessFactor=roughness*(texture2D(t_ground_rgh,uG).g*w.x+(w.y>.003?texture2D(t_path_rgh,uP).g*w.y:0.)+(w.z>.003?texture2D(t_riverbed_rgh,uR).g*w.z:0.)+(w.w>.003?texture2D(t_rock_rgh,uK).g*w.w:0.));`)
@@ -977,8 +977,8 @@ function buildGrass(GRASS){
   const ofs=new Float32Array(count*4),rnd=new Float32Array(count*4);
   g.setAttribute('ofs',new THREE.InstancedBufferAttribute(ofs,4));g.setAttribute('rnd',new THREE.InstancedBufferAttribute(rnd,4));g.instanceCount=count;
   const mat=new THREE.ShaderMaterial({side:THREE.DoubleSide,fog:true,lights:false,
-    uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{uTime:{value:0},uSun:{value:REAL.sun.clone()},uCam:{value:new V3()},uR:{value:GRASS.chunk*(GRASS.R+.5)},uWake:{value:1},uPush:{value:[new V3(0,-99,0),new V3(0,-99,0)]}}]),
-    vertexShader:`attribute vec4 ofs;attribute vec4 rnd;uniform float uTime;uniform vec3 uCam;uniform float uR;uniform vec3 uPush[2];varying vec2 vUv;varying float vShade;varying vec3 vCol;
+    uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{uTime:{value:0},uSun:{value:REAL.sun.clone()},uCam:{value:new V3()},uR:{value:GRASS.chunk*(GRASS.R+.5)},uWake:{value:1},uPush:{value:[new V3(0,-99,0),new V3(0,-99,0)]},uVein:{value:VEIN_NONE},uRootOn:{value:new Array(7).fill(0)}}]),
+    vertexShader:`attribute vec4 ofs;attribute vec4 rnd;uniform float uTime;uniform vec3 uCam;uniform float uR;uniform vec3 uPush[2];uniform sampler2D uVein;uniform float uRootOn[7];varying vec2 vUv;varying float vShade;varying vec3 vCol;varying float vGlow;
 #include <fog_pars_vertex>
 void main(){vUv=uv;float h=ofs.w;if(h<=0.){gl_Position=vec4(2.,2.,2.,1.);return;}
  float d=length(ofs.xz-uCam.xz);float fade=smoothstep(uR,uR*.72,d);h*=fade;
@@ -987,18 +987,20 @@ void main(){vUv=uv;float h=ofs.w;if(h<=0.){gl_Position=vec4(2.,2.,2.,1.);return;
  vec2 wind=vec2(sin(uTime*1.3+ofs.x*.21+ofs.z*.17)+.5*sin(uTime*2.7+ofs.x*.6),cos(uTime*1.1+ofs.z*.23))*(.10+.06*rnd.z);
  vec3 wp=vec3(p.x*c,p.y,p.x*s)+ofs.xyz;wp.xz+=wind*bend*h+vec2(c,s)*bend*h*.25*(rnd.w-.5);
  for(int i=0;i<2;i++){vec3 q=uPush[i];vec2 dd=wp.xz-q.xz;float l=length(dd);float k=smoothstep(1.1,.2,l)*step(abs(q.y-ofs.y),1.5);wp.xz+=normalize(dd+1e-4)*k*bend*h*.9;wp.y-=k*bend*h*.35;}
+ vec3 vn=texture2D(uVein,ofs.xz/240.+.5).rgb;int ri=int(clamp(vn.g*8.,0.,6.));vGlow=vn.r*uRootOn[ri]*(.7+.3*sin(vn.b*18.-uTime*1.6))*t;
  vShade=t;vCol=mix(vec3(.075,.15,.03),vec3(.22,.34,.07),rnd.y)*mix(.85,1.15,rnd.z);
  if(rnd.w>.95)vCol=vec3(.36,.33,.13);
  vec4 mvPosition=viewMatrix*vec4(wp,1.);gl_Position=projectionMatrix*mvPosition;
  #include <fog_vertex>
 }`,
-    fragmentShader:`uniform vec3 uSun;uniform float uWake;varying vec2 vUv;varying float vShade;varying vec3 vCol;
+    fragmentShader:`uniform vec3 uSun;uniform float uWake;varying vec2 vUv;varying float vShade;varying vec3 vCol;varying float vGlow;
 #include <common>
 #include <fog_pars_fragment>
 void main(){float ao=mix(.28,1.,smoothstep(0.,.8,vShade));
  vec3 sunC=vec3(1.,.9,.78)*1.9;vec3 sky=vec3(.5,.62,.75)*.5;
  vec3 col=vCol*(sky+sunC*.6*(.5+.5*vShade))*ao;
  col=mix(col*vec3(.92,.92,.9),col,uWake);
+ col+=vec3(.2,.85,.7)*vGlow*1.1;
  gl_FragColor=vec4(col,1.);
  #include <tonemapping_fragment>
  #include <encodings_fragment>
@@ -1116,10 +1118,21 @@ function updateReal(dt,t){
 }
 
 // the seven roots run under the Vale: a woken root shows as a soft glowing vein through the grass
+// a 240 m map of the roots for the grass: r = glow strength, g = which root, b = distance along it
+const VEIN_NONE=new THREE.DataTexture(new Uint8Array(4),1,1);VEIN_NONE.needsUpdate=true;
+function veinMap(paths){
+  const N=256,d=new Uint8Array(N*N*4),px=240/N;
+  paths.forEach((pts,k)=>{for(let i=0;i<pts.length-1;i++)for(let s=0;s<4;s++){const f=s/4,x=lerp(pts[i][0],pts[i+1][0],f),z=lerp(pts[i][1],pts[i+1][1],f),u=(i+f)/(pts.length-1);
+    const rad=1.9*(1-u*.6),str=1-smooth(.75,1,u),cx=(x+120)/px,cz=(z+120)/px,rr=Math.ceil(rad/px)+1;
+    for(let j=Math.floor(cz-rr);j<=cz+rr;j++)for(let q=Math.floor(cx-rr);q<=cx+rr;q++){if(q<0||j<0||q>=N||j>=N)continue;
+      const dd=Math.hypot((q+.5-cx)*px,(j+.5-cz)*px),v=Math.max(0,1-dd/rad)*str*255,o=(j*N+q)*4;
+      if(v>d[o]){d[o]=v;d[o+1]=(k+.5)/8*255;d[o+2]=u*255;}}}});
+  const t=new THREE.DataTexture(d,N,N);t.magFilter=t.minFilter=THREE.LinearFilter;t.needsUpdate=true;return t;
+}
 function buildRootVeins(th){
-  const ox=-.07*2.3,oz=-.4*2.3;
+  const ox=-.07*2.3,oz=-.4*2.3;const paths=[];
   for(let k=0;k<7;k++){const a=k/7*Math.PI*2+.2,pts=[];
-    for(let i=0;i<=40;i++){const r=4+i*.62,w=Math.sin(i*.35+k*1.7)*.18+Math.sin(i*.9+k)*.06;pts.push([ox+Math.cos(a+w)*r,oz-Math.sin(a+w)*r]);}
+    for(let i=0;i<=40;i++){const r=4+i*.62,w=Math.sin(i*.35+k*1.7)*.18+Math.sin(i*.9+k)*.06;pts.push([ox+Math.cos(a+w)*r,oz-Math.sin(a+w)*r]);}paths.push(pts);
     const v=[],idx=[],uv=[];
     pts.forEach((pt,i)=>{const q=pts[Math.min(i+1,pts.length-1)],o=pts[Math.max(i-1,0)];const dx=q[0]-o[0],dz=q[1]-o[1],l=Math.hypot(dx,dz)||1,nx=-dz/l,nz=dx/l,wd=.55*(1-i/48);
       for(const sg of [1,-1]){const x=pt[0]+nx*wd*sg,z=pt[1]+nz*wd*sg;v.push(x,valeH(x,z)+.07,z);}uv.push(0,i/40,1,i/40);if(i){const b=i*2;idx.push(b-2,b-1,b,b-1,b+1,b);}});
@@ -1128,6 +1141,7 @@ function buildRootVeins(th){
       vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
       fragmentShader:'varying vec2 vUv;uniform float uOn;uniform float uT;void main(){float e=1.-abs(vUv.x*2.-1.);float pulse=.75+.25*sin(vUv.y*18.-uT*1.6);float a=smoothstep(0.,.8,e)*(1.-smoothstep(.75,1.,vUv.y))*uOn*pulse;gl_FragColor=vec4(vec3(.25,.95,.8)*a*.9,1.);}'});
     const mesh=new THREE.Mesh(g,m);mesh.renderOrder=2;ROOT.add(mesh);VALE.roots.push({vein:mesh,material:m});}
+  VALE.veinTex=veinMap(paths);if(GRASS&&GRASS.mat)GRASS.mat.uniforms.uVein.value=VALE.veinTex;
 }
 
 function sparseLeaves(src,keep,grow){
@@ -1276,6 +1290,9 @@ function buildGolem(){
       if(o.isMesh&&o.material.name==='GiantEye'){o.material.emissive.set('#ff9a2e');o.material.emissiveIntensity=1.6;o.material.color.set('#ffb054');}});
     golem.A=makeAnimator(m.root,MODELS.giant.animations);golem.A.play('Idle',0);
     golem.armL=findBone(m.root,'upperarml');golem.armR=findBone(m.root,'upperarmr');golem.chest=findBone(m.root,'chest');
+    // carry pose: both hands come up beside the head to steady the Sprite (worked out on the Blender rig)
+    golem.carryPose=[['upperarml',-2.3,-.2],['upperarmr',-2.3,.2],['lowerarml',-1.4,.2],['lowerarmr',-1.4,-.2]].map(([n,x,z])=>{const b=findBone(m.root,n);
+      return b?{b,q:b.quaternion.clone().multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(x,0,z,'XYZ')))}:null;}).filter(Boolean);
     addXray(m.root,'#f2873a');
   }else{
     const mat=new THREE.MeshLambertMaterial({color:'#f2a86a',flatShading:true});
@@ -1291,7 +1308,7 @@ function buildSprite(){
   const R=new THREE.Group();scene.add(R);sprite.root=R;
   sprite.wingBones=null;sprite.wings=null;
   if(MODELS){
-    const m=prepModel(MODELS.sprite,.66);R.add(m.holder);sprite.model=m.root;
+    const m=prepModel(MODELS.sprite,.8);R.add(m.holder);sprite.model=m.root;
     sprite.A=makeAnimator(m.root,MODELS.sprite.animations);sprite.A.play('Idle',0);
     m.root.updateMatrixWorld(true);
     // wings flap around the body's vertical axis, worked out in each wing bone's own space
@@ -1307,8 +1324,8 @@ function buildSprite(){
     const wm=new THREE.MeshBasicMaterial({map:TEX.wing,transparent:true,depthWrite:false,side:THREE.DoubleSide,opacity:.9});
     sprite.wings=[-1,1].map(s=>{const p=new THREE.Group();p.position.set(s*.02,.26,-.06);R.add(p);const w=new THREE.Mesh(new THREE.PlaneGeometry(.3,.21),wm);w.position.x=s*.15;w.scale.x=s;p.add(w);return p;});
   }
-  const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:TEX.glow,color:'#7dffd9',transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:.5}));halo.scale.set(1.15,1.15,1.15);halo.position.y=.32;R.add(halo);sprite.halo=halo;
-  sprite.light=new THREE.PointLight('#9fffe0',1.1,5,2);sprite.light.position.y=.35;R.add(sprite.light);
+  const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:TEX.glow,color:'#7dffd9',transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:.25}));halo.scale.set(.95,.95,.95);halo.position.y=.38;R.add(halo);sprite.halo=halo;
+  sprite.light=new THREE.PointLight('#9fffe0',.6,4,2);sprite.light.position.y=.4;R.add(sprite.light);
   sprite.ring=groundRing('#22bf9c',.75);
 }
 const _wq=new THREE.Quaternion();
@@ -1663,7 +1680,10 @@ function padState(i){const ps=navigator.getGamepads?navigator.getGamepads():[];c
 const K=(...c)=>c.some(k=>keys[k])?1:0;
 // screen-relative input -> world direction, following the camera's current turn
 function toWorld(r){const c=Math.cos(camYaw),s=Math.sin(camYaw);const mx=r.mx*c+r.mz*s,mz=-r.mx*s+r.mz*c;r.mx=mx;r.mz=mz;return r;}
+// test hook: the scripted playthrough (dev/tests) steers both characters with world-space input
+let BOT=null;
 function rawLocal(which){ // which: 'g'|'s'
+  if(BOT&&BOT[which])return BOT[which]();
   let r;
   if(which==='g')r={mx:K('KeyD')-K('KeyA'),mz:K('KeyS')-K('KeyW'),jump:K('Space'),act:K('KeyE','KeyF')};
   else r={mx:K('ArrowRight','KeyL')-K('ArrowLeft','KeyJ'),mz:K('ArrowDown','KeyK')-K('ArrowUp','KeyI'),jump:K('Enter','KeyO'),act:K('ShiftRight','KeyU','Slash')};
@@ -2290,7 +2310,7 @@ function updateVisuals(dt,t){
     if(stones.t>0&&stones.t<1&&Math.random()<dt*20){const st=stones.list[Math.floor(Math.random()*3)];puff(st.m.position.x,POOL.y,st.m.position.z,2,.6,[.85,.95,1],.3,.8);}}
   for(const r of runes)if(G.region!=='ch1')r.light.intensity=0;
   updateSeedInstances(t);updatePetals(t);updateWaystones(t);updateVale(dt,t);updateReal(dt,t);updateRings(dt);
-  updateGiant(dt,t);updateSpriteVis(dt,t);
+  updateGreet(dt);updateGiant(dt,t);updateSpriteVis(dt,t);
   // ending: water and light
   W.fLight.intensity=0;
   if(G.region==='ch1'&&(G.ending||G.phase==='end'||G.fountainOn)){
@@ -2299,13 +2319,31 @@ function updateVisuals(dt,t){
     if(Math.random()<dt*35){const a=Math.random()*6.28,sp=.6+Math.random()*1.4;emit(F.x,5,F.z,Math.cos(a)*sp,1+Math.random()*1.5,Math.sin(a)*sp,.8,.97,1,.07,1.4,9,.2);}
   }
 }
+// a wave when the two meet again after being apart for a while (whoever is standing still waves)
+const GREET={apart:0,cool:0,pend:[]};
+function updateGreet(dt){
+  const d=dxz(golem.pos,sprite.pos);GREET.cool-=dt;
+  const still=b=>b.A&&!b.A.busy()&&b.onGround&&Math.hypot(b.vel.x,b.vel.z)<1.2;
+  const wave=b=>b.A.shot('Wave',b===golem?1.1:1.2);
+  // the one who was still walking when they met waves as soon as it stops (within a couple of seconds)
+  GREET.pend=GREET.pend.filter(p=>{p.t-=dt;if(p.t<=0||d>6)return false;if(still(p.b)){wave(p.b);return false;}return true;});
+  if(d>9){GREET.apart+=dt;return;}
+  if(d>4.5)return;if(GREET.apart<4){GREET.apart=0;return;}
+  if(GREET.cool>0||sprite.held||G.phase!=='play'||G.ending)return;
+  const gs=still(golem),ss=still(sprite);if(!gs&&!ss)return;
+  for(const [b,st] of [[golem,gs],[sprite,ss]]){if(st)wave(b);else GREET.pend.push({b,t:2.5});}
+  GREET.apart=0;GREET.cool=10;
+}
+// while waving, the body turns toward the partner (visual only; the game's facing is unchanged)
+function faceYaw(b,o,dt){const w=b.A&&b.A.busy()&&b.A.shotName==='Wave'?1:0;b.faceW=approach(b.faceW||0,w,dt*4);
+  if(b.faceW<=0)return b.yaw;const want=Math.atan2(o.pos.x-b.pos.x,o.pos.z-b.pos.z);let d=want-b.yaw;d=Math.atan2(Math.sin(d),Math.cos(d));return b.yaw+d*smooth(0,1,b.faceW);}
 function placeRing(ring,b,size){
   const fy=floorBelow(b.pos,b===sprite?null:golem.col);const gap=b.pos.y-fy;
   if(fy<-50||gap>8){ring.visible=false;return;}
   ring.visible=true;ring.position.set(b.pos.x,fy+.03,b.pos.z);const k=clamp(1-gap/6,.35,1);ring.scale.setScalar(k);ring.material.opacity=.9*k;
 }
 function updateGiant(dt,t){
-  const g=golem,gr=g.root;gr.position.copy(g.pos);gr.rotation.y=g.yaw;
+  const g=golem,gr=g.root;gr.position.copy(g.pos);gr.rotation.y=faceYaw(g,sprite,dt);
   const hs=Math.hypot(g.vel.x,g.vel.z);
   g.pushVis=Math.max(0,(g.pushVis||0)-dt);if(g.pushing)g.pushVis=.15;
   g.carryA=lerp(g.carryA||0,g.holding?1:0,1-Math.exp(-dt*10));
@@ -2318,7 +2356,7 @@ function updateGiant(dt,t){
     else if(hs>.35){n='Walking_A';ts=clamp(hs/2.6,.55,1.45);}
     if(!g.A.busy())g.A.play(n,.22,ts);
     g.A.update(dt);
-    if(g.carryA>.01&&g.armL&&g.armR&&!g.A.busy()){g.armL.rotation.x-=2.6*g.carryA;g.armR.rotation.x-=2.6*g.carryA;}
+    if(g.carryA>.01&&g.carryPose&&!g.A.busy())for(const c of g.carryPose)c.b.quaternion.slerp(c.q,g.carryA);
     if(g.charging&&g.chest){g.chest.rotation.x-=.35*g.charge;}
   }
   g.gems.forEach((m,i)=>{m.visible=i<g.runes;const a=t*1.6+i*2.094;m.position.set(Math.cos(a)*.85,1.15+Math.sin(t*2+i)*.08,Math.sin(a)*.85);m.rotation.y=t*2;});
@@ -2329,7 +2367,7 @@ function updateGiant(dt,t){
   placeRing(g.ring,g,1.5);
 }
 function updateSpriteVis(dt,t){
-  const s=sprite,sr=s.root;sr.position.copy(s.pos);sr.rotation.y=s.yaw;
+  const s=sprite,sr=s.root;sr.position.copy(s.pos);sr.rotation.y=faceYaw(s,golem,dt);
   const ss=Math.hypot(s.vel.x,s.vel.z);
   if(s.A){
     let n='Idle',ts=1;
@@ -2343,8 +2381,8 @@ function updateSpriteVis(dt,t){
   const flap=s.gliding?Math.sin(t*30)*.45+.9:(s.onGround?Math.sin(t*5)*.1+.3:Math.sin(t*20)*.5+.6);
   flapWings(flap);
   sr.position.y+=s.onGround?0:.02*Math.sin(t*4);
-  s.halo.material.opacity=.4+Math.sin(t*3)*.1;
-  if(Math.random()<dt*(PROG.settings.reduceFlash?.4:1)*(s.onGround?(ss>.5?10:3):(s.gliding?40:22)))emit(s.pos.x+(Math.random()-.5)*.12,s.pos.y+.22,s.pos.z+(Math.random()-.5)*.12,(Math.random()-.5)*.2,.15+Math.random()*.2,(Math.random()-.5)*.2,.55,1,.85,.06,.9,-.1,.6);
+  s.halo.material.opacity=.2+Math.sin(t*3)*.05;
+  if(Math.random()<dt*(PROG.settings.reduceFlash?.4:1)*(s.onGround?(ss>.5?6:1.5):(s.gliding?24:12)))emit(s.pos.x+(Math.random()-.5)*.12,s.pos.y+.22,s.pos.z+(Math.random()-.5)*.12,(Math.random()-.5)*.2,.15+Math.random()*.2,(Math.random()-.5)*.2,.55,1,.85,.06,.9,-.1,.6);
   placeRing(s.ring,s,.75);if(s.held)s.ring.visible=false;
   s.walk+=dt*ss*2.6;const st=Math.floor(s.walk/Math.PI);if(st!==s.stepSound&&ss>1.2&&s.onGround){s.stepSound=st;SFX.tick(surfaceUnder(s));}
 }
@@ -2652,7 +2690,7 @@ async function boot(){
     buildSky();if(REAL.ready)setupSky();
     buildVale();
     curBuild='ch1';
-    const R=beginRegion('ch1',{name:'Chapter 1: The Sunken Garden',short:'Sunken Garden',chapter:1,fog:[70,190],spawn:{g:CP[0].g,s:CP[0].s},
+    const R=beginRegion('ch1',{name:'Chapter 1: The Sunken Garden',short:'Sunken Garden',chapter:1,fog:[70,190],fogReal:[80,320],spawn:{g:CP[0].g,s:CP[0].s},
       hazard:b=>b.pos.x>POOL.x0&&b.pos.x<POOL.x1&&b.pos.z>POOL.z0&&b.pos.z<POOL.z1&&b.pos.y<POOL.y-.3});
     if(REAL.ready)ch1RealBegin();
     buildWorld();buildInteractives();buildCh1Extras();if(REAL.ready)ch1RealFinish();endRegion(R);buildSeedInstances('ch1');curBuild='';
@@ -2672,7 +2710,8 @@ async function boot(){
 // small debug handle used by automated tests
 window.__bs={get PROG(){return PROG;},REG,travel,travelToWaystone,seesaw,crack,stones,SEEDS,PETALS,WAYS,GATES,VALE,playScene,skipScene,storyNext,valeH,saveProgress,eraseProgress,openMap,closeOverlay,get overlay(){return overlayOpen;},
   G,golem,sprite,get block(){return block;},runes,gate,bridge,port,plates,levers,get crank(){return crank;},latch,stepSim,resetLevel,startLocal:()=>{mode='local';resetLevel();startPlay();},NOIN,W,fadeables,camera,
-  get camYaw(){return camYaw;},rotateCam,set dbgDist(v){dbgDist=v;},advance:(sec)=>{let n=performance.now();for(let i=0;i<sec*60;i++){n+=1000/60;tick(n);}},get models(){return MODELS;}};
+  get camYaw(){return camYaw;},rotateCam,set dbgDist(v){dbgDist=v;},advance:(sec)=>{let n=performance.now();for(let i=0;i<sec*60;i++){n+=1000/60;tick(n);}},get models(){return MODELS;},set bot(v){BOT=v;},get bot(){return BOT;},
+  get ch1(){return {CP,F,SEESAW,POOL,CELLAR,levers,crank,runes,plates,stones,crack,exitGate,W};},get colliders(){return colliders;},get curReg(){return curReg;},get greet(){return GREET;},travelReq:()=>G.travelReq};
 boot();
 
 })();

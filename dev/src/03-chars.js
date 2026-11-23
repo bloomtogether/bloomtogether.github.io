@@ -55,6 +55,9 @@ function buildGolem(){
       if(o.isMesh&&o.material.name==='GiantEye'){o.material.emissive.set('#ff9a2e');o.material.emissiveIntensity=1.6;o.material.color.set('#ffb054');}});
     golem.A=makeAnimator(m.root,MODELS.giant.animations);golem.A.play('Idle',0);
     golem.armL=findBone(m.root,'upperarml');golem.armR=findBone(m.root,'upperarmr');golem.chest=findBone(m.root,'chest');
+    // carry pose: both hands come up beside the head to steady the Sprite (worked out on the Blender rig)
+    golem.carryPose=[['upperarml',-2.3,-.2],['upperarmr',-2.3,.2],['lowerarml',-1.4,.2],['lowerarmr',-1.4,-.2]].map(([n,x,z])=>{const b=findBone(m.root,n);
+      return b?{b,q:b.quaternion.clone().multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(x,0,z,'XYZ')))}:null;}).filter(Boolean);
     addXray(m.root,'#f2873a');
   }else{
     const mat=new THREE.MeshLambertMaterial({color:'#f2a86a',flatShading:true});
@@ -70,7 +73,7 @@ function buildSprite(){
   const R=new THREE.Group();scene.add(R);sprite.root=R;
   sprite.wingBones=null;sprite.wings=null;
   if(MODELS){
-    const m=prepModel(MODELS.sprite,.66);R.add(m.holder);sprite.model=m.root;
+    const m=prepModel(MODELS.sprite,.8);R.add(m.holder);sprite.model=m.root;
     sprite.A=makeAnimator(m.root,MODELS.sprite.animations);sprite.A.play('Idle',0);
     m.root.updateMatrixWorld(true);
     // wings flap around the body's vertical axis, worked out in each wing bone's own space
@@ -86,8 +89,8 @@ function buildSprite(){
     const wm=new THREE.MeshBasicMaterial({map:TEX.wing,transparent:true,depthWrite:false,side:THREE.DoubleSide,opacity:.9});
     sprite.wings=[-1,1].map(s=>{const p=new THREE.Group();p.position.set(s*.02,.26,-.06);R.add(p);const w=new THREE.Mesh(new THREE.PlaneGeometry(.3,.21),wm);w.position.x=s*.15;w.scale.x=s;p.add(w);return p;});
   }
-  const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:TEX.glow,color:'#7dffd9',transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:.5}));halo.scale.set(1.15,1.15,1.15);halo.position.y=.32;R.add(halo);sprite.halo=halo;
-  sprite.light=new THREE.PointLight('#9fffe0',1.1,5,2);sprite.light.position.y=.35;R.add(sprite.light);
+  const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:TEX.glow,color:'#7dffd9',transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:.25}));halo.scale.set(.95,.95,.95);halo.position.y=.38;R.add(halo);sprite.halo=halo;
+  sprite.light=new THREE.PointLight('#9fffe0',.6,4,2);sprite.light.position.y=.4;R.add(sprite.light);
   sprite.ring=groundRing('#22bf9c',.75);
 }
 const _wq=new THREE.Quaternion();

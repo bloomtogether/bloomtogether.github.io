@@ -44,7 +44,7 @@ vec3 lin(vec3 c){return pow(c,vec3(2.2));}
 vec3 cw=vColor;vec4 w=vec4(clamp(1.-cw.r-cw.g-cw.b,0.,1.),cw.r,cw.g,cw.b);vec2 p=vWP.xz;
 vec2 uG=p/3.2,uP=p/2.6,uR=p/3.,uK=p/4.;
 vec3 cG=mix(lin(texture2D(t_ground_col,uG).rgb),lin(texture2D(t_ground_col,uG*.23+.37).rgb),.4);
-float dc=length(vWP.xz-cameraPosition.xz);cG=mix(cG*vec3(.8,.95,.62),vec3(.055,.095,.025),.45+.25*smoothstep(25.,60.,dc));
+float dc=length(vWP.xz-cameraPosition.xz);float big=texture2D(t_ground_col,p/61.+.13).g*1.6;cG=mix(cG*vec3(.8,.95,.62),vec3(.045,.085,.02)*(.75+.5*big),.45+.4*smoothstep(14.,34.,dc));
 vec3 alb=cG*w.x;if(w.y>.003)alb+=lin(texture2D(t_path_col,uP).rgb)*vec3(.62,.58,.52)*w.y;if(w.z>.003)alb+=lin(texture2D(t_riverbed_col,uR).rgb)*w.z;if(w.w>.003)alb+=lin(texture2D(t_rock_col,uK).rgb)*w.w;
 diffuseColor.rgb*=alb;`)
     .replace('#include <roughnessmap_fragment>',`float roughnessFactor=roughness*(texture2D(t_ground_rgh,uG).g*w.x+(w.y>.003?texture2D(t_path_rgh,uP).g*w.y:0.)+(w.z>.003?texture2D(t_riverbed_rgh,uR).g*w.z:0.)+(w.w>.003?texture2D(t_rock_rgh,uK).g*w.w:0.));`)
@@ -70,8 +70,8 @@ function buildGrass(GRASS){
   const ofs=new Float32Array(count*4),rnd=new Float32Array(count*4);
   g.setAttribute('ofs',new THREE.InstancedBufferAttribute(ofs,4));g.setAttribute('rnd',new THREE.InstancedBufferAttribute(rnd,4));g.instanceCount=count;
   const mat=new THREE.ShaderMaterial({side:THREE.DoubleSide,fog:true,lights:false,
-    uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{uTime:{value:0},uSun:{value:REAL.sun.clone()},uCam:{value:new V3()},uR:{value:GRASS.chunk*(GRASS.R+.5)},uWake:{value:1},uPush:{value:[new V3(0,-99,0),new V3(0,-99,0)]}}]),
-    vertexShader:`attribute vec4 ofs;attribute vec4 rnd;uniform float uTime;uniform vec3 uCam;uniform float uR;uniform vec3 uPush[2];varying vec2 vUv;varying float vShade;varying vec3 vCol;
+    uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{uTime:{value:0},uSun:{value:REAL.sun.clone()},uCam:{value:new V3()},uR:{value:GRASS.chunk*(GRASS.R+.5)},uWake:{value:1},uPush:{value:[new V3(0,-99,0),new V3(0,-99,0)]},uVein:{value:VEIN_NONE},uRootOn:{value:new Array(7).fill(0)}}]),
+    vertexShader:`attribute vec4 ofs;attribute vec4 rnd;uniform float uTime;uniform vec3 uCam;uniform float uR;uniform vec3 uPush[2];uniform sampler2D uVein;uniform float uRootOn[7];varying vec2 vUv;varying float vShade;varying vec3 vCol;varying float vGlow;
 #include <fog_pars_vertex>
 void main(){vUv=uv;float h=ofs.w;if(h<=0.){gl_Position=vec4(2.,2.,2.,1.);return;}
  float d=length(ofs.xz-uCam.xz);float fade=smoothstep(uR,uR*.72,d);h*=fade;
@@ -80,18 +80,20 @@ void main(){vUv=uv;float h=ofs.w;if(h<=0.){gl_Position=vec4(2.,2.,2.,1.);return;
  vec2 wind=vec2(sin(uTime*1.3+ofs.x*.21+ofs.z*.17)+.5*sin(uTime*2.7+ofs.x*.6),cos(uTime*1.1+ofs.z*.23))*(.10+.06*rnd.z);
  vec3 wp=vec3(p.x*c,p.y,p.x*s)+ofs.xyz;wp.xz+=wind*bend*h+vec2(c,s)*bend*h*.25*(rnd.w-.5);
  for(int i=0;i<2;i++){vec3 q=uPush[i];vec2 dd=wp.xz-q.xz;float l=length(dd);float k=smoothstep(1.1,.2,l)*step(abs(q.y-ofs.y),1.5);wp.xz+=normalize(dd+1e-4)*k*bend*h*.9;wp.y-=k*bend*h*.35;}
+ vec3 vn=texture2D(uVein,ofs.xz/240.+.5).rgb;int ri=int(clamp(vn.g*8.,0.,6.));vGlow=vn.r*uRootOn[ri]*(.7+.3*sin(vn.b*18.-uTime*1.6))*t;
  vShade=t;vCol=mix(vec3(.075,.15,.03),vec3(.22,.34,.07),rnd.y)*mix(.85,1.15,rnd.z);
  if(rnd.w>.95)vCol=vec3(.36,.33,.13);
  vec4 mvPosition=viewMatrix*vec4(wp,1.);gl_Position=projectionMatrix*mvPosition;
  #include <fog_vertex>
 }`,
-    fragmentShader:`uniform vec3 uSun;uniform float uWake;varying vec2 vUv;varying float vShade;varying vec3 vCol;
+    fragmentShader:`uniform vec3 uSun;uniform float uWake;varying vec2 vUv;varying float vShade;varying vec3 vCol;varying float vGlow;
 #include <common>
 #include <fog_pars_fragment>
 void main(){float ao=mix(.28,1.,smoothstep(0.,.8,vShade));
  vec3 sunC=vec3(1.,.9,.78)*1.9;vec3 sky=vec3(.5,.62,.75)*.5;
  vec3 col=vCol*(sky+sunC*.6*(.5+.5*vShade))*ao;
  col=mix(col*vec3(.92,.92,.9),col,uWake);
+ col+=vec3(.2,.85,.7)*vGlow*1.1;
  gl_FragColor=vec4(col,1.);
  #include <tonemapping_fragment>
  #include <encodings_fragment>
@@ -209,10 +211,21 @@ function updateReal(dt,t){
 }
 
 // the seven roots run under the Vale: a woken root shows as a soft glowing vein through the grass
+// a 240 m map of the roots for the grass: r = glow strength, g = which root, b = distance along it
+const VEIN_NONE=new THREE.DataTexture(new Uint8Array(4),1,1);VEIN_NONE.needsUpdate=true;
+function veinMap(paths){
+  const N=256,d=new Uint8Array(N*N*4),px=240/N;
+  paths.forEach((pts,k)=>{for(let i=0;i<pts.length-1;i++)for(let s=0;s<4;s++){const f=s/4,x=lerp(pts[i][0],pts[i+1][0],f),z=lerp(pts[i][1],pts[i+1][1],f),u=(i+f)/(pts.length-1);
+    const rad=1.9*(1-u*.6),str=1-smooth(.75,1,u),cx=(x+120)/px,cz=(z+120)/px,rr=Math.ceil(rad/px)+1;
+    for(let j=Math.floor(cz-rr);j<=cz+rr;j++)for(let q=Math.floor(cx-rr);q<=cx+rr;q++){if(q<0||j<0||q>=N||j>=N)continue;
+      const dd=Math.hypot((q+.5-cx)*px,(j+.5-cz)*px),v=Math.max(0,1-dd/rad)*str*255,o=(j*N+q)*4;
+      if(v>d[o]){d[o]=v;d[o+1]=(k+.5)/8*255;d[o+2]=u*255;}}}});
+  const t=new THREE.DataTexture(d,N,N);t.magFilter=t.minFilter=THREE.LinearFilter;t.needsUpdate=true;return t;
+}
 function buildRootVeins(th){
-  const ox=-.07*2.3,oz=-.4*2.3;
+  const ox=-.07*2.3,oz=-.4*2.3;const paths=[];
   for(let k=0;k<7;k++){const a=k/7*Math.PI*2+.2,pts=[];
-    for(let i=0;i<=40;i++){const r=4+i*.62,w=Math.sin(i*.35+k*1.7)*.18+Math.sin(i*.9+k)*.06;pts.push([ox+Math.cos(a+w)*r,oz-Math.sin(a+w)*r]);}
+    for(let i=0;i<=40;i++){const r=4+i*.62,w=Math.sin(i*.35+k*1.7)*.18+Math.sin(i*.9+k)*.06;pts.push([ox+Math.cos(a+w)*r,oz-Math.sin(a+w)*r]);}paths.push(pts);
     const v=[],idx=[],uv=[];
     pts.forEach((pt,i)=>{const q=pts[Math.min(i+1,pts.length-1)],o=pts[Math.max(i-1,0)];const dx=q[0]-o[0],dz=q[1]-o[1],l=Math.hypot(dx,dz)||1,nx=-dz/l,nz=dx/l,wd=.55*(1-i/48);
       for(const sg of [1,-1]){const x=pt[0]+nx*wd*sg,z=pt[1]+nz*wd*sg;v.push(x,valeH(x,z)+.07,z);}uv.push(0,i/40,1,i/40);if(i){const b=i*2;idx.push(b-2,b-1,b,b-1,b+1,b);}});
@@ -221,6 +234,7 @@ function buildRootVeins(th){
       vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
       fragmentShader:'varying vec2 vUv;uniform float uOn;uniform float uT;void main(){float e=1.-abs(vUv.x*2.-1.);float pulse=.75+.25*sin(vUv.y*18.-uT*1.6);float a=smoothstep(0.,.8,e)*(1.-smoothstep(.75,1.,vUv.y))*uOn*pulse;gl_FragColor=vec4(vec3(.25,.95,.8)*a*.9,1.);}'});
     const mesh=new THREE.Mesh(g,m);mesh.renderOrder=2;ROOT.add(mesh);VALE.roots.push({vein:mesh,material:m});}
+  VALE.veinTex=veinMap(paths);if(GRASS&&GRASS.mat)GRASS.mat.uniforms.uVein.value=VALE.veinTex;
 }
 
 function sparseLeaves(src,keep,grow){

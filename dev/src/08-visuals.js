@@ -121,7 +121,7 @@ function updateVisuals(dt,t){
     if(stones.t>0&&stones.t<1&&Math.random()<dt*20){const st=stones.list[Math.floor(Math.random()*3)];puff(st.m.position.x,POOL.y,st.m.position.z,2,.6,[.85,.95,1],.3,.8);}}
   for(const r of runes)if(G.region!=='ch1')r.light.intensity=0;
   updateSeedInstances(t);updatePetals(t);updateWaystones(t);updateVale(dt,t);updateReal(dt,t);updateRings(dt);
-  updateGiant(dt,t);updateSpriteVis(dt,t);
+  updateGreet(dt);updateGiant(dt,t);updateSpriteVis(dt,t);
   // ending: water and light
   W.fLight.intensity=0;
   if(G.region==='ch1'&&(G.ending||G.phase==='end'||G.fountainOn)){
@@ -130,13 +130,31 @@ function updateVisuals(dt,t){
     if(Math.random()<dt*35){const a=Math.random()*6.28,sp=.6+Math.random()*1.4;emit(F.x,5,F.z,Math.cos(a)*sp,1+Math.random()*1.5,Math.sin(a)*sp,.8,.97,1,.07,1.4,9,.2);}
   }
 }
+// a wave when the two meet again after being apart for a while (whoever is standing still waves)
+const GREET={apart:0,cool:0,pend:[]};
+function updateGreet(dt){
+  const d=dxz(golem.pos,sprite.pos);GREET.cool-=dt;
+  const still=b=>b.A&&!b.A.busy()&&b.onGround&&Math.hypot(b.vel.x,b.vel.z)<1.2;
+  const wave=b=>b.A.shot('Wave',b===golem?1.1:1.2);
+  // the one who was still walking when they met waves as soon as it stops (within a couple of seconds)
+  GREET.pend=GREET.pend.filter(p=>{p.t-=dt;if(p.t<=0||d>6)return false;if(still(p.b)){wave(p.b);return false;}return true;});
+  if(d>9){GREET.apart+=dt;return;}
+  if(d>4.5)return;if(GREET.apart<4){GREET.apart=0;return;}
+  if(GREET.cool>0||sprite.held||G.phase!=='play'||G.ending)return;
+  const gs=still(golem),ss=still(sprite);if(!gs&&!ss)return;
+  for(const [b,st] of [[golem,gs],[sprite,ss]]){if(st)wave(b);else GREET.pend.push({b,t:2.5});}
+  GREET.apart=0;GREET.cool=10;
+}
+// while waving, the body turns toward the partner (visual only; the game's facing is unchanged)
+function faceYaw(b,o,dt){const w=b.A&&b.A.busy()&&b.A.shotName==='Wave'?1:0;b.faceW=approach(b.faceW||0,w,dt*4);
+  if(b.faceW<=0)return b.yaw;const want=Math.atan2(o.pos.x-b.pos.x,o.pos.z-b.pos.z);let d=want-b.yaw;d=Math.atan2(Math.sin(d),Math.cos(d));return b.yaw+d*smooth(0,1,b.faceW);}
 function placeRing(ring,b,size){
   const fy=floorBelow(b.pos,b===sprite?null:golem.col);const gap=b.pos.y-fy;
   if(fy<-50||gap>8){ring.visible=false;return;}
   ring.visible=true;ring.position.set(b.pos.x,fy+.03,b.pos.z);const k=clamp(1-gap/6,.35,1);ring.scale.setScalar(k);ring.material.opacity=.9*k;
 }
 function updateGiant(dt,t){
-  const g=golem,gr=g.root;gr.position.copy(g.pos);gr.rotation.y=g.yaw;
+  const g=golem,gr=g.root;gr.position.copy(g.pos);gr.rotation.y=faceYaw(g,sprite,dt);
   const hs=Math.hypot(g.vel.x,g.vel.z);
   g.pushVis=Math.max(0,(g.pushVis||0)-dt);if(g.pushing)g.pushVis=.15;
   g.carryA=lerp(g.carryA||0,g.holding?1:0,1-Math.exp(-dt*10));
@@ -149,7 +167,7 @@ function updateGiant(dt,t){
     else if(hs>.35){n='Walking_A';ts=clamp(hs/2.6,.55,1.45);}
     if(!g.A.busy())g.A.play(n,.22,ts);
     g.A.update(dt);
-    if(g.carryA>.01&&g.armL&&g.armR&&!g.A.busy()){g.armL.rotation.x-=2.6*g.carryA;g.armR.rotation.x-=2.6*g.carryA;}
+    if(g.carryA>.01&&g.carryPose&&!g.A.busy())for(const c of g.carryPose)c.b.quaternion.slerp(c.q,g.carryA);
     if(g.charging&&g.chest){g.chest.rotation.x-=.35*g.charge;}
   }
   g.gems.forEach((m,i)=>{m.visible=i<g.runes;const a=t*1.6+i*2.094;m.position.set(Math.cos(a)*.85,1.15+Math.sin(t*2+i)*.08,Math.sin(a)*.85);m.rotation.y=t*2;});
@@ -160,7 +178,7 @@ function updateGiant(dt,t){
   placeRing(g.ring,g,1.5);
 }
 function updateSpriteVis(dt,t){
-  const s=sprite,sr=s.root;sr.position.copy(s.pos);sr.rotation.y=s.yaw;
+  const s=sprite,sr=s.root;sr.position.copy(s.pos);sr.rotation.y=faceYaw(s,golem,dt);
   const ss=Math.hypot(s.vel.x,s.vel.z);
   if(s.A){
     let n='Idle',ts=1;
@@ -174,8 +192,8 @@ function updateSpriteVis(dt,t){
   const flap=s.gliding?Math.sin(t*30)*.45+.9:(s.onGround?Math.sin(t*5)*.1+.3:Math.sin(t*20)*.5+.6);
   flapWings(flap);
   sr.position.y+=s.onGround?0:.02*Math.sin(t*4);
-  s.halo.material.opacity=.4+Math.sin(t*3)*.1;
-  if(Math.random()<dt*(PROG.settings.reduceFlash?.4:1)*(s.onGround?(ss>.5?10:3):(s.gliding?40:22)))emit(s.pos.x+(Math.random()-.5)*.12,s.pos.y+.22,s.pos.z+(Math.random()-.5)*.12,(Math.random()-.5)*.2,.15+Math.random()*.2,(Math.random()-.5)*.2,.55,1,.85,.06,.9,-.1,.6);
+  s.halo.material.opacity=.2+Math.sin(t*3)*.05;
+  if(Math.random()<dt*(PROG.settings.reduceFlash?.4:1)*(s.onGround?(ss>.5?6:1.5):(s.gliding?24:12)))emit(s.pos.x+(Math.random()-.5)*.12,s.pos.y+.22,s.pos.z+(Math.random()-.5)*.12,(Math.random()-.5)*.2,.15+Math.random()*.2,(Math.random()-.5)*.2,.55,1,.85,.06,.9,-.1,.6);
   placeRing(s.ring,s,.75);if(s.held)s.ring.visible=false;
   s.walk+=dt*ss*2.6;const st=Math.floor(s.walk/Math.PI);if(st!==s.stepSound&&ss>1.2&&s.onGround){s.stepSound=st;SFX.tick(surfaceUnder(s));}
 }
