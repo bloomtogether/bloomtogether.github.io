@@ -214,6 +214,15 @@
   <div class="hpanel card s" id="cardS"><div class="cardhead"><span class="badge s">Sprite</span><span class="cname" id="cardSName"></span></div><div class="prompt" id="promptS"></div><div class="keys" id="ckeysS"></div></div>
   <div class="hpanel" id="hint" style="opacity:0"></div>
   <div id="charge" hidden><span>Throw power</span><div><b></b></div></div>
+  <div id="help" class="hpanel" hidden>
+    <div class="eyebrow">Goal</div><p id="helpGoal"></p>
+    <div class="roles">
+      <div class="role g"><div class="rolehead"><span class="badge g">Giant</span><span class="who" id="hnameG"></span></div><div class="keys" id="hkeysG"></div></div>
+      <div class="role s"><div class="rolehead"><span class="badge s">Sprite</span><span class="who" id="hnameS"></span></div><div class="keys" id="hkeysS"></div></div>
+    </div>
+    <div class="helpkeys"><span><kbd>M</kbd> map</span><span><kbd>Esc</kbd> menu, journal, settings</span><span><kbd>Q</kbd> <kbd>R</kbd> turn camera</span><span><kbd>Shift</kbd>+<kbd>M</kbd> mute</span><span id="helpChat"><kbd>Enter</kbd> chat, <kbd>1</kbd>–<kbd>4</kbd> quick messages</span><span><kbd>H</kbd> close help</span></div>
+  </div>
+  <div id="helpChip" class="hpanel"><kbd>H</kbd> help</div>
   <div id="toast" style="opacity:0"></div>
 </div>
 
@@ -221,7 +230,7 @@
 <div id="chat" hidden>
   <div id="chatLog" aria-live="polite"></div>
   <form id="chatForm" hidden autocomplete="off"><input id="chatIn" maxlength="140" placeholder="Say something… (Enter to send, Esc to cancel)" spellcheck="false"></form>
-  <div id="chatHelp"><kbd>Enter</kbd> chat · <kbd>1</kbd>–<kbd>4</kbd> quick</div>
+  <div id="chatHelp" hidden></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>

@@ -22,7 +22,7 @@ addEventListener('keydown',e=>{
     if(G.phase==='play'&&G.card&&boss&&$('scrPause').hidden){G.card='';return;}
     togglePause();return;}
   if(e.code==='KeyM'){if(e.shiftKey||G.phase!=='play')setMuted(!muted);else if(!chatOpen&&!G.scene){if(overlayOpen==='scrMap')closeOverlay();else if(!overlayOpen)openMap();}}
-  if(e.code==='KeyH'){cardsCollapsed=!cardsCollapsed;$('cardG').classList.toggle('collapsed',cardsCollapsed);$('cardS').classList.toggle('collapsed',cardsCollapsed);}
+  if(e.code==='KeyH'&&G.phase==='play'){helpOpen=!helpOpen;$('help').hidden=!helpOpen;helpUsed=true;}
   if(G.phase==='play'&&(e.code==='KeyQ'||e.code==='KeyR'))rotateCam(e.code==='KeyQ'?-1:1);
   if(mode==='online'&&(G.phase==='play'||G.phase==='brief'||G.phase==='end')&&$('scrPause').hidden){
     if(e.code==='Enter'||e.code==='NumpadEnter'){e.preventDefault();keys[e.code]=false;openChat();return;}
@@ -32,7 +32,7 @@ addEventListener('keydown',e=>{
 });
 addEventListener('keyup',e=>{keys[e.code]=false;});
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false;});
-let cardsCollapsed=false;
+let helpOpen=false,helpUsed=false,objShowT=0,cntShowT=0,chipT=0;
 function padState(i){const ps=navigator.getGamepads?navigator.getGamepads():[];const pads=[];for(const p of ps)if(p&&p.connected)pads.push(p);const p=pads[i];if(!p)return null;
   const dz=v=>Math.abs(v)<.22?0:v;return {mx:dz(p.axes[0]||0),mz:dz(p.axes[1]||0),jump:!!(p.buttons[0]&&p.buttons[0].pressed),act:!!((p.buttons[2]&&p.buttons[2].pressed)||(p.buttons[1]&&p.buttons[1].pressed))};}
 const K=(...c)=>c.some(k=>keys[k])?1:0;

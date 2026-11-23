@@ -119,7 +119,7 @@ function updatePetals(t){
 // ================= waystones (fast travel) =================
 const WAYS=[];
 function addWaystone(id,name,x,y,z,rotY){
-  const g=prop('waystone',true);g.position.set(x,y,z);g.rotation.y=rotY||0;ROOT.add(g);
+  const g=prop('waystone',true);if(REAL.ready)realifyProp(g);g.position.set(x,y,z);g.rotation.y=rotY||0;ROOT.add(g);
   const crystal=propPart(g,'Waystone_Crystal');const runes=meshesByMat(g,'Glow');
   box(x-.6,x+.6,y,y+3.2,z-.6,z+.6,null);box(x-1.3,x+1.3,y,y+.35,z-1.3,z+1.3,null,{surface:'stone'});
   const lab=labelSprite(name,'Waystone','#1fb3a3');lab.scale.set(3.6,1.12,1);lab.position.set(x,y+5.4,z);ROOT.add(lab);

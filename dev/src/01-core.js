@@ -1,3 +1,4 @@
+THREE.ColorManagement.legacyMode=false; // colours are authored in sRGB and lit in linear space
 const $ = id => document.getElementById(id);
 const V3 = THREE.Vector3;
 const clamp=(v,a,b)=>v<a?a:v>b?b:v, lerp=(a,b,t)=>a+(b-a)*t, smooth=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
@@ -9,7 +10,7 @@ const canvas=$('gl');
 let renderer;
 try{ renderer=new THREE.WebGLRenderer({canvas,antialias:true,stencil:true,powerPreference:'high-performance'}); }
 catch(e){ fail('WebGL is not available in this browser. Try Chrome, Edge, Firefox or Safari on a laptop.'); return; }
-renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1));
+renderer.setPixelRatio(Math.min(1.5,window.devicePixelRatio||1));
 renderer.setSize(innerWidth,innerHeight,false);
 renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 renderer.outputEncoding=THREE.sRGBEncoding;

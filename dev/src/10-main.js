@@ -40,7 +40,8 @@ function startPlay(){
   if(mode==='local'){names.g=cleanName($('nameG').value);names.s=cleanName($('nameS').value);store('bs_nameG',names.g);store('bs_nameS',names.s);}
   else{names[myRole]=myName;names[myRole==='g'?'s':'g']=partnerName;}
   G.phase='play';G.paused=false;resetWatch();hudCache={};camYaw=camYawT=0;
-  fillKeys($('ckeysG'),'g');fillKeys($('ckeysS'),'s');fillKeys($('pkeysG'),'g');fillKeys($('pkeysS'),'s');
+  fillKeys($('ckeysG'),'g');fillKeys($('ckeysS'),'s');fillKeys($('hkeysG'),'g');fillKeys($('hkeysS'),'s');$('helpChat').hidden=mode!=='online';
+  helpOpen=false;$('help').hidden=true;chipT=0;objShowT=10;cntShowT=4;$('promptG').dataset.who='Giant';$('promptS').dataset.who='Sprite';fillKeys($('pkeysG'),'g');fillKeys($('pkeysS'),'s');
   const online=mode==='online';
   $('cardG').hidden=online&&myRole!=='g';$('cardS').hidden=online&&myRole!=='s';
   $('cardG').classList.toggle('solo',online);$('cardS').classList.toggle('solo',online);
@@ -106,8 +107,13 @@ function lobbyTick(){
 // ================= main loop =================
 let last=performance.now(),acc=0;const STEP=1/60;
 function frame(now){requestAnimationFrame(frame);tick(now);}
+const PERF={acc:0,n:0,pr:Math.min(1.5,window.devicePixelRatio||1),max:Math.min(1.75,window.devicePixelRatio||1)};
+function perfTune(rawDt){if(G.phase!=='play'&&G.phase!=='title')return;PERF.acc+=rawDt;PERF.n++;if(PERF.acc<1.5)return;
+  const ms=PERF.acc/PERF.n*1000;PERF.acc=0;PERF.n=0;let pr=PERF.pr;
+  if(ms>19)pr=Math.max(.75,pr-(ms>28?.25:.1));else if(ms<14.5)pr=Math.min(PERF.max,pr+.05);
+  if(Math.abs(pr-PERF.pr)>.01){PERF.pr=pr;renderer.setPixelRatio(pr);renderer.setSize(innerWidth,innerHeight,false);pMat.uniforms.uScale.value=innerHeight*pr*.5;}}
 function tick(now){
-  const dt=clamp((now-last)/1000,0,.05);last=now;const t=now/1000;
+  const raw=(now-last)/1000;const dt=clamp(raw,0,.05);last=now;const t=now/1000;if(raw>0&&raw<.5)perfTune(raw);
   netPaused=false;
   if(mode==='online'&&R){
     const p=findPartner();if(p){lastSeen=now;partnerSeenEver=true;}
@@ -156,10 +162,11 @@ async function boot(){
   $('loadText').textContent='Waking the Giant and the Sprite…';
   const L=new GLTFLoader();
   const chars=Promise.all([L.loadAsync('assets/Barbarian.glb'),L.loadAsync('assets/Rogue_Hooded.glb')]).then(([a,b])=>{MODELS={giant:a,sprite:b};}).catch(e=>{console.warn('Character models could not load, using simple shapes.',e);MODELS=null;});
-  await Promise.all([chars,loadProps()]);
+  $('loadText').textContent='Fetching the sky, trees and textures…';
+  await Promise.all([chars,loadProps(),loadReal()]);
   $('loadText').textContent='Growing the Vale…';await new Promise(r=>setTimeout(r,30));
   try{
-    buildSky();
+    buildSky();if(REAL.ready)setupSky();
     buildVale();
     curBuild='ch1';
     const R=beginRegion('ch1',{name:'Chapter 1: The Sunken Garden',short:'Sunken Garden',chapter:1,fog:[70,190],spawn:{g:CP[0].g,s:CP[0].s},

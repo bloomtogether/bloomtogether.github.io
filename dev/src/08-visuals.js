@@ -1,5 +1,5 @@
 // ================= camera: calm follow, quarter-turns with Q / R =================
-const camTarget=new V3(0,1,0);let camSnap=true,camDist=14,camYaw=0,camYawT=0,camY=1,dbgDist=0;const PITCH=0.84;
+const camTarget=new V3(0,1,0);let camLift=0,camSnap=true,camDist=14,camYaw=0,camYawT=0,camY=1,dbgDist=0,PITCH=0.84,camPitch=.84;
 function rotateCam(d){camYawT+=d*Math.PI/2;}
 const _mid=new V3();
 function updateCamera(dt,t){
@@ -8,7 +8,16 @@ function updateCamera(dt,t){
   const gy=Math.max(-1,golem.pos.y),sy=Math.max(-1,sprite.pos.y);
   _mid.set((golem.pos.x+sprite.pos.x)/2,(gy+sy)/2+1,(golem.pos.z+sprite.pos.z)/2);
   const sep=Math.hypot(golem.pos.x-sprite.pos.x,golem.pos.z-sprite.pos.z);
-  let want=clamp(14.5+Math.max(0,sep-5)*.85,14.5,26);
+  const vale=G.region==='vale';
+  // the Vale gets a low, cinematic camera (horizon and the Heart Tree in view); puzzle areas stay a little higher
+  // landmark framing: facing the Heart Tree from the meadow, tilt up so its canopy is in view
+  let lookUp=0;if(vale){const tx=-_mid.x,tz=-_mid.z,d=Math.hypot(tx,tz);const fx=-Math.sin(camYaw),fz=-Math.cos(camYaw);
+    const facing=d>1?(tx*fx+tz*fz)/d:0;lookUp=smooth(.55,.9,facing)*smooth(24,40,d)*smooth(150,90,d);}
+  const pitchT=vale?lerp(.30,.16,lookUp):.6;camPitch=camSnap?pitchT:lerp(camPitch,pitchT,1-Math.exp(-dt*2));PITCH=camPitch;
+  camLift=camSnap?lookUp*2.6:lerp(camLift,lookUp*2.6,1-Math.exp(-dt*2));
+  const fov=vale?50:42;if(Math.abs(camera.fov-fov)>.01){camera.fov=fov;camera.updateProjectionMatrix();}
+  let want=vale?clamp(9.5+Math.max(0,sep-4)*.8,9.5,24):clamp(12+Math.max(0,sep-5)*.85,12,24);
+  _mid.y+=vale?.9+camLift:.4;
   if(G.region==='ch1'&&(G.ending||G.phase==='end')){want=16;_mid.set(F.x,2.2,F.z);}
   if(G.region==='ch1'&&(golem.pos.y<-1.5||sprite.pos.y<-1.5)&&golem.pos.x>29&&sprite.pos.x>29)want=Math.min(want,13);
   if(dbgDist)want=dbgDist;
@@ -19,11 +28,13 @@ function updateCamera(dt,t){
   camYaw=camSnap?camYawT:angLerp(camYaw,camYawT,1-Math.exp(-dt*7));
   camSnap=false;
   camera.position.set(camTarget.x+Math.sin(camYaw)*Math.cos(PITCH)*camDist,camTarget.y+Math.sin(PITCH)*camDist,camTarget.z+Math.cos(camYaw)*Math.cos(PITCH)*camDist);
+  const gh=terrainAt(camera.position.x,camera.position.z);if(camera.position.y<gh+1.4)camera.position.y=gh+1.4;
   camera.lookAt(camTarget);
   if(shakeT>0){shakeT-=dt;const a=shakeT*.3;camera.position.x+=(Math.random()-.5)*a;camera.position.y+=(Math.random()-.5)*a;}
 }
 
 // ================= see-through walls =================
+let shadowFrame=0,lastShadowX=0,lastShadowZ=0;
 const _ray=new THREE.Raycaster(),_dir=new V3(),_tp=new V3();
 function setOpacity(o,a){
   if(!o.material)return;
@@ -70,7 +81,7 @@ function refreshNames(){
   for(const r of ['g','s']){const n=nameOf(r);
     $(r==='g'?'tagGName':'tagSName').textContent=n;$(r==='g'?'edgeGName':'edgeSName').textContent=n;
     $(r==='g'?'cardGName':'cardSName').textContent=(mode==='online'&&r===myRole)?n+' (you)':n;
-    $(r==='g'?'pnameG':'pnameS').textContent=n;}
+    $(r==='g'?'pnameG':'pnameS').textContent=n;$(r==='g'?'hnameG':'hnameS').textContent=n;$(r==='g'?'promptG':'promptS').dataset.who=n;}
 }
 
 // ================= characters & world animation =================
@@ -82,8 +93,10 @@ function nextBeaconTarget(){
   return null;
 }
 function updateVisuals(dt,t){
-  const sun=W.sun;sun.target.position.copy(camTarget);sun.position.copy(camTarget).addScaledVector(W.sunDir,60);
-  const sc=sun.shadow.camera,ext=clamp(camDist*1.15,16,30);if(Math.abs(sc.right-ext)>.5){sc.left=-ext;sc.right=ext;sc.top=ext;sc.bottom=-ext;sc.updateProjectionMatrix();}
+  const sun=W.sun;const sx=Math.round(camTarget.x/2)*2,sz=Math.round(camTarget.z/2)*2;sun.target.position.set(sx,camTarget.y,sz);sun.position.copy(sun.target.position).addScaledVector(W.sunDir,60);
+  shadowFrame++;const moved=Math.abs(sx-lastShadowX)+Math.abs(sz-lastShadowZ)>0;lastShadowX=sx;lastShadowZ=sz;
+  renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=moved||shadowFrame%2===0||G.region!=='vale';
+  const sc=sun.shadow.camera,ext=G.region==='vale'?32:clamp(camDist*1.15,16,30);if(Math.abs(sc.right-ext)>.5){sc.left=-ext;sc.right=ext;sc.top=ext;sc.bottom=-ext;sc.updateProjectionMatrix();}
   W.sky.position.copy(camera.position);
   // doors & mechanisms
   gate.group.position.y=gate.t*3.5;port.group.position.y=port.t*3.5;bridge.pivot.rotation.x=-1.45*(1-bridge.t);
@@ -107,7 +120,7 @@ function updateVisuals(dt,t){
     exitGate.veil.material.opacity=PROG.settings.reduceFlash?.24:.2+.1*Math.sin(t*1.6);
     if(stones.t>0&&stones.t<1&&Math.random()<dt*20){const st=stones.list[Math.floor(Math.random()*3)];puff(st.m.position.x,POOL.y,st.m.position.z,2,.6,[.85,.95,1],.3,.8);}}
   for(const r of runes)if(G.region!=='ch1')r.light.intensity=0;
-  updateSeedInstances(t);updatePetals(t);updateWaystones(t);updateVale(dt,t);updateRings(dt);
+  updateSeedInstances(t);updatePetals(t);updateWaystones(t);updateVale(dt,t);updateReal(dt,t);updateRings(dt);
   updateGiant(dt,t);updateSpriteVis(dt,t);
   // ending: water and light
   W.fLight.intensity=0;

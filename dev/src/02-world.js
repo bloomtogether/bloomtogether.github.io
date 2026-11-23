@@ -78,7 +78,7 @@ function buildSky(){
     fragmentShader:'varying vec3 vD;void main(){float h=clamp(vD.y,0.,1.);vec3 zen=vec3(.38,.66,.93);vec3 hor=vec3(.81,.91,.95);vec3 c=mix(hor,zen,pow(h,.6));gl_FragColor=vec4(c,1.);}'});
   W.sky=new THREE.Mesh(new THREE.SphereGeometry(400,32,16),skyMat);scene.add(W.sky);
   // ---------- light: bright day, soft shadows ----------
-  scene.add(new THREE.HemisphereLight('#e3f0ff','#7f9a6a',0.62));
+  W.hemi=new THREE.HemisphereLight('#e3f0ff','#7f9a6a',0.62);scene.add(W.hemi);
   W.sunDir=new V3(-0.45,0.8,0.4).normalize();
   const sun=new THREE.DirectionalLight('#fff2dc',0.92);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
   const sc=sun.shadow.camera;sc.left=-24;sc.right=24;sc.top=24;sc.bottom=-24;sc.near=1;sc.far=140;sun.shadow.bias=-0.0005;sun.shadow.normalBias=0.03;sun.shadow.radius=4;

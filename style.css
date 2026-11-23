@@ -209,3 +209,19 @@ kbd{font-family:var(--display);font-size:13px;font-weight:600;display:inline-blo
 @media (prefers-reduced-motion:reduce){.pill b.pulse{animation:none}#fade.go{transition-duration:.3s}}
 #hud.scene,#overlay.scene{visibility:hidden}
 .screen{z-index:7}
+
+/* ===== clean play screen: things appear only when they matter; H shows help ===== */
+#obj,#topRight{transition:opacity .45s,transform .45s}
+#obj:not(.show),#topRight:not(.show){opacity:0;transform:translateY(-8px)}
+.card .keys,.card .cardhead{display:none}
+.card{width:auto;max-width:min(380px,calc(50vw - 24px));padding:8px 14px;transition:opacity .25s}
+.card.empty{opacity:0}
+.card .prompt{min-height:0}
+.card .prompt::before{content:attr(data-who);font-family:var(--display);font-weight:700;color:#fff;border-radius:999px;padding:1px 9px;margin-right:8px;font-size:13px}
+.card.g .prompt::before{background:var(--giant)}.card.s .prompt::before{background:var(--sprite)}
+#help{left:50%;top:50%;transform:translate(-50%,-50%);width:min(760px,calc(100vw - 28px));padding:18px 22px;display:flex;flex-direction:column;gap:12px;z-index:4}
+#help .helpkeys{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:14px;font-weight:700;color:var(--ink2)}
+#helpGoal{font-size:16px;font-weight:700}
+#helpChip{right:max(14px,env(safe-area-inset-right,0px));bottom:max(14px,env(safe-area-inset-bottom,0px));padding:6px 12px;font-size:14px;font-weight:800;color:var(--ink2);transition:opacity .6s}
+#helpChip.off{opacity:0}
+#cardS{bottom:max(14px,env(safe-area-inset-bottom,0px))}

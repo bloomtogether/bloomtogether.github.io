@@ -2,9 +2,9 @@
 // Narration says "the Giant" and "the Sprite"; dialogue uses the players' own names.
 const SCENES={
   prologue:{title:'Book 1: The Seven Roots',lines:[
-    {text:'Long ago, the Everbloom Vale was kept alive by one great Heart Tree. Its seven roots carried water to seven realms.',p:[[70,34,150],[34,26,112]],l:[[0,22,0],[0,24,0]]},
-    {text:'Then came the Hush: a long, silent storm. The roots stopped. The rivers dried, the gardens sank, and the Heart Tree fell asleep.',p:[[-96,15,86],[-44,12,74]],l:[[-10,0,52],[20,0,48]]},
-    {text:'Before it slept, the tree woke its two oldest caretakers: a Giant shaped from riverstone, and a Sprite made from one of its blossoms.',p:[[0,9,44],[0,30,22]],l:[[0,10,0],[0,32,0]]},
+    {text:'Long ago, the Everbloom Vale was kept alive by one great Heart Tree. Its seven roots carried water to seven realms.',p:[[46,44,124],[28,30,104]],l:[[0,22,0],[0,24,0]]},
+    {text:'Then came the Hush: a long, silent storm. The roots stopped. The rivers dried, the gardens sank, and the Heart Tree fell asleep.',p:[[-40,26,104],[-8,20,96]],l:[[-20,0,50],[16,0,48]]},
+    {text:'Before it slept, the tree woke its two oldest caretakers: a Giant shaped from riverstone, and a Sprite made from one of its blossoms.',p:[[18,6,74],[8,10,62]],l:[[0,14,0],[0,22,0]]},
     {text:'They remember nothing. Not the Vale, not the tree, not even each other.',p:[[7,4.5,97],[3.5,3.6,93.5]],l:[[0,1.6,88],[0,1.4,87.5]]},
     {text:'The first root runs north, to the Sunken Garden. Its gate is already glowing.',p:[[0,15,-58],[0,10,-86]],l:[[0,6,-108],[0,6,-108]]}],
     after(){hint('map','Press M for the map. Esc opens the menu, the journal and settings.');}},
@@ -14,8 +14,8 @@ const SCENES={
     {text:'Look closely, too. Some memories do not want to stay buried.',p:[[17,10,2],[21,11,-3]],l:[[28,3,-18],[28,4.5,-21]]},
     {text:'Work together. Neither of you can do this alone.',p:[[0,9,9],[0,7,4.5]],l:[[0,1,-3],[0,1,-3]]}]},
   root1:{title:'The first root wakes',lines:[
-    {text:'Far away, deep under the Vale, the first root stirs.',p:[[34,20,62],[22,24,40]],l:[[0,6,0],[0,12,0]]},
-    {text:'Water returns to the riverbed. The grey trees remember their green.',p:[[-34,10,78],[20,9,80]],l:[[-12,0,52],[20,0,48]]},
+    {text:'Far away, deep under the Vale, the first root stirs.',p:[[44,14,74],[30,16,58]],l:[[0,4,0],[0,10,0]]},
+    {text:'Water returns to the riverbed. The grey trees remember their green.',p:[[-20,16,80],[22,15,82]],l:[[-12,0,52],[20,0,48]]},
     {text:'Six roots still sleep. A second gate, to the Lantern Mines, has begun to flicker. (Chapter 2 arrives in the next update.)',p:[[0,40,120],[0,50,142]],l:[[0,10,0],[0,10,-20]]}]},
 };
 function playScene(id){if(!SCENES[id])return;G.scene=id;G.line=0;G.lineT=0;PROG.seen[id]=1;saveSoon();}
@@ -138,7 +138,7 @@ function renderJournal(){
 // ---- map ----
 let valeMapImg=null;
 function buildValeMapImage(){const N=200,cv=document.createElement('canvas');cv.width=cv.height=N;const c=cv.getContext('2d'),im=c.createImageData(N,N);
-  for(let j=0;j<N;j++)for(let i=0;i<N;i++){const x=lerp(-128,128,i/(N-1)),z=lerp(-128,128,j/(N-1)),h=valeBase(x,z);valeColor(x,z,h,_vc);_vc.convertLinearToSRGB?0:0;
+  for(let j=0;j<N;j++)for(let i=0;i<N;i++){const x=lerp(-128,128,i/(N-1)),z=lerp(-128,128,j/(N-1)),h=valeBase(x,z);valeColor(x,z,h,_vc).convertLinearToSRGB();
     const k=(j*N+i)*4;im.data[k]=Math.round(_vc.r*255);im.data[k+1]=Math.round(_vc.g*255);im.data[k+2]=Math.round(_vc.b*255);im.data[k+3]=255;}
   c.putImageData(im,0,0);valeMapImg=cv;}
 function drawMap(cv){

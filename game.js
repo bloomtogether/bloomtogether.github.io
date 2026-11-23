@@ -1,8 +1,12 @@
 // Big & Small. Built from dev/src/*.js by dev/build.sh. Three.js r149 (ES modules), KayKit characters (CC0, Kay Lousberg), props modelled in Blender with Poly Haven textures (CC0).
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {DRACOLoader} from 'three/addons/loaders/DRACOLoader.js';
+import {RGBELoader} from 'three/addons/loaders/RGBELoader.js';
+import {Water} from 'three/addons/objects/Water.js';
 (() => {
 "use strict";
+THREE.ColorManagement.legacyMode=false; // colours are authored in sRGB and lit in linear space
 const $ = id => document.getElementById(id);
 const V3 = THREE.Vector3;
 const clamp=(v,a,b)=>v<a?a:v>b?b:v, lerp=(a,b,t)=>a+(b-a)*t, smooth=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
@@ -14,7 +18,7 @@ const canvas=$('gl');
 let renderer;
 try{ renderer=new THREE.WebGLRenderer({canvas,antialias:true,stencil:true,powerPreference:'high-performance'}); }
 catch(e){ fail('WebGL is not available in this browser. Try Chrome, Edge, Firefox or Safari on a laptop.'); return; }
-renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1));
+renderer.setPixelRatio(Math.min(1.5,window.devicePixelRatio||1));
 renderer.setSize(innerWidth,innerHeight,false);
 renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 renderer.outputEncoding=THREE.sRGBEncoding;
@@ -254,7 +258,7 @@ function buildSky(){
     fragmentShader:'varying vec3 vD;void main(){float h=clamp(vD.y,0.,1.);vec3 zen=vec3(.38,.66,.93);vec3 hor=vec3(.81,.91,.95);vec3 c=mix(hor,zen,pow(h,.6));gl_FragColor=vec4(c,1.);}'});
   W.sky=new THREE.Mesh(new THREE.SphereGeometry(400,32,16),skyMat);scene.add(W.sky);
   // ---------- light: bright day, soft shadows ----------
-  scene.add(new THREE.HemisphereLight('#e3f0ff','#7f9a6a',0.62));
+  W.hemi=new THREE.HemisphereLight('#e3f0ff','#7f9a6a',0.62);scene.add(W.hemi);
   W.sunDir=new V3(-0.45,0.8,0.4).normalize();
   const sun=new THREE.DirectionalLight('#fff2dc',0.92);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
   const sc=sun.shadow.camera;sc.left=-24;sc.right=24;sc.top=24;sc.bottom=-24;sc.near=1;sc.far=140;sun.shadow.bias=-0.0005;sun.shadow.normalBias=0.03;sun.shadow.radius=4;
@@ -562,7 +566,7 @@ function updatePetals(t){
 // ================= waystones (fast travel) =================
 const WAYS=[];
 function addWaystone(id,name,x,y,z,rotY){
-  const g=prop('waystone',true);g.position.set(x,y,z);g.rotation.y=rotY||0;ROOT.add(g);
+  const g=prop('waystone',true);if(REAL.ready)realifyProp(g);g.position.set(x,y,z);g.rotation.y=rotY||0;ROOT.add(g);
   const crystal=propPart(g,'Waystone_Crystal');const runes=meshesByMat(g,'Glow');
   box(x-.6,x+.6,y,y+3.2,z-.6,z+.6,null);box(x-1.3,x+1.3,y,y+.35,z-1.3,z+1.3,null,{surface:'stone'});
   const lab=labelSprite(name,'Waystone','#1fb3a3');lab.scale.set(3.6,1.12,1);lab.position.set(x,y+5.4,z);ROOT.add(lab);
@@ -591,7 +595,7 @@ function valeBase(x,z){
   let h=.9*Math.sin(x*.031+1.3)*Math.cos(z*.027-.4)+.7*Math.sin((x+z)*.019+2.1)+.45*Math.cos(x*.05-z*.04);
   h+=2.6*smooth(36,0,Math.hypot(x,z));                                  // the Heart Tree's mound
   h+=7.5*smooth(26,3,Math.hypot(x-VALE_HILL.x,z-VALE_HILL.z));           // the lookout hill
-  const e=Math.max(Math.abs(x),Math.abs(z));if(e>110)h+=Math.pow((e-110)/30,1.7)*26; // mountains ring the Vale
+  const e=Math.max(Math.abs(x),Math.abs(z));if(e>108){const k=(e-108)/30;h+=Math.pow(k,1.5)*15+fbm(x*.02+9,z*.02+3,1e6,3,41)*14*smooth(0,.8,k);} // wooded hills ring the Vale
   return h;
 }
 const BRIDGES=[0,-78,84].map(x=>{const z=riverZ(x);return {x,z,y:(valeBase(x,z-11)+valeBase(x,z+11))/2+.05};});
@@ -630,9 +634,11 @@ function buildVale(){
   // ---------- ground ----------
   const S=340,N=170,geo=new THREE.PlaneGeometry(S,S,N,N);geo.rotateX(-Math.PI/2);
   const pos=geo.attributes.position,cols=new Float32Array(pos.count*3);
-  for(let i=0;i<pos.count;i++){const x=pos.getX(i),z=pos.getZ(i),h=valeH(x,z);pos.setY(i,h);valeColor(x,z,h,_vc).convertSRGBToLinear();cols[i*3]=_vc.r;cols[i*3+1]=_vc.g;cols[i*3+2]=_vc.b;}
+  for(let i=0;i<pos.count;i++){const x=pos.getX(i),z=pos.getZ(i),h=valeH(x,z);pos.setY(i,h);
+    const e=Math.max(Math.abs(x),Math.abs(z));let wp=smooth(2.1,.9,pathDist(x,z)),wr=smooth(RIVER_W+3.8,RIVER_W+.6,riverDist(x,z)),wk=smooth(16,30,h)*.7;
+    const sum=wp+wr+wk;if(sum>1){wp/=sum;wr/=sum;wk/=sum;}cols[i*3]=wp;cols[i*3+1]=wr;cols[i*3+2]=wk;}
   geo.setAttribute('color',new THREE.BufferAttribute(cols,3));geo.computeVertexNormals();
-  VALE.groundMat=new THREE.MeshLambertMaterial({vertexColors:true});
+  VALE.groundMat=REAL.ready?terrainMaterial():new THREE.MeshLambertMaterial({vertexColors:true});
   const ground=new THREE.Mesh(geo,VALE.groundMat);ground.receiveShadow=true;ROOT.add(ground);VALE.ground=ground;
   // keep everyone inside the Vale
   for(const [a,b,c,d] of [[-130,130,-131,-128],[-130,130,128,131],[-131,-128,-130,130],[128,131,-130,130]])box(a,b,-20,60,c,d,null);
@@ -642,24 +648,30 @@ function buildVale(){
   pts.forEach((p,i)=>{const q=pts[Math.min(i+1,pts.length-1)],o=pts[Math.max(i-1,0)];const dx=q.x-o.x,dz=q.z-o.z,l=Math.hypot(dx,dz)||1,nx=-dz/l,nz=dx/l;const w=RIVER_W+2.6;
     rv.push(p.x+nx*w,RIVER_WATER,p.z+nz*w,p.x-nx*w,RIVER_WATER,p.z-nz*w);if(i){const k=i*2;ri.push(k-2,k-1,k,k-1,k+1,k);}});
   rg.setAttribute('position',new THREE.Float32BufferAttribute(rv,3));rg.setIndex(ri);rg.computeVertexNormals();
-  const rmat=M.water.clone();rmat.opacity=.9;rmat.side=THREE.DoubleSide;VALE.river=new THREE.Mesh(rg,rmat);VALE.river.visible=false;ROOT.add(VALE.river);
+  const rmat=M.water.clone();rmat.opacity=.9;rmat.side=THREE.DoubleSide;VALE.river=new THREE.Mesh(rg,rmat);VALE.river.visible=false;
+  if(REAL.ready&&REAL.tex.water)buildWater();else ROOT.add(VALE.river);
   // ---------- bridges ----------
-  for(const b of BRIDGES){const m=prop('bridge');m.rotation.y=Math.PI/2;m.scale.set(1.3,1,1);m.position.set(b.x,b.y-.1,b.z);ROOT.add(m);
+  for(const b of BRIDGES){const m=prop('bridge');if(REAL.ready)realifyProp(m);m.rotation.y=Math.PI/2;m.scale.set(1.3,1,1);m.position.set(b.x,b.y-.1,b.z);ROOT.add(m);
     const L=7.5*1.3;box(b.x-2.3,b.x+2.3,b.y-.55,b.y,b.z-L,b.z+L,null,{surface:'stone'});
     box(b.x-2.3,b.x-1.95,b.y,b.y+1.0,b.z-L,b.z+L,null);box(b.x+1.95,b.x+2.3,b.y,b.y+1.0,b.z-L,b.z+L,null);}
   // ---------- the Heart Tree ----------
-  const th=valeH(0,0)-.25,tree=prop('tree',true);tree.position.set(0,th,0);ROOT.add(tree);VALE.tree=tree;
+  const th=valeH(0,0)-.25;
+  const real=REAL.ready&&buildRealHeartTree(th);
+  if(real){VALE.tree=real;const ox=-.07*2.3,oz=-.4*2.3;
+    box(ox-3.6,ox+3.6,th,th+40,oz-3.6,oz+3.6,null,{surface:'wood'});
+}
+  else{const tree=prop('tree',true);tree.position.set(0,th,0);ROOT.add(tree);VALE.tree=tree;
   for(let k=1;k<=7;k++){const r=propPart(tree,'HT_Root'+k);if(r)VALE.roots.push(r);}
   VALE.leaf=meshesByMat(tree,'Leaf')[0];VALE.blossom=meshesByMat(tree,'Blossom')[0];
   box(-4.6,4.6,th,th+40,-4.6,4.6,null);
   for(let k=0;k<7;k++){const a=k/7*Math.PI*2+.2;
-    for(const [r,s,hh] of [[6.6,3.2,3.6],[9.6,2.6,2.0],[12.6,2.0,1.05],[15.2,1.4,.5]]){const x=Math.cos(a)*r,z=-Math.sin(a)*r,y=valeH(x,z);box(x-s/2,x+s/2,y-1,th+hh,z-s/2,z+s/2,null,{surface:'wood'});}}
+    for(const [r,s,hh] of [[6.6,3.2,3.6],[9.6,2.6,2.0],[12.6,2.0,1.05],[15.2,1.4,.5]]){const x=Math.cos(a)*r,z=-Math.sin(a)*r,y=valeH(x,z);box(x-s/2,x+s/2,y-1,th+hh,z-s/2,z+s/2,null,{surface:'wood'});}}}
   const tl=new THREE.PointLight('#9fe8d6',0,30,2);tl.position.set(0,th+8,0);scene.add(tl);VALE.treeLight=tl;
   // ---------- region gates around the edge ----------
   const gateAt=[[0,-108],[78,-72],[104,-8],[78,74],[-78,74],[-104,-8],[-78,-72]];
   CHAPTERS.forEach((c,i)=>{
     const [x,z]=gateAt[i],y=valeH(x,z),rot=Math.atan2(-x,-z);
-    const g=prop('gate',true);g.position.set(x,y-.1,z);g.rotation.y=rot;ROOT.add(g);
+    const g=prop('gate',true);if(REAL.ready)realifyProp(g);g.position.set(x,y-.1,z);g.rotation.y=rot;ROOT.add(g);
     const key=meshesByMat(g,'Glow');
     const veil=new THREE.Mesh(new THREE.PlaneGeometry(6.4,9.6),new THREE.MeshBasicMaterial({color:'#7ff0cf',transparent:true,opacity:.35,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,fog:false}));
     veil.position.set(0,4.8,0);g.add(veil);
@@ -688,20 +700,21 @@ function buildVale(){
     for(let k=0;k<5;k++){const f=new THREE.Mesh(new THREE.IcosahedronGeometry(.13,0),new THREE.MeshLambertMaterial({color:FC[(i+k)%5]}));const fa=k/5*6.28;f.position.set(Math.cos(fa)*.42,.6+(k%2)*.14,Math.sin(fa)*.42);g.add(f);}
     VALE.beds.push(g);}
   // ---------- ruins ----------
-  const ruin=(x,z,h,r,broken)=>{const y=valeH(x,z);const m=new THREE.Mesh(new THREE.CylinderGeometry(r*.92,r,h,12),M.stone);m.position.set(x,y+h/2-.2,z);m.castShadow=m.receiveShadow=true;ROOT.add(m);
-    const b=new THREE.Mesh(new THREE.BoxGeometry(r*2.4,.3,r*2.4),M.wallTop);b.position.set(x,y+.05,z);ROOT.add(b);
-    if(!broken){const t=new THREE.Mesh(new THREE.BoxGeometry(r*2.6,.35,r*2.6),M.wallTop);t.position.set(x,y+h,z);t.castShadow=true;ROOT.add(t);}
+  const RS=REAL.ready?stoneReal():M.stone,RT=REAL.ready?stoneReal():M.wallTop;if(REAL.ready)TILE.set(RS,3);
+  const ruin=(x,z,h,r,broken)=>{const y=valeH(x,z);const m=new THREE.Mesh(new THREE.CylinderGeometry(r*.92,r,h,16),RS);m.position.set(x,y+h/2-.2,z);m.castShadow=m.receiveShadow=true;ROOT.add(m);
+    const b=new THREE.Mesh(new THREE.BoxGeometry(r*2.4,.3,r*2.4),RT);b.position.set(x,y+.05,z);ROOT.add(b);
+    if(!broken){const t=new THREE.Mesh(new THREE.BoxGeometry(r*2.6,.35,r*2.6),RT);t.position.set(x,y+h,z);t.castShadow=true;ROOT.add(t);}
     box(x-r,x+r,y-1,y+h,z-r,z+r,null);};
   for(const [cx,cz] of [[-38,-42],[42,-30],[-58,24],[52,22],[-44,104],[30,100]]){
     for(let k=0;k<5;k++){const a=k/5*6.28+cx;const x=cx+Math.cos(a)*5.5,z=cz+Math.sin(a)*5.5;ruin(x,z,1.4+hash2(k,cx|0,3)*3,.5,hash2(k,cz|0,5)>.45);}
-    const y=valeH(cx,cz);box(cx-2.4,cx+2.4,y-1,y+.5,cz-1.2,cz+1.2,M.wall,{fade:false});}
+    const y=valeH(cx,cz);box(cx-2.4,cx+2.4,y-1,y+.5,cz-1.2,cz+1.2,RS,{fade:false});}
   // lookout on the hill
   const hy=valeH(VALE_HILL.x,VALE_HILL.z);
   for(let k=0;k<6;k++){const a=k/6*6.28;ruin(VALE_HILL.x+Math.cos(a)*6,VALE_HILL.z+Math.sin(a)*6,2.4+(k%2)*1.4,.45,k%3===0);}
-  box(VALE_HILL.x-1.6,VALE_HILL.x+1.6,hy-1,hy+.35,VALE_HILL.z-1.6,VALE_HILL.z+1.6,M.pave,{fade:false,surface:'stone'});
+  box(VALE_HILL.x-1.6,VALE_HILL.x+1.6,hy-1,hy+.35,VALE_HILL.z-1.6,VALE_HILL.z+1.6,REAL.ready?stoneReal():M.pave,{fade:false,surface:'stone'});
   // ---------- forests (batched) ----------
   buildValeForest();
-  buildValeTufts();
+  if(REAL.ready)buildGrass();else buildValeTufts();
   // ---------- collectibles ----------
   addPetal('m0',VALE_HILL.x,hy+.35,VALE_HILL.z);
   const vs=[[-6,70],[6,64],[-3,46],[3,-36],[-4,-60],[4,-84],[24,30],[-26,-18],[-30,30],[34,-6],[60,-58],[66,-74],[80,-62],[-60,-28],[-48,92],[48,92],[-96,6],[96,-30],[-36,-42],[42,-30]];
@@ -714,11 +727,13 @@ function buildValeForest(){
   const spots=[];
   const ok=(x,z,clear)=>{if(Math.hypot(x,z)<40||pathDist(x,z)<4||riverDist(x,z)<RIVER_W+6)return false;
     for(const g of [[0,-108],[78,-72],[104,-8],[78,74],[-78,74],[-104,-8],[-78,-72],[0,88],[-15,80],[8,84],[6,36],[8,-96],[VALE_HILL.x,VALE_HILL.z]])if(Math.hypot(x-g[0],z-g[1])<(clear||14))return false;
-    for(const s of spots)if(Math.hypot(x-s[0],z-s[1])<4.2)return false;return true;};
+    for(const s of spots)if(Math.hypot(x-s[0],z-s[1])<(REAL.ready?10:4.2))return false;return true;};
   let seed=1;const rnd=()=>{seed=Math.imul(seed^(seed>>>15),2246822507)+0x6D2B79F5|0;return ((seed>>>0)%100000)/100000;};
-  for(let i=0;i<900&&spots.length<240;i++){const a=rnd()*Math.PI*2,r=lerp(96,150,rnd());const x=Math.cos(a)*r,z=Math.sin(a)*r;if(Math.max(Math.abs(x),Math.abs(z))>134)continue;if(ok(x,z))spots.push([x,z,.9+rnd()*.7]);}
+  for(let i=0;i<1400&&spots.length<(REAL.ready?170:240);i++){const a=rnd()*Math.PI*2,r=lerp(96,165,rnd());const x=Math.cos(a)*r,z=Math.sin(a)*r;if(Math.max(Math.abs(x),Math.abs(z))>(REAL.ready?150:134))continue;if(ok(x,z))spots.push([x,z,.9+rnd()*.7]);}
   for(const [cx,cz,cr,n] of [[-62,-50,14,14],[58,8,12,12],[-70,40,12,12],[28,-74,10,9],[-30,72,9,8],[60,96,10,8],[-22,-80,10,9]])
     {let left=n;for(let i=0;i<n*6&&left>0;i++){const a=rnd()*6.28,r=Math.sqrt(rnd())*cr;const x=cx+Math.cos(a)*r,z=cz+Math.sin(a)*r;if(ok(x,z)){spots.push([x,z,.9+rnd()*.6]);left--;}}}
+  if(REAL.ready&&REAL.treeSrc){const sp=spots.map(([x,z,s])=>[x,z,.42+s*.28]);buildRealForest(sp);
+    for(const [x,z,s] of sp){if(Math.max(Math.abs(x),Math.abs(z))<126){const y=valeH(x,z),r=1.1*s;box(x-r,x+r,y-1,y+6,z-r,z+r,null,{surface:'wood'});}}return;}
   const trunkG=new THREE.CylinderGeometry(.18,.3,2.6,6);trunkG.translate(0,1.3,0);
   const blobG=lowPoly(1,.85,1,1,5,.18);
   const trunks=new THREE.InstancedMesh(trunkG,M.bark,spots.length);
@@ -747,20 +762,21 @@ function buildValeTufts(){
   for(const im of [tufts,flowers]){im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;im.receiveShadow=true;ROOT.add(im);}
 }
 // how awake the Vale looks: 0 = grey and dry, 1 = the first root is awake (river full, green trees)
-const _sleepLeaf=new THREE.Color('#b6bba9'),_wakeLeaf=new THREE.Color('#ffffff'),_sleepGround=new THREE.Color('#d9dccb'),_treeLeafSleep=new THREE.Color('#a4ad97'),_treeLeafWake=new THREE.Color('#6cbf52');
+const _realLeafSleep=new THREE.Color('#b9b6a4'),_sleepLeaf=new THREE.Color('#c8c6b4'),_wakeLeaf=new THREE.Color('#ffffff'),_sleepGround=new THREE.Color('#d9dccb'),_treeLeafSleep=new THREE.Color('#a4ad97'),_treeLeafWake=new THREE.Color('#6cbf52');
 function valeWakeTarget(){return PROG.roots>=1?1:0;}
 function updateVale(dt,t){
   if(G.region!=='vale')return;
   VALE.wakeT=(G.scene==='root1'&&G.line<1)?0:valeWakeTarget();
   VALE.wake=approach(VALE.wake,VALE.wakeT,dt/3.5);
   const w=VALE.wake;
-  VALE.foliageMat.color.copy(_sleepLeaf).lerp(_wakeLeaf,w);
+  if(VALE.foliageMat)VALE.foliageMat.color.copy(_sleepLeaf).lerp(_wakeLeaf,w);
   VALE.groundMat.color.copy(_sleepGround).lerp(_wakeLeaf,w);
-  VALE.flowers.visible=w>.5;
-  VALE.river.visible=w>.02;VALE.river.position.y=lerp(-1.3,0,w);VALE.river.material.opacity=.9*Math.min(1,w*2);
-  if(VALE.leaf)VALE.leaf.material.color.copy(_treeLeafSleep).lerp(_treeLeafWake,.2+.25*Math.min(1,PROG.roots/7)+.1*w);
+  if(VALE.flowers)VALE.flowers.visible=w>.5;
+  if(!REAL.water){VALE.river.visible=w>.02;VALE.river.position.y=lerp(-1.3,0,w);VALE.river.material.opacity=.9*Math.min(1,w*2);}
+  if(VALE.leaf&&REAL.ready)VALE.leaf.material.color.copy(_realLeafSleep).lerp(_wakeLeaf,.35+.4*Math.min(1,PROG.roots/7)+.25*w);
+  else if(VALE.leaf)VALE.leaf.material.color.copy(_treeLeafSleep).lerp(_treeLeafWake,.2+.25*Math.min(1,PROG.roots/7)+.1*w);
   if(VALE.blossom)VALE.blossom.material.color.set(PROG.roots>=7?'#ffb3cf':'#e6dade');
-  VALE.roots.forEach((r,i)=>{const on=i<PROG.roots,em=r.material.emissive;if(on){em.set('#1fb3a3');r.material.emissiveIntensity=PROG.settings.reduceFlash?.35:.3+.15*Math.sin(t*1.5+i);}else r.material.emissiveIntensity=0;});
+  VALE.roots.forEach((r,i)=>{if(r.vein){const u=r.material.uniforms;u.uT.value=t;u.uOn.value=approach(u.uOn.value,i<PROG.roots?(PROG.settings.reduceFlash?.6:1):0,dt*.6);return;}const on=i<PROG.roots,em=r.material.emissive;if(on){em.set('#1fb3a3');r.material.emissiveIntensity=PROG.settings.reduceFlash?.35:.3+.15*Math.sin(t*1.5+i);}else r.material.emissiveIntensity=0;});
   VALE.treeLight.intensity=PROG.roots>0?.6:0;
   const planted=Math.floor(PROG.planted/5);VALE.beds.forEach((g,i)=>g.visible=i<planted);
   for(const g of GATES){const ready=g.ready;g.veil.visible=ready;if(ready)g.veil.material.opacity=PROG.settings.reduceFlash?.3:.26+.1*Math.sin(t*1.6);
@@ -885,6 +901,242 @@ function syncSeesaw(){
   for(const c of seesaw.segs){const top=SEESAW.pivot+Math.sin(a)*c.lx+.09;c.min.set(SEESAW.x+c.lx-.8,top-.3,SEESAW.z-.65);c.max.set(SEESAW.x+c.lx+.8,top,SEESAW.z+.65);}
 }
 function onSeesaw(b,side){const c=b.ground;if(!c||c.kind!=='seesaw'||!b.onGround)return false;return side<0?c.lx<0:c.lx>0;}
+
+// ================= realistic look: Poly Haven sky + PBR ground, real grass, water, trees =================
+// Sky: "Sunflowers (Pure Sky)", ground sets, Jacaranda tree: Poly Haven (CC0). Water normals: three.js examples (MIT).
+const REAL={ready:false,tex:{},sun:new V3(.59,.68,-.43).normalize(),grass:null,water:null,forest:[],heart:null,leafMats:[]};
+const texLoader=new THREE.TextureLoader();
+function loadTex(url,srgb,rep,tries){tries=tries||0;return new Promise(res=>texLoader.load(url,t=>{t.wrapS=t.wrapT=rep===false?THREE.ClampToEdgeWrapping:THREE.RepeatWrapping;t.anisotropy=ANISO;if(srgb)t.encoding=THREE.sRGBEncoding;res(t);},undefined,()=>{if(tries<3)setTimeout(()=>loadTex(url,srgb,rep,tries+1).then(res),400*(tries+1));else res(null);}));}
+const DRACO=new DRACOLoader();DRACO.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.149.0/examples/jsm/libs/draco/gltf/');
+async function loadReal(){
+  const T=REAL.tex,jobs=[];
+  for(const n of ['ground','path','riverbed','rock','masonry'])for(const [k,s] of [['col',1],['nrm',0],['rgh',0]])jobs.push(loadTex('assets/tex/'+n+'_'+k+'.jpg',s&&n==='masonry').then(t=>T[n+'_'+k]=t));
+  jobs.push(loadTex('assets/tex/waternormals.jpg',0).then(t=>T.water=t));
+  jobs.push(loadTex('assets/env/sky_4k.jpg',1,false).then(t=>T.sky=t));
+  jobs.push(new Promise(res=>new RGBELoader().load('assets/env/sky_1k.hdr',t=>{T.hdr=t;res();},undefined,()=>res())));
+  const L=new GLTFLoader();L.setDRACOLoader(DRACO);
+  jobs.push(L.loadAsync('assets/models/heart_tree_real.glb').then(g=>REAL.heartSrc=g.scene).catch(e=>console.warn('heart tree',e)));
+  jobs.push(L.loadAsync('assets/models/tree_jacaranda.glb').then(g=>REAL.treeSrc=g.scene).catch(e=>console.warn('tree',e)));
+  await Promise.all(jobs);REAL.ready=true;
+}
+// sky dome + image lighting from the same sphere, so the sun in the sky matches the light
+function setupSky(){
+  const T=REAL.tex;
+  scene.background=null;
+  if(T.sky){const sky=new THREE.Mesh(new THREE.SphereGeometry(480,64,32),new THREE.MeshBasicMaterial({map:T.sky,side:THREE.BackSide,fog:false,depthWrite:false,toneMapped:false}));
+    sky.renderOrder=-10;scene.add(sky);if(W.sky)scene.remove(W.sky);W.sky=sky;}
+  if(T.hdr){const s=new THREE.Scene();s.add(new THREE.Mesh(new THREE.SphereGeometry(10,64,32),new THREE.MeshBasicMaterial({map:T.hdr,side:THREE.BackSide})));
+    const pm=new THREE.PMREMGenerator(renderer);scene.environment=pm.fromScene(s,0,.1,100).texture;pm.dispose();T.hdr.dispose();}
+  renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.9;
+  W.sunDir.copy(REAL.sun);W.sun.color.set('#ffe7c6');W.sun.intensity=1.9;
+  W.sun.shadow.mapSize.set(2048,2048);renderer.shadowMap.type=THREE.PCFShadowMap;W.sun.shadow.bias=-.0004;W.sun.shadow.normalBias=.04;W.sun.shadow.radius=3;
+  if(W.hemi)W.hemi.intensity=.28;
+  scene.fog=new THREE.Fog('#bfcfd8',90,520);
+}
+const pbr=(n,rep,o)=>{const T=REAL.tex;const m=new THREE.MeshStandardMaterial(Object.assign({map:T[n+'_col'],normalMap:T[n+'_nrm'],roughnessMap:T[n+'_rgh'],roughness:1,metalness:0},o||{}));m.name=n;return m;};
+// ----- the ground: four Poly Haven sets blended by weights stored in vertex colours (r=path, g=riverbed, b=rock) -----
+function terrainMaterial(){
+  const T=REAL.tex,m=new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,metalness:0,envMapIntensity:.45});
+  const U={};for(const n of ['ground','path','riverbed','rock'])for(const k of ['col','nrm','rgh'])U['t_'+n+'_'+k]={value:T[n+'_'+k]};
+  m.onBeforeCompile=sh=>{Object.assign(sh.uniforms,U);
+    sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vWP;').replace('#include <worldpos_vertex>','#include <worldpos_vertex>\nvWP=(modelMatrix*vec4(transformed,1.)).xyz;');
+    const decl=Object.keys(U).map(k=>'uniform sampler2D '+k+';').join('\n');
+    sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vWP;\n'+decl+`
+vec3 lin(vec3 c){return pow(c,vec3(2.2));}
+`)
+    .replace('#include <map_fragment>',`
+vec3 cw=vColor;vec4 w=vec4(clamp(1.-cw.r-cw.g-cw.b,0.,1.),cw.r,cw.g,cw.b);vec2 p=vWP.xz;
+vec2 uG=p/3.2,uP=p/2.6,uR=p/3.,uK=p/4.;
+vec3 cG=mix(lin(texture2D(t_ground_col,uG).rgb),lin(texture2D(t_ground_col,uG*.23+.37).rgb),.4);
+float dc=length(vWP.xz-cameraPosition.xz);cG=mix(cG*vec3(.8,.95,.62),vec3(.055,.095,.025),.45+.25*smoothstep(25.,60.,dc));
+vec3 alb=cG*w.x;if(w.y>.003)alb+=lin(texture2D(t_path_col,uP).rgb)*vec3(.62,.58,.52)*w.y;if(w.z>.003)alb+=lin(texture2D(t_riverbed_col,uR).rgb)*w.z;if(w.w>.003)alb+=lin(texture2D(t_rock_col,uK).rgb)*w.w;
+diffuseColor.rgb*=alb;`)
+    .replace('#include <roughnessmap_fragment>',`float roughnessFactor=roughness*(texture2D(t_ground_rgh,uG).g*w.x+(w.y>.003?texture2D(t_path_rgh,uP).g*w.y:0.)+(w.z>.003?texture2D(t_riverbed_rgh,uR).g*w.z:0.)+(w.w>.003?texture2D(t_rock_rgh,uK).g*w.w:0.));`)
+    .replace('#include <normal_fragment_maps>',`
+vec3 nT=texture2D(t_ground_nrm,uG).xyz*w.x;if(w.y>.003)nT+=texture2D(t_path_nrm,uP).xyz*w.y;if(w.z>.003)nT+=texture2D(t_riverbed_nrm,uR).xyz*w.z;if(w.w>.003)nT+=texture2D(t_rock_nrm,uK).xyz*w.w;nT=nT*2.-1.;
+nT.xy*=.9;vec3 Tv=normalize((viewMatrix*vec4(1.,0.,0.,0.)).xyz);Tv=normalize(Tv-normal*dot(normal,Tv));vec3 Bv=cross(Tv,normal);
+normal=normalize(mat3(Tv,Bv,normal)*normalize(nT));`)
+    .replace('#include <color_fragment>','');
+  };
+  return m;
+}
+// ----- grass: real blades around the camera, laid out in 8 m chunks that follow the players -----
+const GRASS={chunk:8,R:3,per:2300,slots:[],map:new Map(),center:[1e9,1e9]};
+function buildGrass(){
+  const n=(GRASS.R*2+1)**2,count=n*GRASS.per;
+  const blade=new THREE.BufferGeometry();
+  // a tapered blade: 3 segments + tip, bends forward with height
+  const P=[],UV=[],I=[];const segs=3;
+  for(let i=0;i<=segs;i++){const t=i/segs,w=.026*(1-t*.8);P.push(-w,t,0,w,t,0);UV.push(0,t,1,t);if(i<segs){const k=i*2;I.push(k,k+1,k+2,k+1,k+3,k+2);}}
+  blade.setAttribute('position',new THREE.Float32BufferAttribute(P,3));blade.setAttribute('uv',new THREE.Float32BufferAttribute(UV,2));blade.setIndex(I);
+  const g=new THREE.InstancedBufferGeometry();g.index=blade.index;g.attributes.position=blade.attributes.position;g.attributes.uv=blade.attributes.uv;
+  const ofs=new Float32Array(count*4),rnd=new Float32Array(count*4);
+  g.setAttribute('ofs',new THREE.InstancedBufferAttribute(ofs,4));g.setAttribute('rnd',new THREE.InstancedBufferAttribute(rnd,4));g.instanceCount=count;
+  const mat=new THREE.ShaderMaterial({side:THREE.DoubleSide,fog:true,lights:false,
+    uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{uTime:{value:0},uSun:{value:REAL.sun.clone()},uCam:{value:new V3()},uR:{value:GRASS.chunk*(GRASS.R+.5)},uWake:{value:1},uPush:{value:[new V3(0,-99,0),new V3(0,-99,0)]}}]),
+    vertexShader:`attribute vec4 ofs;attribute vec4 rnd;uniform float uTime;uniform vec3 uCam;uniform float uR;uniform vec3 uPush[2];varying vec2 vUv;varying float vShade;varying vec3 vCol;
+#include <fog_pars_vertex>
+void main(){vUv=uv;float h=ofs.w;if(h<=0.){gl_Position=vec4(2.,2.,2.,1.);return;}
+ float d=length(ofs.xz-uCam.xz);float fade=smoothstep(uR,uR*.72,d);h*=fade;
+ float a=rnd.x*6.2832;float c=cos(a),s=sin(a);vec3 p=position;p.y*=h;p.x*=.85+rnd.y*.5;
+ float t=uv.y;float bend=t*t;
+ vec2 wind=vec2(sin(uTime*1.3+ofs.x*.21+ofs.z*.17)+.5*sin(uTime*2.7+ofs.x*.6),cos(uTime*1.1+ofs.z*.23))*(.10+.06*rnd.z);
+ vec3 wp=vec3(p.x*c,p.y,p.x*s)+ofs.xyz;wp.xz+=wind*bend*h+vec2(c,s)*bend*h*.25*(rnd.w-.5);
+ for(int i=0;i<2;i++){vec3 q=uPush[i];vec2 dd=wp.xz-q.xz;float l=length(dd);float k=smoothstep(1.1,.2,l)*step(abs(q.y-ofs.y),1.5);wp.xz+=normalize(dd+1e-4)*k*bend*h*.9;wp.y-=k*bend*h*.35;}
+ vShade=t;vCol=mix(vec3(.075,.15,.03),vec3(.22,.34,.07),rnd.y)*mix(.85,1.15,rnd.z);
+ if(rnd.w>.95)vCol=vec3(.36,.33,.13);
+ vec4 mvPosition=viewMatrix*vec4(wp,1.);gl_Position=projectionMatrix*mvPosition;
+ #include <fog_vertex>
+}`,
+    fragmentShader:`uniform vec3 uSun;uniform float uWake;varying vec2 vUv;varying float vShade;varying vec3 vCol;
+#include <common>
+#include <fog_pars_fragment>
+void main(){float ao=mix(.28,1.,smoothstep(0.,.8,vShade));
+ vec3 sunC=vec3(1.,.9,.78)*1.9;vec3 sky=vec3(.5,.62,.75)*.5;
+ vec3 col=vCol*(sky+sunC*.6*(.5+.5*vShade))*ao;
+ col=mix(col*vec3(.92,.92,.9),col,uWake);
+ gl_FragColor=vec4(col,1.);
+ #include <tonemapping_fragment>
+ #include <encodings_fragment>
+ #include <fog_fragment>
+}`});
+  const mesh=new THREE.Mesh(g,mat);mesh.frustumCulled=false;mesh.receiveShadow=false;ROOT.add(mesh);
+  GRASS.mesh=mesh;GRASS.ofs=ofs;GRASS.rnd=rnd;GRASS.geo=g;GRASS.mat=mat;
+  for(let i=0;i<n;i++)GRASS.slots.push({key:null,i});
+}
+function grassAllowed(x,z){
+  if(Math.max(Math.abs(x),Math.abs(z))>118)return 0;
+  if(riverDist(x,z)<RIVER_W+2.2)return 0;
+  const pd=pathDist(x,z);if(pd<1.3)return 0;
+  const r=Math.hypot(x,z);if(r<5)return 0;
+  if(VALE.plot&&Math.hypot(x-VALE.plot.x,z-VALE.plot.z)<5.2)return 0;
+  return clamp((pd-1.3)/1.5,0,1)*(r<16?.5:1);
+}
+function fillChunk(slot,cx,cz){
+  const S=GRASS.chunk,base=slot.i*GRASS.per,o=GRASS.ofs,r=GRASS.rnd;let seed=(cx*73856093)^(cz*19349663);
+  const rnd=()=>{seed=Math.imul(seed^(seed>>>15),2246822507)+0x6D2B79F5|0;return ((seed>>>0)%100000)/100000;};
+  for(let k=0;k<GRASS.per;k++){const x=(cx+rnd())*S,z=(cz+rnd())*S,j=(base+k)*4;const a=grassAllowed(x,z);const keep=rnd()<a;
+    o[j]=x;o[j+1]=keep?valeH(x,z):0;o[j+2]=z;o[j+3]=keep?.22+rnd()*.38:0;r[j]=rnd();r[j+1]=rnd();r[j+2]=rnd();r[j+3]=rnd();}
+  slot.key=cx+','+cz;
+}
+function updateGrass(t){
+  if(!GRASS.mesh||G.region!=='vale')return;
+  const S=GRASS.chunk,cx=Math.floor(camTarget.x/S),cz=Math.floor(camTarget.z/S);
+  GRASS.mat.uniforms.uTime.value=t;GRASS.mat.uniforms.uCam.value.copy(camTarget);GRASS.mat.uniforms.uWake.value=VALE.wake;
+  GRASS.mat.uniforms.uPush.value[0].copy(golem.pos);GRASS.mat.uniforms.uPush.value[1].copy(sprite.pos);
+  if(cx===GRASS.center[0]&&cz===GRASS.center[1])return;
+  GRASS.center=[cx,cz];const want=new Set();for(let i=-GRASS.R;i<=GRASS.R;i++)for(let j=-GRASS.R;j<=GRASS.R;j++)want.add((cx+i)+','+(cz+j));
+  const free=GRASS.slots.filter(s=>!want.has(s.key));const have=new Set(GRASS.slots.map(s=>s.key));
+  for(const k of want)if(!have.has(k)){const s=free.pop();const [a,b]=k.split(',').map(Number);fillChunk(s,a,b);}
+  GRASS.geo.attributes.ofs.needsUpdate=true;GRASS.geo.attributes.rnd.needsUpdate=true;
+}
+// ----- water: reflective, slightly green like a slow river -----
+function buildWater(){
+  const pts=[];for(let x=-175;x<=175;x+=4)pts.push([x,riverZ(x)]);
+  const g=new THREE.BufferGeometry(),v=[],idx=[],uv=[];
+  pts.forEach((p,i)=>{const q=pts[Math.min(i+1,pts.length-1)],o=pts[Math.max(i-1,0)];const dx=q[0]-o[0],dz=q[1]-o[1],l=Math.hypot(dx,dz)||1,nx=-dz/l,nz=dx/l,w=RIVER_W+3;
+    v.push(p[0]+nx*w,-(p[1]+nz*w),0,p[0]-nx*w,-(p[1]-nz*w),0);uv.push(0,i/4,1,i/4);if(i){const k=i*2;idx.push(k-2,k,k-1,k-1,k,k+1);}});
+  g.setAttribute('position',new THREE.Float32BufferAttribute(v,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.setIndex(idx);g.computeVertexNormals();
+  const T=REAL.tex;if(T.water){T.water.wrapS=T.water.wrapT=THREE.RepeatWrapping;}
+  const nm=T.water;if(nm)nm.repeat.set(1,1);
+  const mat=new THREE.MeshStandardMaterial({color:'#2c3d2a',roughness:.06,metalness:.0,normalMap:nm,normalScale:new THREE.Vector2(.35,.35),envMapIntensity:1.15,transparent:true,opacity:.93,side:THREE.DoubleSide});
+  mat.onBeforeCompile=sh=>{sh.uniforms.uT={value:0};mat.userData.sh=sh;
+    sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec2 vWXZ;').replace('#include <worldpos_vertex>','#include <worldpos_vertex>\nvWXZ=(modelMatrix*vec4(transformed,1.)).xz;');
+    sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec2 vWXZ;uniform float uT;')
+      .replace('#include <normal_fragment_maps>',`vec3 n1=texture2D(normalMap,vWXZ*.045+vec2(uT*.012,uT*.007)).xyz*2.-1.;vec3 n2=texture2D(normalMap,vWXZ*.11-vec2(uT*.009,-uT*.013)).xyz*2.-1.;
+vec3 nT=normalize(vec3((n1.xy+n2.xy)*normalScale.x,1.));vec3 Tv=normalize((viewMatrix*vec4(1.,0.,0.,0.)).xyz);Tv=normalize(Tv-normal*dot(normal,Tv));vec3 Bv=cross(Tv,normal);normal=normalize(mat3(Tv,Bv,normal)*nT);`);};
+  const w=new THREE.Mesh(g,mat);w.rotation.x=-Math.PI/2;w.position.y=RIVER_WATER;w.receiveShadow=true;ROOT.add(w);REAL.water=w;w.visible=false;
+  return w;
+}
+// ----- trees -----
+function treeParts(src){const parts=[];src.updateMatrixWorld(true);src.traverse(o=>{if(o.isMesh){const g=o.geometry.clone();g.applyMatrix4(o.matrixWorld);parts.push({name:o.name,geo:g,mat:o.material});}});return parts;}
+function leafify(src){
+  const m=new THREE.MeshLambertMaterial({map:src.map,vertexColors:true,color:src.color.clone(),name:'Leaves',emissive:new THREE.Color('#46592a'),emissiveMap:src.map});
+  m.onBeforeCompile=sh=>{sh.fragmentShader=sh.fragmentShader.replace('#include <alphatest_fragment>',`
+#ifdef USE_MAP
+ vec2 dUv=vUv*1024.;float lod=log2(max(length(dFdx(dUv)),length(dFdy(dUv))));diffuseColor.a*=1.+min(1.6,max(0.,lod)*.22);
+#endif
+ float camD=length(vViewPosition);if(camD<9.){float dz=fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715))));if(dz>smoothstep(4.,9.,camD))discard;}
+ if(diffuseColor.a<alphaTest)discard;`);};
+  m.alphaTest=.45;m.side=THREE.DoubleSide;m.transparent=false;REAL.leafMats.push(m);
+  const dm=new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking,map:m.map,alphaTest:.45});return {mat:m,depth:dm};}
+function buildRealForest(spots){
+  if(!REAL.treeSrc)return;
+  // the forest uses the dense Jacaranda canopy (shared with the Heart Tree) over the lighter wood
+  const parts=treeParts(REAL.treeSrc).filter(p=>!/Leaves/.test(p.name));
+  if(REAL.heartSrc){let lv=null;REAL.heartSrc.traverse(o=>{if(o.isMesh&&/Leaves/.test(o.name))lv=o;});if(lv)parts.push({name:'Leaves',geo:lv.geometry,mat:lv.material.clone()});}
+  const m4=new THREE.Matrix4(),q=new THREE.Quaternion(),s=new V3(),p=new V3(),col=new THREE.Color();
+  const wood=parts.find(x=>!/Leaves/.test(x.name)),leaves=parts.find(x=>/Leaves/.test(x.name));
+  const lf=leafify(leaves.mat);leaves.mat=lf.mat;const depth=lf.depth;VALE.foliageMat=lf.mat;
+  wood.mat=new THREE.MeshLambertMaterial({map:wood.mat.map,color:wood.mat.color.clone()});
+  // a light trunk for distant trees: the canopy hides the branches anyway
+  const stub=new THREE.CylinderGeometry(.55,1.0,9,7,1,true);stub.translate(0,4.5,0);
+  const near=spots.filter(sp=>Math.max(Math.abs(sp[0]),Math.abs(sp[1]))<110),far=spots.filter(sp=>Math.max(Math.abs(sp[0]),Math.abs(sp[1]))>=110);
+  const groups=[];
+  for(const [list,isNear] of [[near,true],[far,false]]){const sect=new Map();
+    list.forEach(sp=>{const k=Math.floor((Math.atan2(sp[1],sp[0])+Math.PI)/(Math.PI*2)*10)+(Math.hypot(sp[0],sp[1])>60?10:0);if(!sect.has(k))sect.set(k,[]);sect.get(k).push(sp);});
+    for(const lst of sect.values())groups.push({lst,isNear});}
+  const shared=(src)=>{const g=new THREE.BufferGeometry();g.index=src.index;for(const k in src.attributes)g.setAttribute(k,src.attributes[k]);return g;};
+  for(const {lst,isNear} of groups){
+    const box3=new THREE.Box3();for(const [x,z,sc] of lst){const y=valeH(x,z);box3.expandByPoint(new V3(x-14*sc,y-1,z-14*sc));box3.expandByPoint(new V3(x+14*sc,y+22*sc,z+14*sc));}
+    const sphere=box3.getBoundingSphere(new THREE.Sphere());
+    for(const part of [isNear?wood:{geo:stub,mat:wood.mat,name:'stub'},leaves]){
+      const g=shared(part===leaves&&!isNear?(leaves.sparse||(leaves.sparse=sparseLeaves(leaves.geo,.5,1.3))):part.geo);g.boundingSphere=sphere.clone();g.boundingBox=box3.clone();
+      const im=new THREE.InstancedMesh(g,part.mat,lst.length);im.castShadow=isNear&&part!==leaves;im.receiveShadow=isNear;
+      if(part===leaves)im.customDepthMaterial=depth;
+      lst.forEach(([x,z,sc],i)=>{const j=spots.indexOf(lst[i]);const y=valeH(x,z)-.15;p.set(x,y,z);q.setFromAxisAngle(_yAx,(j*2.399)%6.283);s.set(sc,sc*(.9+((j*7)%5)*.05),sc);m4.compose(p,q,s);im.setMatrixAt(i,m4);
+        if(part===leaves){col.setHSL(.2+((j*13)%9)*.008,.2,.86+((j*5)%7)*.02);im.setColorAt(i,col);}});
+      im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;ROOT.add(im);REAL.forest.push(im);}}
+}
+function buildRealHeartTree(th){
+  if(!REAL.heartSrc)return null;
+  const t=REAL.heartSrc;t.scale.setScalar(2.3);t.position.set(0,th-.3,0);
+  t.traverse(o=>{if(!o.isMesh)return;o.castShadow=true;o.receiveShadow=true;
+    if(/Leaves/.test(o.name)){const lf=leafify(o.material);o.material=lf.mat;o.customDepthMaterial=lf.depth;VALE.leaf=o;}
+    else if(/Root/.test(o.name)){o.visible=false;}
+    else{o.material.envMapIntensity=.6;}});
+  ROOT.add(t);buildRootVeins(th);return t;
+}
+// realistic stone for gates, waystones, bridges and ruins
+let _stoneReal=null;
+function stoneReal(){if(!_stoneReal){_stoneReal=pbr('masonry',1,{color:new THREE.Color('#d9cfbf')});}return _stoneReal;}
+function realifyProp(root){root.traverse(o=>{if(!o.isMesh)return;const n=o.material.name;
+  if(n==='Stone'||n==='Trim')o.material=n==='Trim'?(stoneReal.trim||(stoneReal.trim=pbr('masonry',1,{color:new THREE.Color('#a89a88')}))):stoneReal();
+  else if(n==='Wood')o.material=new THREE.MeshStandardMaterial({map:o.material.map,color:'#8a7a68',roughness:.85});});}
+function updateReal(dt,t){
+  if(G.region!=='vale')return;
+  updateGrass(t);
+  if(REAL.water){REAL.water.visible=VALE.wake>.02;REAL.water.position.y=lerp(RIVER_WATER-.7,RIVER_WATER,VALE.wake);const sh=REAL.water.material.userData.sh;if(sh)sh.uniforms.uT.value=t;}
+}
+
+// the seven roots run under the Vale: a woken root shows as a soft glowing vein through the grass
+function buildRootVeins(th){
+  const ox=-.07*2.3,oz=-.4*2.3;
+  for(let k=0;k<7;k++){const a=k/7*Math.PI*2+.2,pts=[];
+    for(let i=0;i<=40;i++){const r=4+i*.62,w=Math.sin(i*.35+k*1.7)*.18+Math.sin(i*.9+k)*.06;pts.push([ox+Math.cos(a+w)*r,oz-Math.sin(a+w)*r]);}
+    const v=[],idx=[],uv=[];
+    pts.forEach((pt,i)=>{const q=pts[Math.min(i+1,pts.length-1)],o=pts[Math.max(i-1,0)];const dx=q[0]-o[0],dz=q[1]-o[1],l=Math.hypot(dx,dz)||1,nx=-dz/l,nz=dx/l,wd=.55*(1-i/48);
+      for(const sg of [1,-1]){const x=pt[0]+nx*wd*sg,z=pt[1]+nz*wd*sg;v.push(x,valeH(x,z)+.07,z);}uv.push(0,i/40,1,i/40);if(i){const b=i*2;idx.push(b-2,b-1,b,b-1,b+1,b);}});
+    const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(v,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.setIndex(idx);
+    const m=new THREE.ShaderMaterial({transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,uniforms:{uOn:{value:0},uT:{value:0}},
+      vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+      fragmentShader:'varying vec2 vUv;uniform float uOn;uniform float uT;void main(){float e=1.-abs(vUv.x*2.-1.);float pulse=.75+.25*sin(vUv.y*18.-uT*1.6);float a=smoothstep(0.,.8,e)*(1.-smoothstep(.75,1.,vUv.y))*uOn*pulse;gl_FragColor=vec4(vec3(.25,.95,.8)*a*.9,1.);}'});
+    const mesh=new THREE.Mesh(g,m);mesh.renderOrder=2;ROOT.add(mesh);VALE.roots.push({vein:mesh,material:m});}
+}
+
+function sparseLeaves(src,keep,grow){
+  const idx=src.index.array,pos=src.attributes.position,n=pos.count;
+  const parent=new Int32Array(n);for(let i=0;i<n;i++)parent[i]=i;
+  const find=a=>{while(parent[a]!==a){parent[a]=parent[parent[a]];a=parent[a];}return a;};
+  for(let t=0;t<idx.length;t+=3){const a=find(idx[t]),b=find(idx[t+1]),c=find(idx[t+2]);parent[b]=a;parent[c]=a;}
+  const keepRoot=new Map();let seed=11;const rnd=()=>{seed=Math.imul(seed^(seed>>>15),2246822507)+0x6D2B79F5|0;return ((seed>>>0)%1000)/1000;};
+  const out=[];for(let t=0;t<idx.length;t+=3){const r=find(idx[t]);if(!keepRoot.has(r))keepRoot.set(r,rnd()<keep);if(keepRoot.get(r))out.push(idx[t],idx[t+1],idx[t+2]);}
+  const g=src.clone();g.setIndex(out);
+  // grow each card about its centre
+  const P=g.attributes.position,sum=new Map();for(let i=0;i<n;i++){const r=find(i);const c=sum.get(r)||[0,0,0,0];c[0]+=P.getX(i);c[1]+=P.getY(i);c[2]+=P.getZ(i);c[3]++;sum.set(r,c);}
+  for(let i=0;i<n;i++){const c=sum.get(find(i));const cx=c[0]/c[3],cy=c[1]/c[3],cz=c[2]/c[3];P.setXYZ(i,cx+(P.getX(i)-cx)*grow,cy+(P.getY(i)-cy)*grow,cz+(P.getZ(i)-cz)*grow);}
+  P.needsUpdate=true;return g;
+}
 
 // ================= characters =================
 const golem={kind:'golem',pos:new V3(),vel:new V3(),hw:.6,h:2.3,stepH:.45,yaw:Math.PI,onGround:false,coyote:0,holding:false,charging:false,charge:0,runes:0,cp:0,pushing:false,anim:0,prev:new V3(),delta:new V3(),stepSound:0,walk:0};
@@ -1305,7 +1557,7 @@ addEventListener('keydown',e=>{
     if(G.phase==='play'&&G.card&&boss&&$('scrPause').hidden){G.card='';return;}
     togglePause();return;}
   if(e.code==='KeyM'){if(e.shiftKey||G.phase!=='play')setMuted(!muted);else if(!chatOpen&&!G.scene){if(overlayOpen==='scrMap')closeOverlay();else if(!overlayOpen)openMap();}}
-  if(e.code==='KeyH'){cardsCollapsed=!cardsCollapsed;$('cardG').classList.toggle('collapsed',cardsCollapsed);$('cardS').classList.toggle('collapsed',cardsCollapsed);}
+  if(e.code==='KeyH'&&G.phase==='play'){helpOpen=!helpOpen;$('help').hidden=!helpOpen;helpUsed=true;}
   if(G.phase==='play'&&(e.code==='KeyQ'||e.code==='KeyR'))rotateCam(e.code==='KeyQ'?-1:1);
   if(mode==='online'&&(G.phase==='play'||G.phase==='brief'||G.phase==='end')&&$('scrPause').hidden){
     if(e.code==='Enter'||e.code==='NumpadEnter'){e.preventDefault();keys[e.code]=false;openChat();return;}
@@ -1315,7 +1567,7 @@ addEventListener('keydown',e=>{
 });
 addEventListener('keyup',e=>{keys[e.code]=false;});
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false;});
-let cardsCollapsed=false;
+let helpOpen=false,helpUsed=false,objShowT=0,cntShowT=0,chipT=0;
 function padState(i){const ps=navigator.getGamepads?navigator.getGamepads():[];const pads=[];for(const p of ps)if(p&&p.connected)pads.push(p);const p=pads[i];if(!p)return null;
   const dz=v=>Math.abs(v)<.22?0:v;return {mx:dz(p.axes[0]||0),mz:dz(p.axes[1]||0),jump:!!(p.buttons[0]&&p.buttons[0].pressed),act:!!((p.buttons[2]&&p.buttons[2].pressed)||(p.buttons[1]&&p.buttons[1].pressed))};}
 const K=(...c)=>c.some(k=>keys[k])?1:0;
@@ -1561,7 +1813,10 @@ function objectiveText(){
 let hudCache={};
 function setText(id,t){if(hudCache[id]!==t){hudCache[id]=t;$(id).textContent=t;}}
 function updateHUD(dt){
-  setText('objText',objectiveText());
+  const obj=objectiveText();if(hudCache.objText!==obj)objShowT=10;setText('objText',obj);
+  if(helpOpen)setText('helpGoal',obj);
+  const cs=seedsFound()+'|'+countKeys(PROG.petals)+'|'+G.region;if(hudCache.cnt!==cs){if(hudCache.cnt)cntShowT=4;hudCache.cnt=cs;}
+  objShowT-=dt;cntShowT-=dt;chipT+=dt;
   const ch1=G.region==='ch1';$('runeList').hidden=!ch1||G.fountainOn;$('timerWrap').hidden=!ch1;
   setText('regName',curReg?curReg.short:'');setText('seedCount',String(seedsFound()));setText('petalCount',countKeys(PROG.petals)+'/'+MEMS.length);
   const rl=$('runeList');const sig=runes.map(r=>r.state).join();
@@ -1570,7 +1825,10 @@ function updateHUD(dt){
   const inWW=ch1&&(golem.pos.z<-44||sprite.pos.z<-44)&&golem.pos.x>-11&&!port.open;$('plates').hidden=!inWW;
   if(inWW){$('plA').classList.toggle('on',plates[0].on);$('plB').classList.toggle('on',plates[1].on);$('latch').firstChild.style.width=(latch.t/1.1*100)+'%';}
   const m=Math.floor(G.time/60),s=Math.floor(G.time%60);setText('timer',m+':'+(s<10?'0':'')+s);
-  setText('promptG',golemPrompt());setText('promptS',spritePrompt());
+  const pg=golemPrompt(),ps=spritePrompt();setText('promptG',pg);setText('promptS',ps);
+  $('cardG').classList.toggle('empty',!pg);$('cardS').classList.toggle('empty',!ps);
+  $('obj').classList.toggle('show',helpOpen||objShowT>0||inWW);$('topRight').classList.toggle('show',helpOpen||cntShowT>0);
+  $('helpChip').classList.toggle('off',helpUsed||chipT>30);
   const ch=$('charge');const showCh=golem.charging&&(mode==='local'||myRole==='g');ch.hidden=!showCh;if(showCh)ch.querySelector('b').style.width=(golem.charge*100)+'%';
   if(toastT>0){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;}
   if(hintT>0){hintT-=dt;if(hintT<=0)$('hint').style.opacity=0;}
@@ -1581,7 +1839,7 @@ function updateHUD(dt){
   if(dxz(golem.pos,{x:SEESAW.x,z:SEESAW.z})<6.5||dxz(sprite.pos,{x:SEESAW.x,z:SEESAW.z})<6.5)hint('seesaw','Seesaw: the Sprite stands in the mint cup. The Giant jumps onto the orange end, and the Sprite flies.');
   if(!crack.broken&&dxz(golem.pos,{x:34.8,z:-1.2})<3){if(hintsShown.has('pound'))hint('crack','A cracked slab. A ground pound might break it.');else hint('pound','New: Ground Pound. Giant, jump and then press '+actKey('g')+' in mid-air to slam down. That cracked slab looks weak.');}
   if(stones.raised===false&&(dxz(sprite.pos,{x:-24.5,z:-55})<2.5||dxz(golem.pos,{x:-24.5,z:-55})<2.5))hint('island','Too far to jump. Giant: throw the Sprite to the island.');
-  if(G.time>1.5&&G.time<2.5)hint('start',mode==='online'?'Your goal is in the top-left. Press Q or R to turn the camera, Enter to chat.':'Your goal is in the top-left. Press Q or R to turn the camera.');
+  if(G.time>1.5&&G.time<2.5)hint('start','Press H any time for help: your goal and every key.');
   if(mineS&&!gate.open&&dxz(sprite.pos,{x:10.5,z:-15.4})<4)hint('hole','Sprite: the glowing gap in the east wall is just big enough for you.');
   if(mineG&&runes[0].state==='rest'&&dxz(golem.pos,block.pos)<3)hint('block','Giant: push the stone block against the ledge, then climb up to the rune stone.');
   if(gate.open&&!bridge.open&&(golem.pos.z<-24||sprite.pos.z<-24))hint('ravine','Too far to jump. Giant: pick up the Sprite with '+actKey('g')+', hold it to charge a long throw. The Sprite can glide.');
@@ -1596,9 +1854,9 @@ function updateHUD(dt){
 // Narration says "the Giant" and "the Sprite"; dialogue uses the players' own names.
 const SCENES={
   prologue:{title:'Book 1: The Seven Roots',lines:[
-    {text:'Long ago, the Everbloom Vale was kept alive by one great Heart Tree. Its seven roots carried water to seven realms.',p:[[70,34,150],[34,26,112]],l:[[0,22,0],[0,24,0]]},
-    {text:'Then came the Hush: a long, silent storm. The roots stopped. The rivers dried, the gardens sank, and the Heart Tree fell asleep.',p:[[-96,15,86],[-44,12,74]],l:[[-10,0,52],[20,0,48]]},
-    {text:'Before it slept, the tree woke its two oldest caretakers: a Giant shaped from riverstone, and a Sprite made from one of its blossoms.',p:[[0,9,44],[0,30,22]],l:[[0,10,0],[0,32,0]]},
+    {text:'Long ago, the Everbloom Vale was kept alive by one great Heart Tree. Its seven roots carried water to seven realms.',p:[[46,44,124],[28,30,104]],l:[[0,22,0],[0,24,0]]},
+    {text:'Then came the Hush: a long, silent storm. The roots stopped. The rivers dried, the gardens sank, and the Heart Tree fell asleep.',p:[[-40,26,104],[-8,20,96]],l:[[-20,0,50],[16,0,48]]},
+    {text:'Before it slept, the tree woke its two oldest caretakers: a Giant shaped from riverstone, and a Sprite made from one of its blossoms.',p:[[18,6,74],[8,10,62]],l:[[0,14,0],[0,22,0]]},
     {text:'They remember nothing. Not the Vale, not the tree, not even each other.',p:[[7,4.5,97],[3.5,3.6,93.5]],l:[[0,1.6,88],[0,1.4,87.5]]},
     {text:'The first root runs north, to the Sunken Garden. Its gate is already glowing.',p:[[0,15,-58],[0,10,-86]],l:[[0,6,-108],[0,6,-108]]}],
     after(){hint('map','Press M for the map. Esc opens the menu, the journal and settings.');}},
@@ -1608,8 +1866,8 @@ const SCENES={
     {text:'Look closely, too. Some memories do not want to stay buried.',p:[[17,10,2],[21,11,-3]],l:[[28,3,-18],[28,4.5,-21]]},
     {text:'Work together. Neither of you can do this alone.',p:[[0,9,9],[0,7,4.5]],l:[[0,1,-3],[0,1,-3]]}]},
   root1:{title:'The first root wakes',lines:[
-    {text:'Far away, deep under the Vale, the first root stirs.',p:[[34,20,62],[22,24,40]],l:[[0,6,0],[0,12,0]]},
-    {text:'Water returns to the riverbed. The grey trees remember their green.',p:[[-34,10,78],[20,9,80]],l:[[-12,0,52],[20,0,48]]},
+    {text:'Far away, deep under the Vale, the first root stirs.',p:[[44,14,74],[30,16,58]],l:[[0,4,0],[0,10,0]]},
+    {text:'Water returns to the riverbed. The grey trees remember their green.',p:[[-20,16,80],[22,15,82]],l:[[-12,0,52],[20,0,48]]},
     {text:'Six roots still sleep. A second gate, to the Lantern Mines, has begun to flicker. (Chapter 2 arrives in the next update.)',p:[[0,40,120],[0,50,142]],l:[[0,10,0],[0,10,-20]]}]},
 };
 function playScene(id){if(!SCENES[id])return;G.scene=id;G.line=0;G.lineT=0;PROG.seen[id]=1;saveSoon();}
@@ -1732,7 +1990,7 @@ function renderJournal(){
 // ---- map ----
 let valeMapImg=null;
 function buildValeMapImage(){const N=200,cv=document.createElement('canvas');cv.width=cv.height=N;const c=cv.getContext('2d'),im=c.createImageData(N,N);
-  for(let j=0;j<N;j++)for(let i=0;i<N;i++){const x=lerp(-128,128,i/(N-1)),z=lerp(-128,128,j/(N-1)),h=valeBase(x,z);valeColor(x,z,h,_vc);_vc.convertLinearToSRGB?0:0;
+  for(let j=0;j<N;j++)for(let i=0;i<N;i++){const x=lerp(-128,128,i/(N-1)),z=lerp(-128,128,j/(N-1)),h=valeBase(x,z);valeColor(x,z,h,_vc).convertLinearToSRGB();
     const k=(j*N+i)*4;im.data[k]=Math.round(_vc.r*255);im.data[k+1]=Math.round(_vc.g*255);im.data[k+2]=Math.round(_vc.b*255);im.data[k+3]=255;}
   c.putImageData(im,0,0);valeMapImg=cv;}
 function drawMap(cv){
@@ -1820,7 +2078,7 @@ function storyHooks(){
 }
 
 // ================= camera: calm follow, quarter-turns with Q / R =================
-const camTarget=new V3(0,1,0);let camSnap=true,camDist=14,camYaw=0,camYawT=0,camY=1,dbgDist=0;const PITCH=0.84;
+const camTarget=new V3(0,1,0);let camLift=0,camSnap=true,camDist=14,camYaw=0,camYawT=0,camY=1,dbgDist=0,PITCH=0.84,camPitch=.84;
 function rotateCam(d){camYawT+=d*Math.PI/2;}
 const _mid=new V3();
 function updateCamera(dt,t){
@@ -1829,7 +2087,16 @@ function updateCamera(dt,t){
   const gy=Math.max(-1,golem.pos.y),sy=Math.max(-1,sprite.pos.y);
   _mid.set((golem.pos.x+sprite.pos.x)/2,(gy+sy)/2+1,(golem.pos.z+sprite.pos.z)/2);
   const sep=Math.hypot(golem.pos.x-sprite.pos.x,golem.pos.z-sprite.pos.z);
-  let want=clamp(14.5+Math.max(0,sep-5)*.85,14.5,26);
+  const vale=G.region==='vale';
+  // the Vale gets a low, cinematic camera (horizon and the Heart Tree in view); puzzle areas stay a little higher
+  // landmark framing: facing the Heart Tree from the meadow, tilt up so its canopy is in view
+  let lookUp=0;if(vale){const tx=-_mid.x,tz=-_mid.z,d=Math.hypot(tx,tz);const fx=-Math.sin(camYaw),fz=-Math.cos(camYaw);
+    const facing=d>1?(tx*fx+tz*fz)/d:0;lookUp=smooth(.55,.9,facing)*smooth(24,40,d)*smooth(150,90,d);}
+  const pitchT=vale?lerp(.30,.16,lookUp):.6;camPitch=camSnap?pitchT:lerp(camPitch,pitchT,1-Math.exp(-dt*2));PITCH=camPitch;
+  camLift=camSnap?lookUp*2.6:lerp(camLift,lookUp*2.6,1-Math.exp(-dt*2));
+  const fov=vale?50:42;if(Math.abs(camera.fov-fov)>.01){camera.fov=fov;camera.updateProjectionMatrix();}
+  let want=vale?clamp(9.5+Math.max(0,sep-4)*.8,9.5,24):clamp(12+Math.max(0,sep-5)*.85,12,24);
+  _mid.y+=vale?.9+camLift:.4;
   if(G.region==='ch1'&&(G.ending||G.phase==='end')){want=16;_mid.set(F.x,2.2,F.z);}
   if(G.region==='ch1'&&(golem.pos.y<-1.5||sprite.pos.y<-1.5)&&golem.pos.x>29&&sprite.pos.x>29)want=Math.min(want,13);
   if(dbgDist)want=dbgDist;
@@ -1840,11 +2107,13 @@ function updateCamera(dt,t){
   camYaw=camSnap?camYawT:angLerp(camYaw,camYawT,1-Math.exp(-dt*7));
   camSnap=false;
   camera.position.set(camTarget.x+Math.sin(camYaw)*Math.cos(PITCH)*camDist,camTarget.y+Math.sin(PITCH)*camDist,camTarget.z+Math.cos(camYaw)*Math.cos(PITCH)*camDist);
+  const gh=terrainAt(camera.position.x,camera.position.z);if(camera.position.y<gh+1.4)camera.position.y=gh+1.4;
   camera.lookAt(camTarget);
   if(shakeT>0){shakeT-=dt;const a=shakeT*.3;camera.position.x+=(Math.random()-.5)*a;camera.position.y+=(Math.random()-.5)*a;}
 }
 
 // ================= see-through walls =================
+let shadowFrame=0,lastShadowX=0,lastShadowZ=0;
 const _ray=new THREE.Raycaster(),_dir=new V3(),_tp=new V3();
 function setOpacity(o,a){
   if(!o.material)return;
@@ -1891,7 +2160,7 @@ function refreshNames(){
   for(const r of ['g','s']){const n=nameOf(r);
     $(r==='g'?'tagGName':'tagSName').textContent=n;$(r==='g'?'edgeGName':'edgeSName').textContent=n;
     $(r==='g'?'cardGName':'cardSName').textContent=(mode==='online'&&r===myRole)?n+' (you)':n;
-    $(r==='g'?'pnameG':'pnameS').textContent=n;}
+    $(r==='g'?'pnameG':'pnameS').textContent=n;$(r==='g'?'hnameG':'hnameS').textContent=n;$(r==='g'?'promptG':'promptS').dataset.who=n;}
 }
 
 // ================= characters & world animation =================
@@ -1903,8 +2172,10 @@ function nextBeaconTarget(){
   return null;
 }
 function updateVisuals(dt,t){
-  const sun=W.sun;sun.target.position.copy(camTarget);sun.position.copy(camTarget).addScaledVector(W.sunDir,60);
-  const sc=sun.shadow.camera,ext=clamp(camDist*1.15,16,30);if(Math.abs(sc.right-ext)>.5){sc.left=-ext;sc.right=ext;sc.top=ext;sc.bottom=-ext;sc.updateProjectionMatrix();}
+  const sun=W.sun;const sx=Math.round(camTarget.x/2)*2,sz=Math.round(camTarget.z/2)*2;sun.target.position.set(sx,camTarget.y,sz);sun.position.copy(sun.target.position).addScaledVector(W.sunDir,60);
+  shadowFrame++;const moved=Math.abs(sx-lastShadowX)+Math.abs(sz-lastShadowZ)>0;lastShadowX=sx;lastShadowZ=sz;
+  renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=moved||shadowFrame%2===0||G.region!=='vale';
+  const sc=sun.shadow.camera,ext=G.region==='vale'?32:clamp(camDist*1.15,16,30);if(Math.abs(sc.right-ext)>.5){sc.left=-ext;sc.right=ext;sc.top=ext;sc.bottom=-ext;sc.updateProjectionMatrix();}
   W.sky.position.copy(camera.position);
   // doors & mechanisms
   gate.group.position.y=gate.t*3.5;port.group.position.y=port.t*3.5;bridge.pivot.rotation.x=-1.45*(1-bridge.t);
@@ -1928,7 +2199,7 @@ function updateVisuals(dt,t){
     exitGate.veil.material.opacity=PROG.settings.reduceFlash?.24:.2+.1*Math.sin(t*1.6);
     if(stones.t>0&&stones.t<1&&Math.random()<dt*20){const st=stones.list[Math.floor(Math.random()*3)];puff(st.m.position.x,POOL.y,st.m.position.z,2,.6,[.85,.95,1],.3,.8);}}
   for(const r of runes)if(G.region!=='ch1')r.light.intensity=0;
-  updateSeedInstances(t);updatePetals(t);updateWaystones(t);updateVale(dt,t);updateRings(dt);
+  updateSeedInstances(t);updatePetals(t);updateWaystones(t);updateVale(dt,t);updateReal(dt,t);updateRings(dt);
   updateGiant(dt,t);updateSpriteVis(dt,t);
   // ending: water and light
   W.fLight.intensity=0;
@@ -2162,7 +2433,8 @@ function startPlay(){
   if(mode==='local'){names.g=cleanName($('nameG').value);names.s=cleanName($('nameS').value);store('bs_nameG',names.g);store('bs_nameS',names.s);}
   else{names[myRole]=myName;names[myRole==='g'?'s':'g']=partnerName;}
   G.phase='play';G.paused=false;resetWatch();hudCache={};camYaw=camYawT=0;
-  fillKeys($('ckeysG'),'g');fillKeys($('ckeysS'),'s');fillKeys($('pkeysG'),'g');fillKeys($('pkeysS'),'s');
+  fillKeys($('ckeysG'),'g');fillKeys($('ckeysS'),'s');fillKeys($('hkeysG'),'g');fillKeys($('hkeysS'),'s');$('helpChat').hidden=mode!=='online';
+  helpOpen=false;$('help').hidden=true;chipT=0;objShowT=10;cntShowT=4;$('promptG').dataset.who='Giant';$('promptS').dataset.who='Sprite';fillKeys($('pkeysG'),'g');fillKeys($('pkeysS'),'s');
   const online=mode==='online';
   $('cardG').hidden=online&&myRole!=='g';$('cardS').hidden=online&&myRole!=='s';
   $('cardG').classList.toggle('solo',online);$('cardS').classList.toggle('solo',online);
@@ -2228,8 +2500,13 @@ function lobbyTick(){
 // ================= main loop =================
 let last=performance.now(),acc=0;const STEP=1/60;
 function frame(now){requestAnimationFrame(frame);tick(now);}
+const PERF={acc:0,n:0,pr:Math.min(1.5,window.devicePixelRatio||1),max:Math.min(1.75,window.devicePixelRatio||1)};
+function perfTune(rawDt){if(G.phase!=='play'&&G.phase!=='title')return;PERF.acc+=rawDt;PERF.n++;if(PERF.acc<1.5)return;
+  const ms=PERF.acc/PERF.n*1000;PERF.acc=0;PERF.n=0;let pr=PERF.pr;
+  if(ms>19)pr=Math.max(.75,pr-(ms>28?.25:.1));else if(ms<14.5)pr=Math.min(PERF.max,pr+.05);
+  if(Math.abs(pr-PERF.pr)>.01){PERF.pr=pr;renderer.setPixelRatio(pr);renderer.setSize(innerWidth,innerHeight,false);pMat.uniforms.uScale.value=innerHeight*pr*.5;}}
 function tick(now){
-  const dt=clamp((now-last)/1000,0,.05);last=now;const t=now/1000;
+  const raw=(now-last)/1000;const dt=clamp(raw,0,.05);last=now;const t=now/1000;if(raw>0&&raw<.5)perfTune(raw);
   netPaused=false;
   if(mode==='online'&&R){
     const p=findPartner();if(p){lastSeen=now;partnerSeenEver=true;}
@@ -2278,10 +2555,11 @@ async function boot(){
   $('loadText').textContent='Waking the Giant and the Sprite…';
   const L=new GLTFLoader();
   const chars=Promise.all([L.loadAsync('assets/Barbarian.glb'),L.loadAsync('assets/Rogue_Hooded.glb')]).then(([a,b])=>{MODELS={giant:a,sprite:b};}).catch(e=>{console.warn('Character models could not load, using simple shapes.',e);MODELS=null;});
-  await Promise.all([chars,loadProps()]);
+  $('loadText').textContent='Fetching the sky, trees and textures…';
+  await Promise.all([chars,loadProps(),loadReal()]);
   $('loadText').textContent='Growing the Vale…';await new Promise(r=>setTimeout(r,30));
   try{
-    buildSky();
+    buildSky();if(REAL.ready)setupSky();
     buildVale();
     curBuild='ch1';
     const R=beginRegion('ch1',{name:'Chapter 1: The Sunken Garden',short:'Sunken Garden',chapter:1,fog:[70,190],spawn:{g:CP[0].g,s:CP[0].s},

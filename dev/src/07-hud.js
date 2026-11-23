@@ -101,7 +101,10 @@ function objectiveText(){
 let hudCache={};
 function setText(id,t){if(hudCache[id]!==t){hudCache[id]=t;$(id).textContent=t;}}
 function updateHUD(dt){
-  setText('objText',objectiveText());
+  const obj=objectiveText();if(hudCache.objText!==obj)objShowT=10;setText('objText',obj);
+  if(helpOpen)setText('helpGoal',obj);
+  const cs=seedsFound()+'|'+countKeys(PROG.petals)+'|'+G.region;if(hudCache.cnt!==cs){if(hudCache.cnt)cntShowT=4;hudCache.cnt=cs;}
+  objShowT-=dt;cntShowT-=dt;chipT+=dt;
   const ch1=G.region==='ch1';$('runeList').hidden=!ch1||G.fountainOn;$('timerWrap').hidden=!ch1;
   setText('regName',curReg?curReg.short:'');setText('seedCount',String(seedsFound()));setText('petalCount',countKeys(PROG.petals)+'/'+MEMS.length);
   const rl=$('runeList');const sig=runes.map(r=>r.state).join();
@@ -110,7 +113,10 @@ function updateHUD(dt){
   const inWW=ch1&&(golem.pos.z<-44||sprite.pos.z<-44)&&golem.pos.x>-11&&!port.open;$('plates').hidden=!inWW;
   if(inWW){$('plA').classList.toggle('on',plates[0].on);$('plB').classList.toggle('on',plates[1].on);$('latch').firstChild.style.width=(latch.t/1.1*100)+'%';}
   const m=Math.floor(G.time/60),s=Math.floor(G.time%60);setText('timer',m+':'+(s<10?'0':'')+s);
-  setText('promptG',golemPrompt());setText('promptS',spritePrompt());
+  const pg=golemPrompt(),ps=spritePrompt();setText('promptG',pg);setText('promptS',ps);
+  $('cardG').classList.toggle('empty',!pg);$('cardS').classList.toggle('empty',!ps);
+  $('obj').classList.toggle('show',helpOpen||objShowT>0||inWW);$('topRight').classList.toggle('show',helpOpen||cntShowT>0);
+  $('helpChip').classList.toggle('off',helpUsed||chipT>30);
   const ch=$('charge');const showCh=golem.charging&&(mode==='local'||myRole==='g');ch.hidden=!showCh;if(showCh)ch.querySelector('b').style.width=(golem.charge*100)+'%';
   if(toastT>0){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;}
   if(hintT>0){hintT-=dt;if(hintT<=0)$('hint').style.opacity=0;}
@@ -121,7 +127,7 @@ function updateHUD(dt){
   if(dxz(golem.pos,{x:SEESAW.x,z:SEESAW.z})<6.5||dxz(sprite.pos,{x:SEESAW.x,z:SEESAW.z})<6.5)hint('seesaw','Seesaw: the Sprite stands in the mint cup. The Giant jumps onto the orange end, and the Sprite flies.');
   if(!crack.broken&&dxz(golem.pos,{x:34.8,z:-1.2})<3){if(hintsShown.has('pound'))hint('crack','A cracked slab. A ground pound might break it.');else hint('pound','New: Ground Pound. Giant, jump and then press '+actKey('g')+' in mid-air to slam down. That cracked slab looks weak.');}
   if(stones.raised===false&&(dxz(sprite.pos,{x:-24.5,z:-55})<2.5||dxz(golem.pos,{x:-24.5,z:-55})<2.5))hint('island','Too far to jump. Giant: throw the Sprite to the island.');
-  if(G.time>1.5&&G.time<2.5)hint('start',mode==='online'?'Your goal is in the top-left. Press Q or R to turn the camera, Enter to chat.':'Your goal is in the top-left. Press Q or R to turn the camera.');
+  if(G.time>1.5&&G.time<2.5)hint('start','Press H any time for help: your goal and every key.');
   if(mineS&&!gate.open&&dxz(sprite.pos,{x:10.5,z:-15.4})<4)hint('hole','Sprite: the glowing gap in the east wall is just big enough for you.');
   if(mineG&&runes[0].state==='rest'&&dxz(golem.pos,block.pos)<3)hint('block','Giant: push the stone block against the ledge, then climb up to the rune stone.');
   if(gate.open&&!bridge.open&&(golem.pos.z<-24||sprite.pos.z<-24))hint('ravine','Too far to jump. Giant: pick up the Sprite with '+actKey('g')+', hold it to charge a long throw. The Sprite can glide.');
