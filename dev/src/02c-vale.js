@@ -5,6 +5,11 @@ const RIVER_W=5;              // half width of the flat bed; banks slope 5 m bey
 const RIVER_BED=-1.9,RIVER_WATER=-.75;
 const VALE_HILL={x:72,z:-66};
 const VALE_SPAWN={g:[-1.6,0,88],s:[1.6,0,88]};
+// side caves cut into the hills at the edge (built in 02h-caves.js); the ground is flattened where they are
+const CAVES=[{id:'grotto',name:'Glow-worm Grotto',x:-110,z:26,dir:-1,len:16,w:8},{id:'echo',name:'Echo Cave',x:110,z:22,dir:1,len:16,w:8}];
+function caveRect(c){const a=c.x-c.dir*3.5,b=c.x+c.dir*(c.len+1.6);return {x0:Math.min(a,b),x1:Math.max(a,b),z0:c.z-c.w/2-1.6,z1:c.z+c.w/2+1.6};}
+function caveDist(c,x,z){const r=caveRect(c);return Math.max(r.x0-x,x-r.x1,r.z0-z,z-r.z1);}
+function inCave(x,z,m){for(const c of CAVES)if(caveDist(c,x,z)<(m||0))return c;return null;}
 function riverDist(x,z){let best=1e9;for(let i=0;i<RIVER.length-1;i++){const [ax,az]=RIVER[i],[bx,bz]=RIVER[i+1];const dx=bx-ax,dz=bz-az;
   const t=clamp(((x-ax)*dx+(z-az)*dz)/(dx*dx+dz*dz),0,1);const d=Math.hypot(x-ax-dx*t,z-az-dz*t);if(d<best)best=d;}return best;}
 function riverZ(x){for(let i=0;i<RIVER.length-1;i++){const [ax,az]=RIVER[i],[bx,bz]=RIVER[i+1];if(x>=ax&&x<=bx)return lerp(az,bz,(x-ax)/(bx-ax));}return 50;}
@@ -15,11 +20,13 @@ function valeBase(x,z){
   const e=Math.max(Math.abs(x),Math.abs(z));if(e>108){const k=(e-108)/30;h+=Math.pow(k,1.5)*15+fbm(x*.02+9,z*.02+3,1e6,3,41)*14*smooth(0,.8,k);} // wooded hills ring the Vale
   return h;
 }
+CAVES.forEach(c=>c.f=valeBase(c.x-c.dir*3,c.z));
 const BRIDGES=[0,-78,84].map(x=>{const z=riverZ(x);return {x,z,y:(valeBase(x,z-11)+valeBase(x,z+11))/2+.05};});
 function valeH(x,z){
   let h=valeBase(x,z);
   for(const b of BRIDGES){const ax=Math.abs(x-b.x),az=Math.abs(z-b.z);if(ax<6&&az<16)h=lerp(h,b.y,smooth(6,3.2,ax)*smooth(16,10,az));}
   const d=riverDist(x,z);if(d<RIVER_W+5)h=lerp(h,RIVER_BED,smooth(RIVER_W+5,RIVER_W,d));
+  for(const c of CAVES){const cd=caveDist(c,x,z);if(cd<3)h=lerp(h,c.f,smooth(3,0,cd));}
   return h;
 }
 const VALE_PATHS=[[[0,92],[0,62],[0,40],[0,30]],[[0,-30],[0,-70],[0,-104]],[[72,-66],[52,-50],[26,-22]],[[-14,80],[-6,84]],[[7,-100],[0,-96]]];
@@ -52,7 +59,7 @@ function buildVale(){
   const S=340,N=170,geo=new THREE.PlaneGeometry(S,S,N,N);geo.rotateX(-Math.PI/2);
   const pos=geo.attributes.position,cols=new Float32Array(pos.count*3);
   for(let i=0;i<pos.count;i++){const x=pos.getX(i),z=pos.getZ(i),h=valeH(x,z);pos.setY(i,h);
-    const e=Math.max(Math.abs(x),Math.abs(z));let wp=smooth(2.1,.9,pathDist(x,z)),wr=smooth(RIVER_W+3.8,RIVER_W+.6,riverDist(x,z)),wk=smooth(16,30,h)*.7;
+    const e=Math.max(Math.abs(x),Math.abs(z));let wp=smooth(2.1,.9,pathDist(x,z)),wr=smooth(RIVER_W+3.8,RIVER_W+.6,riverDist(x,z)),wk=Math.max(smooth(16,30,h)*.7,inCave(x,z,1.5)?.95:0);
     const sum=wp+wr+wk;if(sum>1){wp/=sum;wr/=sum;wk/=sum;}cols[i*3]=wp;cols[i*3+1]=wr;cols[i*3+2]=wk;}
   geo.setAttribute('color',new THREE.BufferAttribute(cols,3));geo.computeVertexNormals();
   VALE.groundMat=REAL.ready?terrainMaterial():new THREE.MeshLambertMaterial({vertexColors:true});
@@ -129,6 +136,7 @@ function buildVale(){
   const hy=valeH(VALE_HILL.x,VALE_HILL.z);
   for(let k=0;k<6;k++){const a=k/6*6.28;ruin(VALE_HILL.x+Math.cos(a)*6,VALE_HILL.z+Math.sin(a)*6,2.4+(k%2)*1.4,.45,k%3===0);}
   box(VALE_HILL.x-1.6,VALE_HILL.x+1.6,hy-1,hy+.35,VALE_HILL.z-1.6,VALE_HILL.z+1.6,REAL.ready?stoneReal():M.pave,{fade:false,surface:'stone'});
+  buildCaves();
   // ---------- forests (batched) ----------
   buildValeForest();
   if(REAL.ready){GRASS=newGrassField(grassAllowed,valeH,()=>VALE.wake);buildGrass(GRASS);if(VALE.veinTex)GRASS.mat.uniforms.uVein.value=VALE.veinTex;}else buildValeTufts();
@@ -144,6 +152,7 @@ function buildValeForest(){
   const spots=[];
   const ok=(x,z,clear)=>{if(Math.hypot(x,z)<40||pathDist(x,z)<4||riverDist(x,z)<RIVER_W+6)return false;
     for(const g of [[0,-108],[78,-72],[104,-8],[78,74],[-78,74],[-104,-8],[-78,-72],[0,88],[-15,80],[8,84],[6,36],[8,-96],[VALE_HILL.x,VALE_HILL.z]])if(Math.hypot(x-g[0],z-g[1])<(clear||14))return false;
+    if(inCave(x,z,18))return false; // a clearing in front of each cave
     for(const s of spots)if(Math.hypot(x-s[0],z-s[1])<(REAL.ready?10:4.2))return false;return true;};
   let seed=1;const rnd=()=>{seed=Math.imul(seed^(seed>>>15),2246822507)+0x6D2B79F5|0;return ((seed>>>0)%100000)/100000;};
   for(let i=0;i<1400&&spots.length<(REAL.ready?170:240);i++){const a=rnd()*Math.PI*2,r=lerp(96,165,rnd());const x=Math.cos(a)*r,z=Math.sin(a)*r;if(Math.max(Math.abs(x),Math.abs(z))>(REAL.ready?150:134))continue;if(ok(x,z))spots.push([x,z,.9+rnd()*.7]);}
@@ -183,6 +192,7 @@ const _realLeafSleep=new THREE.Color('#b9b6a4'),_sleepLeaf=new THREE.Color('#c8c
 function valeWakeTarget(){return PROG.roots>=1?1:0;}
 function updateVale(dt,t){
   if(G.region!=='vale')return;
+  updateCavesVis(t);
   VALE.wakeT=(G.scene==='root1'&&G.line<1)?0:valeWakeTarget();
   VALE.wake=approach(VALE.wake,VALE.wakeT,dt/3.5);
   const w=VALE.wake;

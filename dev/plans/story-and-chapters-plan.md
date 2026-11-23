@@ -164,24 +164,54 @@ Each chapter is a big region of **25–40 minutes**, with **6–8 co-op puzzles*
 
 ---
 
-## 9. Phase 1 status (first slice, November 2026)
+## 9. Phase 1 status (complete, November 2026)
 
 **Built and playable:**
-- **World foundation:** one region loaded at a time (the Vale, Chapter 1), a short fade between them, a save on the laptop (the host's save online), waystones with fast travel (3 in the Vale, 1 in Chapter 1).
-- **Story system:** opening scenes with a slow camera glide and storybook captions (prologue, Chapter 1 intro, "the first root wakes"), skippable; character lines in speech bubbles using the players' names; memory cards with painted illustrations; a journal (story so far, memories, map); a map on **M**.
-- **The Vale (first version):** about 230 m of walkable hills inside a ring of mountains, the Heart Tree in the middle (its seven roots light up as they wake), a river that is dry until Chapter 1 is done, three bridges, forests and ruins, a lookout hill, seven region gates (Chapter 1 open, the rest sealed and named), a Seed Garden where every 5 golden seeds planted grow flowers, 20 seeds, 1 petal, 1 secret.
-- **Chapter 1, bigger:** the original puzzles plus a terraced east garden (seesaw, a ledge, a hidden balcony only a ground-pound launch reaches), a secret cellar under a cracked slab, and a flooded west garden (stepping stones, a throw to an island, a lever that raises a stone path). 40 seeds, 3 petals, 3 secrets, an exit gate back to the Vale, a chapter-end screen with stats.
+- **World foundation:** one region shown at a time (the Vale, Chapter 1), a short fade between them, a save on the laptop (the host's save online), waystones with fast travel (3 in the Vale, 2 in Chapter 1).
+- **Story system:** opening scenes with a slow camera glide and storybook captions (prologue, Chapter 1 intro, "the first root wakes"), skippable; character lines in speech bubbles using the players' names; memory cards with painted illustrations (6 memories so far); a journal (story so far, memories, map); a map on **M**.
+- **The Vale:** about 230 m of walkable hills inside a ring of wooded hills, the Heart Tree in the middle (its seven roots light the grass as they wake), a river that is dry until Chapter 1 is done, three bridges, forests and ruins, a lookout hill, seven region gates (Chapter 1 open, the rest sealed and named), a Seed Garden where every 5 golden seeds planted grow flowers. **Two side caves**, each a small co-op puzzle:
+  - **Glow-worm Grotto** (west): only the Sprite fits under the stuck stone door; a lever inside sinks it for the Giant.
+  - **Echo Cave** (east): the Sprite leaps over the wall from the Giant's head; a lever inside raises steps on both sides.
+  - 28 seeds, 3 petals and 3 secrets in the Vale.
+- **Chapter 1, about three times the original level:** the original puzzles, plus:
+  - a terraced east garden (seesaw, a ledge, a hidden balcony only a ground-pound launch reaches);
+  - a secret cellar under a cracked slab;
+  - a flooded west garden (stepping stones, a throw to an island, a lever that raises a stone path);
+  - **the upper terrace route:** a lever on the hidden balcony raises a stone stair for the Giant, and an old aqueduct walk crosses the ravine to **the Hanging Orchard**, a raised orchard with its own waystone. Up there:
+    - a belvedere tower you can see from the whole garden;
+    - an optional throw puzzle: the Giant lobs the Sprite onto the tower ledge, and its lever opens the secret **Sun Pavilion**.
+
+  In total, 50 seeds, 3 petals and 4 secrets, an exit gate back to the Vale, and a chapter-end screen with stats.
 - **New abilities:** Giant ground pound (jump, then interact in mid-air), seesaw launches. Each is explained the first time it appears.
-- **Feel and sound:** dust on Giant steps and landings, an impact ring on ground pounds, sparkles on Sprite jumps, cheers when a puzzle is solved, footsteps per surface (grass, stone, wood), calm generated music per region.
+- **Feel and sound:**
+  - dust on Giant steps and landings, an impact ring on ground pounds, sparkles on Sprite jumps;
+  - cheers when a puzzle is solved;
+  - footsteps per surface (grass, stone, wood);
+  - calm generated music per region.
+- **Little reactions:**
+  - a wave (turning to face each other) when the two meet again after being apart;
+  - the Sprite flies up to sit on the Giant's shoulder when both stand still together.
 - **Settings:** music and effects volume, reduce camera motion, reduce flashing, screen shake (off by default), erase save. Shift+M mutes.
-- **Props:** Heart Tree, region gate, waystone, seesaw, memory petal, golden seed and stone bridge, modelled in Blender with softened Poly Haven textures.
+- **Characters and props:** the Giant and Sprite, Heart Tree, region gate, waystone, seesaw, memory petal, golden seed and stone bridge, modelled in Blender with Poly Haven textures. Chapter 1 and the Vale use realistic Poly Haven stone, grass, trees and sky.
+- **Smooth frame rate:**
+  - trees switch between full detail near the camera, a light version further out, and a sparse one in the far haze;
+  - grass is drawn in chunks around the players;
+  - only the region you are in is drawn.
 
-**Still to do for Phase 1:**
-- Chapter 1 is about twice the original area, not yet 3 to 5 times: an upper terrace route and more side areas are still to come.
-- The Vale's side caves and more Vale petals and secrets.
-- Little reactions: the Sprite sitting on the Giant's shoulder when idle. (Waving when the partner comes close after being apart is done.)
-- Streaming regions in and out instead of building both at load, and switching off far detail inside the Vale.
-- An online test on the live link after the push. (Online play between two browser tabs is tested locally.)
+  Every area measured 12–14 ms per frame on the test machine.
 
-**Testing:** `dev/tests/ch1-playthrough.js` plays Chapter 1 from start to finish with real inputs and pathfinding (every puzzle, the seesaw launches, the cellar, the west garden island, and the walk back to the Vale). Run it from the title screen in the browser console:
+**Decided against for now:** building each region only when you enter it. Chapter 1 builds in about 70 ms and hidden regions cost nothing to draw, so it would not make anything faster yet. Revisit when there are several chapters.
+
+**Still to check:** an online test with two laptops on the live link. Online play between two browser tabs is tested locally.
+
+**Testing:** `dev/tests/ch1-playthrough.js` plays Chapter 1 and the Vale caves from start to finish, with real inputs and pathfinding. It covers:
+- every puzzle;
+- the seesaw launches;
+- the cellar;
+- the upper terrace and the orchard;
+- the west garden island;
+- the walk back to the Vale;
+- both side caves.
+
+Run it from the title screen in the browser console (it erases the save on that laptop):
 `const t = await import('/dev/tests/ch1-playthrough.js'); await t.run();`

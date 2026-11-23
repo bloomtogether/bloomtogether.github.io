@@ -63,7 +63,7 @@ function packState(){
     pl:G.placed,en:G.ending?1:0,et:r2(G.endT),f:G.falls,fn:G.fallN,lf:G.lastFall,th:G.throws,pk:G.pick,us:G.useN,
     rg:G.region,sc:[G.scene,G.line,r2(G.lineT)],cd:G.card,fo:G.fountainOn?1:0,
     ev:[G.poundN,r2(G.poundAt[0]),r2(G.poundAt[1]),r2(G.poundAt[2]),G.crackN,G.launchN,G.launchBig,G.seedN,G.petalN,G.secretN,G.lastSecret,G.wsN,G.lastWs,G.splashN,G.lastSplash,G.plantN,G.waitN,G.dlgN,G.dlg,G.travelReq,G.hopN||0],
-    x:[r2(seesaw.tilt),crack.broken?1:0,stones.raised?1:0,r2(stones.t),levers[2]&&levers[2].pulled?1:0,golem.pound?1:0,r2(golem.airT||0)],
+    x:[r2(seesaw.tilt),crack.broken?1:0,stones.raised?1:0,r2(stones.t),levers[2]&&levers[2].pulled?1:0,golem.pound?1:0,r2(golem.airT||0),stair.raised?1:0,r2(stair.t),pav.open?1:0,r2(pav.t),VCAVE.grotto.open?1:0,r2(VCAVE.grotto.t),VCAVE.echo.raised?1:0,r2(VCAVE.echo.t)],
     ch:[G.ch.seeds,G.ch.petals,G.ch.secrets,G.ch.launches],
     pg:{r:PROG.roots,ws:Object.keys(PROG.ws).join(','),sd:Object.keys(PROG.seeds).join(','),pt:Object.keys(PROG.petals).join(','),se:Object.keys(PROG.secrets).join(','),pl:PROG.planted,sn:Object.keys(PROG.seen).join(','),c1:PROG.ch1.done,b1:PROG.ch1.best}};
 }
@@ -88,7 +88,9 @@ function applyState(st){
   G.card=MEMS.some(m=>m.id===st.cd)?st.cd:'';G.fountainOn=!!st.fo;
   if(Array.isArray(st.ev)){const e=st.ev;G.poundN=e[0]|0;G.poundAt=[+e[1]||0,+e[2]||0,+e[3]||0];G.crackN=e[4]|0;G.launchN=e[5]|0;G.launchBig=e[6]|0;G.seedN=e[7]|0;G.petalN=e[8]|0;G.secretN=e[9]|0;G.lastSecret=String(e[10]||'').slice(0,40);
     G.wsN=e[11]|0;G.lastWs=String(e[12]||'').slice(0,40);G.splashN=e[13]|0;G.lastSplash=e[14]==='g'?'g':'s';G.plantN=e[15]|0;G.waitN=e[16]|0;G.dlgN=e[17]|0;G.dlg=DLG[e[18]]?e[18]:'';G.travelReq=e[19]|0;G.hopN=e[20]|0;}
-  if(Array.isArray(st.x)){const x=st.x;seesaw.tilt=+x[0]||-1;crack.broken=!!x[1];stones.raised=!!x[2];stones.t=+x[3]||0;if(levers[2])levers[2].pulled=!!x[4];golem.pound=!!x[5];golem.airT=+x[6]||0;}
+  if(Array.isArray(st.x)){const x=st.x;seesaw.tilt=+x[0]||-1;crack.broken=!!x[1];stones.raised=!!x[2];stones.t=+x[3]||0;if(levers[2])levers[2].pulled=!!x[4];golem.pound=!!x[5];golem.airT=+x[6]||0;
+    stair.raised=!!x[7];stair.t=+x[8]||0;pav.open=!!x[9];pav.t=+x[10]||0;for(const l of levers){if(l.id==='stair')l.pulled=stair.raised;if(l.id==='pavilion')l.pulled=pav.open;}stepOrchard(0);
+    VCAVE.grotto.open=!!x[11];VCAVE.grotto.t=+x[12]||0;VCAVE.echo.raised=!!x[13];VCAVE.echo.t=+x[14]||0;for(const l of VLEVERS)l.pulled=l.id==='grotto'?VCAVE.grotto.open:VCAVE.echo.raised;stepCaves(0);}
   if(Array.isArray(st.ch))G.ch={seeds:st.ch[0]|0,petals:st.ch[1]|0,secrets:st.ch[2]|0,launches:st.ch[3]|0};
   if(st.pg&&typeof st.pg==='object'){const p=st.pg;PROG.roots=clamp(p.r|0,0,7);PROG.ws=keySet(p.ws);PROG.seeds=keySet(p.sd);PROG.petals=keySet(p.pt);PROG.secrets=keySet(p.se);PROG.planted=p.pl|0;PROG.seen=keySet(p.sn);PROG.ch1.done=p.c1?1:0;PROG.ch1.best=p.b1|0;}
   G.placed=st.pl|0;G.ending=!!st.en;G.endT=+st.et||0;G.falls=st.f|0;G.lastFall=st.lf==='g'?'g':'s';G.fallN=st.fn|0;G.throws=st.th|0;G.pick=st.pk|0;G.useN=st.us|0;

@@ -49,6 +49,9 @@ const DLG={
   v6:{who:'s',text:"The river's back! Don't fall in, {g}. You'd sink like a stone.",next:'v6b'},
   v6b:{who:'g',text:'I am a stone, {s}.'},
   v7:{who:'s',text:'You can see the whole Vale from up here.'},
+  v8:{who:'s',text:"A cave! The door is stuck, but there's a gap under it just my size."},
+  v9:{who:'g',text:'This wall is too high for me. Up on my head, {s}, and over you go.'},
+  v10:{who:'s',text:'Hello… hello… hello! {g}, it answers!'},
   c1:{who:'s',text:"It's so quiet here… stay close, {g}."},
   c2:{who:'s',text:"{g}, if you jump on the orange end, I bet I'd fly!"},
   c3:{who:'g',text:'Higher? Maybe if I really slam it down…'},
@@ -58,6 +61,10 @@ const DLG={
   c7:{who:'s',text:'Listen. Water, deep under the stones.'},
   c8:{who:'s',text:'A lever! Maybe it lifts those sunken stones.'},
   c9:{who:'s',text:'I can fly back… no, I really can’t. Pull the lever?'},
+  c10:{who:'s',text:"{g}! There's a lever up here, and the stones along the wall look loose."},
+  c11:{who:'g',text:'An old water walk. It still holds. Look how far you can see, {s}.'},
+  c12:{who:'s',text:'That ledge on the tower is too high for me. Toss me up, {g}?'},
+  c13:{who:'g',text:'Someone sat here every morning, watching the sun come up. I think it was us.'},
 };
 const fill=t=>t.replace(/\{g\}/g,nameOf('g')).replace(/\{s\}/g,nameOf('s'));
 let dlgPending=null;
@@ -70,10 +77,12 @@ const MEMS=[
   {id:'m1',where:'Chapter 1: the hidden balcony',title:'The First Seed',text:'A muddy riverbank and a tiny light. The Sprite was guarding a single seed, far too heavy to carry alone. A stone Giant knelt down and held out one hand.'},
   {id:'m2',where:'Chapter 1: the cellar',title:'Across the Vale',text:'Nine days of walking. The Giant carried the seed; the Sprite rode on the Giant’s head and sang to keep the rain away.'},
   {id:'m3',where:'Chapter 1: the flooded island',title:'Where Water Sleeps',text:'They found a hollow where the river bent. “Here,” said the Sprite. The Giant pressed the seed into the soft earth with one careful thumb.'},
+  {id:'m4',where:'The Vale: the glow-worm grotto',title:'The Long Winter',text:'Snow filled the hollow. The Giant sat around the little shoot all winter like a wall, and the Sprite slept in a crack in his shoulder, glowing just enough to keep it warm.'},
+  {id:'m5',where:'The Vale: the echo cave',title:'First Leaves',text:'In spring the shoot opened its first leaves. The Sprite gave every leaf a name. The Giant could never remember them, but he laughed each time he tried.'},
 ];
 function drawMemory(c,id,W,H){
   const sky=c.createLinearGradient(0,0,0,H);
-  const pal={m0:['#ffd9a8','#f7a7a0'],m1:['#bfe3f2','#e6f3e0'],m2:['#9fb8c9','#d2dfe0'],m3:['#ffe7b8','#cfe9c8']}[id]||['#bfe3f2','#e6f3e0'];
+  const pal={m0:['#ffd9a8','#f7a7a0'],m1:['#bfe3f2','#e6f3e0'],m2:['#9fb8c9','#d2dfe0'],m3:['#ffe7b8','#cfe9c8'],m4:['#c9d6e6','#f1f4f7'],m5:['#d9f0c4','#fff3cf']}[id]||['#bfe3f2','#e6f3e0'];
   sky.addColorStop(0,pal[0]);sky.addColorStop(1,pal[1]);c.fillStyle=sky;c.fillRect(0,0,W,H);
   const hill=(y,col,amp,ph)=>{c.fillStyle=col;c.beginPath();c.moveTo(0,H);for(let x=0;x<=W;x+=8)c.lineTo(x,y+Math.sin(x/W*Math.PI*2*1.2+ph)*amp);c.lineTo(W,H);c.fill();};
   const giant=(x,y,s,kneel)=>{c.fillStyle='#8c7a6a';c.beginPath();c.ellipse(x,y-60*s*(kneel?.75:1),42*s,58*s*(kneel?.75:1),0,0,7);c.fill();c.beginPath();c.arc(x+(kneel?14*s:0),y-(kneel?112:128)*s,24*s,0,7);c.fill();
@@ -88,6 +97,10 @@ function drawMemory(c,id,W,H){
   else if(id==='m2'){hill(H*.55,'#a6bfa6',18,1.6);hill(H*.75,'#8fb08a',12,.2);c.strokeStyle='#e6d3a8';c.lineWidth=14;c.beginPath();c.moveTo(W*.1,H);c.bezierCurveTo(W*.3,H*.8,W*.6,H*.86,W*.86,H*.62);c.stroke();
     c.strokeStyle='rgba(255,255,255,.55)';c.lineWidth=2;for(let i=0;i<46;i++){const x=hash2(i,1,4)*W,y=hash2(i,2,4)*H*.7;c.beginPath();c.moveTo(x,y);c.lineTo(x-6,y+16);c.stroke();}
     giant(W*.5,H*.88,1);spr(W*.5,H*.88-150,.9);seed(W*.5+36,H*.88-62,1.1);}
+  else if(id==='m4'){hill(H*.66,'#e9eef3',12,1.1);hill(H*.84,'#dfe6ee',8,2.6);c.fillStyle='rgba(255,255,255,.85)';for(let i=0;i<70;i++){c.beginPath();c.arc(hash2(i,1,5)*W,hash2(i,2,5)*H*.8,1.5+hash2(i,3,5)*2,0,7);c.fill();}
+    c.fillStyle='#6cbf52';c.beginPath();c.ellipse(W*.52,H*.8,3,9,0,0,7);c.fill();giant(W*.44,H*.9,1.1,true);spr(W*.5,H*.52,.8);}
+  else if(id==='m5'){hill(H*.64,'#b5dc8f',12,.8);hill(H*.86,'#93c070',8,2);c.strokeStyle='#7a5a3c';c.lineWidth=5;c.beginPath();c.moveTo(W*.56,H*.86);c.lineTo(W*.56,H*.62);c.stroke();
+    c.fillStyle='#7cc35c';for(let i=0;i<5;i++){c.beginPath();c.ellipse(W*.56+(i-2)*14,H*.6-Math.abs(i-2)*6,10,6,(i-2)*.4,0,7);c.fill();}giant(W*.36,H*.92,1);spr(W*.64,H*.56,.9);}
   else{hill(H*.62,'#a3cf84',12,2.2);c.fillStyle='#7fb7c9';c.beginPath();c.ellipse(W*.25,H*.82,150,26,-.1,0,7);c.fill();hill(H*.86,'#8a6a4c',4,1);
     giant(W*.58,H*.94,1.1,true);c.fillStyle='#6cbf52';c.beginPath();c.ellipse(W*.7,H*.84,4,12,0,0,7);c.fill();c.beginPath();c.ellipse(W*.7+8,H*.8,9,4,.4,0,7);c.fill();spr(W*.76,H*.7,1);}
   // soft vignette like an old storybook page
@@ -124,7 +137,7 @@ function renderJournal(){
   if(jTab==='story'){const el=$('jStory');el.textContent='';
     for(const [h,t] of storySoFar()){const d=document.createElement('div');d.className='jentry';const b=document.createElement('h3');b.textContent=h;const p=document.createElement('p');p.textContent=t;d.append(b,p);el.appendChild(d);}
     const st=document.createElement('dl');st.className='stats';const add=(a,b)=>{const dt=document.createElement('dt');dt.textContent=a;const dd=document.createElement('dd');dd.textContent=b;st.append(dt,dd);};
-    add('Roots awake',PROG.roots+' of 7');add('Golden seeds found',seedsFound()+' (planted '+PROG.planted+')');add('Memory petals',countKeys(PROG.petals)+' of '+MEMS.length);add('Secrets',countKeys(PROG.secrets)+' of 4');add('Waystones',countKeys(PROG.ws)+' of '+WAYS.length);
+    add('Roots awake',PROG.roots+' of 7');add('Golden seeds found',seedsFound()+' (planted '+PROG.planted+')');add('Memory petals',countKeys(PROG.petals)+' of '+MEMS.length);add('Secrets',countKeys(PROG.secrets)+' of '+Object.values(REG).reduce((a,r)=>a+r.secrets.length,0));add('Waystones',countKeys(PROG.ws)+' of '+WAYS.length);
     if(PROG.ch1.best)add('Best time, Chapter 1',Math.floor(PROG.ch1.best/60)+' min '+(PROG.ch1.best%60)+' s');
     el.appendChild(st);}
   if(jTab==='mem'){const el=$('jMem');el.textContent='';
@@ -143,7 +156,7 @@ function buildValeMapImage(){const N=200,cv=document.createElement('canvas');cv.
   c.putImageData(im,0,0);valeMapImg=cv;}
 function drawMap(cv){
   const c=cv.getContext('2d'),W=cv.width,H=cv.height;c.clearRect(0,0,W,H);c.fillStyle='#e9e2d0';c.fillRect(0,0,W,H);
-  let x0,x1,z0,z1;if(G.region==='vale'){x0=-128;x1=128;z0=-128;z1=128;}else{x0=-44;x1=44;z0=-86;z1=8;}
+  let x0,x1,z0,z1;if(G.region==='vale'){x0=-128;x1=128;z0=-128;z1=128;}else{x0=-44;x1=48;z0=-86;z1=8;}
   const s=Math.min((W-40)/(x1-x0),(H-40)/(z1-z0)),ox=(W-(x1-x0)*s)/2,oz=(H-(z1-z0)*s)/2;
   const X=x=>ox+(x-x0)*s,Z=z=>oz+(z-z0)*s;
   if(G.region==='vale'){
@@ -155,6 +168,7 @@ function drawMap(cv){
     c.fillStyle='#4e8f43';c.beginPath();c.arc(X(0),Z(0),15*s,0,7);c.fill();c.fillStyle='#ffb3cf';c.beginPath();c.arc(X(0),Z(0),6*s,0,7);c.fill();
     label(c,'Heart Tree',X(0),Z(0)+20*s+12,'#243039');
     for(const g of GATES){c.fillStyle=g.ready?'#f2873a':'#8f9aa3';c.beginPath();c.arc(X(g.pos.x),Z(g.pos.z),7,0,7);c.fill();label(c,g.ch+' · '+g.name,X(g.pos.x),Z(g.pos.z)+(g.pos.z<0?-14:22),g.ready?'#c9621a':'#5c6b76');}
+    for(const cv of CAVES){const r=caveRect(cv);c.fillStyle='#4b4038';c.fillRect(X(r.x0),Z(r.z0),(r.x1-r.x0)*s,(r.z1-r.z0)*s);label(c,cv.name,X(cv.x-cv.dir*4),Z(cv.z)-12,'#5c4636');}
     c.fillStyle='#8a6448';c.beginPath();c.arc(X(VALE.plot.x),Z(VALE.plot.z),6,0,7);c.fill();label(c,'Seed Garden',X(VALE.plot.x)-26,Z(VALE.plot.z)+4,'#5c6b76');
   }else{
     const cols=REG.ch1.colliders.filter(k=>k.mesh&&k.mesh.visible!==false);
@@ -162,6 +176,9 @@ function drawMap(cv){
     for(const k of cols)if(k.max.y<=.3&&k.max.y>-.5&&k.max.y-k.min.y<1){c.fillStyle=k.mesh.material===M.pave?'#d9d4c8':'#b9d79a';c.fillRect(X(k.min.x),Z(k.min.z),(k.max.x-k.min.x)*s,(k.max.z-k.min.z)*s);}
     c.fillStyle='#7fc4d6';c.fillRect(X(POOL.x0),Z(POOL.z0),(POOL.x1-POOL.x0)*s,(POOL.z1-POOL.z0)*s);
     for(const k of cols)if(k.max.y>.3&&k.kind==='static'){c.fillStyle=k.max.y>3.6?'#8a7a66':'#b39c7e';c.fillRect(X(k.min.x),Z(k.min.z),Math.max(1.5,(k.max.x-k.min.x)*s),Math.max(1.5,(k.max.z-k.min.z)*s));}
+    const O=ORCH;c.fillStyle='#a9cf8a';c.fillRect(X(O.x0),Z(O.z0),(O.x1-O.x0)*s,(O.z1-O.z0)*s);c.fillStyle='#d9d4c8';c.fillRect(X(26.8),Z(-36),2.4*s,13*s);
+    for(const k of cols)if(k.min.y>O.y-.3&&k.max.y>O.y+.3&&k.kind!=='door'){c.fillStyle=k.max.y>O.y+3?'#8a7a66':'#b39c7e';c.fillRect(X(k.min.x),Z(k.min.z),Math.max(1.5,(k.max.x-k.min.x)*s),Math.max(1.5,(k.max.z-k.min.z)*s));}
+    label(c,'Hanging Orchard',X(28),Z(-52),'#5c6b76');
     c.strokeStyle='#5fb8a0';c.lineWidth=3;c.beginPath();c.arc(X(F.x),Z(F.z),3*s,0,7);c.stroke();label(c,'Fountain',X(F.x),Z(F.z)+4*s+14,'#243039');
     label(c,'To the Vale',X(0),Z(7),'#118a6f');label(c,'Terraced garden',X(26),Z(-1),'#5c6b76');label(c,'Flooded garden',X(-26),Z(-45.5),'#5c6b76');
     for(const p of PETALS)if(p.reg==='ch1'&&PROG.petals[p.id]){c.fillStyle='#ff8fc0';c.beginPath();c.arc(X(p.pos.x),Z(p.pos.z),5,0,7);c.fill();}
@@ -209,18 +226,23 @@ function refreshTitleSave(){
 // ================= chapter 1 and Vale story hooks (secrets and lines) =================
 function storyHooks(){
   const hy=valeH(VALE_HILL.x,VALE_HILL.z);
-  REG.vale.secrets=[{id:'v_lookout',name:'The lookout hill',test:b=>Math.hypot(b.pos.x-VALE_HILL.x,b.pos.z-VALE_HILL.z)<4&&b.pos.y>hy-.6}];
+  const deep=(c,b)=>{const t=(b.pos.x-c.x)*c.dir;return t>c.len*.55&&t<c.len&&Math.abs(b.pos.z-c.z)<c.w/2;};
+  REG.vale.secrets=[{id:'v_lookout',name:'The lookout hill',test:b=>Math.hypot(b.pos.x-VALE_HILL.x,b.pos.z-VALE_HILL.z)<4&&b.pos.y>hy-.6},
+    {id:'v_grotto',name:'The glow-worm grotto',test:b=>deep(CAVES[0],b)},{id:'v_echo',name:'The echo cave',test:b=>deep(CAVES[1],b)}];
   REG.vale.talk=[
     {id:'v1',x:0,z:88,r:7,cond:()=>!PROG.ch1.done},{id:'v2',x:0,z:30,r:9,cond:()=>!PROG.ch1.done},{id:'v3',x:0,z:-100,r:9,cond:()=>!PROG.ch1.done},{id:'v4',x:VALE.plot.x,z:VALE.plot.z,r:8,cond:()=>seedsToPlant()>=5},
     ...GATES.slice(1).map(g=>({id:'v5',x:g.pos.x,z:g.pos.z,r:10})),
-    {id:'v6',x:0,z:52,r:14,cond:()=>VALE.wake>.9},{id:'v7',x:VALE_HILL.x,z:VALE_HILL.z,r:5}];
+    {id:'v6',x:0,z:52,r:14,cond:()=>VALE.wake>.9},{id:'v7',x:VALE_HILL.x,z:VALE_HILL.z,r:5},
+    {id:'v8',x:CAVES[0].x+4,z:CAVES[0].z,r:6,cond:()=>!VCAVE.grotto.open},{id:'v9',x:CAVES[1].x-4,z:CAVES[1].z,r:6,cond:()=>!VCAVE.echo.raised},{id:'v10',x:CAVES[1].x+9,z:CAVES[1].z,r:3}];
   const C=CELLAR;
   REG.ch1.secrets=[
     {id:'c1_balcony',name:'The hidden balcony',test:b=>b.pos.x>25&&b.pos.x<31&&b.pos.z<-17&&b.pos.z>-23&&b.pos.y>4.5},
     {id:'c1_cellar',name:'The secret cellar',test:b=>b.pos.x>C.x0&&b.pos.x<C.x1&&b.pos.z>C.z0&&b.pos.z<C.z1&&b.pos.y<-1.5},
-    {id:'c1_island',name:'The flooded island',test:b=>Math.hypot(b.pos.x+34,b.pos.z+55)<2.4&&b.pos.y>0}];
+    {id:'c1_island',name:'The flooded island',test:b=>Math.hypot(b.pos.x+34,b.pos.z+55)<2.4&&b.pos.y>0},
+    {id:'c1_pavilion',name:'The sun pavilion',test:b=>b.pos.x>PAV.x0+.4&&b.pos.x<PAV.x1-.4&&b.pos.z>PAV.z0+.4&&b.pos.z<PAV.z1-.4&&b.pos.y>ORCH.y-.3}];
   REG.ch1.talk=[
     {id:'c1',x:0,z:-2,r:5},{id:'c2',x:SEESAW.x,z:SEESAW.z,r:6.5},{id:'c3',x:SEESAW.x,z:SEESAW.z,r:9,cond:()=>G.ch.launches>=1&&!PROG.secrets.c1_balcony},
     {id:'c4',x:34.8,z:-1.2,r:3.2,cond:()=>!crack.broken},{id:'c5',x:-13.5,z:-54.5,r:4},{id:'c6',x:0,z:-25,r:4.5,cond:()=>!bridge.open},
-    {id:'c7',x:0,z:-66,r:6,cond:()=>!G.fountainOn},{id:'c8',x:-34,z:-55,r:2.6,cond:()=>!stones.raised}];
+    {id:'c7',x:0,z:-66,r:6,cond:()=>!G.fountainOn},{id:'c8',x:-34,z:-55,r:2.6,cond:()=>!stones.raised},
+    {id:'c10',x:30.3,z:-18.2,r:2.6,cond:()=>!stair.raised},{id:'c11',x:28,z:-30,r:3},{id:'c12',x:31,z:-66,r:6,cond:()=>!pav.open},{id:'c13',x:20,z:-72,r:3}];
 }

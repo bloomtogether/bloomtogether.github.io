@@ -54,7 +54,7 @@ function buildGolem(){
     m.root.traverse(o=>{if(o.isMesh&&o.material.name==='GiantBody'){const k=o.material;k.color.setScalar(.8);if(k.normalScale)k.normalScale.multiplyScalar(1.8);k.roughness=.88;k.metalness=0;}
       if(o.isMesh&&o.material.name==='GiantEye'){o.material.emissive.set('#ff9a2e');o.material.emissiveIntensity=1.6;o.material.color.set('#ffb054');}});
     golem.A=makeAnimator(m.root,MODELS.giant.animations);golem.A.play('Idle',0);
-    golem.armL=findBone(m.root,'upperarml');golem.armR=findBone(m.root,'upperarmr');golem.chest=findBone(m.root,'chest');
+    golem.armL=findBone(m.root,'upperarml');golem.armR=findBone(m.root,'upperarmr');golem.chest=findBone(m.root,'chest');golem.shoulder=findBone(m.root,'upperarml');
     // carry pose: both hands come up beside the head to steady the Sprite (worked out on the Blender rig)
     golem.carryPose=[['upperarml',-2.3,-.2],['upperarmr',-2.3,.2],['lowerarml',-1.4,.2],['lowerarmr',-1.4,-.2]].map(([n,x,z])=>{const b=findBone(m.root,n);
       return b?{b,q:b.quaternion.clone().multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(x,0,z,'XYZ')))}:null;}).filter(Boolean);

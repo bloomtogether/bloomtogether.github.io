@@ -64,7 +64,7 @@ function updateOverlay(){
   const show=G.phase==='play';$('overlay').hidden=!show;if(!show)return;
   for(const r of ['g','s']){
     const b=r==='g'?golem:sprite,top=r==='g'?2.85:(sprite.held?1.25:.8);
-    const p=screenOf(b.pos.x,b.pos.y+top,b.pos.z);
+    const bp=r==='s'&&sprite.root?sprite.root.position:b.pos;const p=screenOf(bp.x,bp.y+top,bp.z);
     const tag=$(r==='g'?'tagG':'tagS');
     tag.style.display=p.inView?'':'none';
     if(p.inView)tag.style.transform='translate('+p.x.toFixed(1)+'px,'+p.y.toFixed(1)+'px) translate(-50%,-100%)';
@@ -101,7 +101,7 @@ function updateVisuals(dt,t){
   // doors & mechanisms
   gate.group.position.y=gate.t*3.5;port.group.position.y=port.t*3.5;bridge.pivot.rotation.x=-1.45*(1-bridge.t);
   crank.wheel.rotation.x=crank.t*Math.PI*6;
-  for(const l of levers)l.handle.rotation.z=lerp(-.7,.7,l.t);
+  for(const l of levers)l.handle.rotation.z=lerp(-.7,.7,l.t);for(const l of VLEVERS)l.handle.rotation.z=lerp(-.7,.7,l.t);
   const pulse=.5+.5*Math.sin(t*3.2);
   for(const p of plates){p.mesh.position.y=p.on?-.04:0;p.ring.material.opacity=p.on?1:(port.open?.25:.35+.45*pulse);}
   for(const h of holeMarkers){h.icon.position.y=h.base+Math.sin(t*2)*.08;h.glow.material.opacity=.35+.3*pulse;}
@@ -120,6 +120,7 @@ function updateVisuals(dt,t){
     exitGate.veil.material.opacity=PROG.settings.reduceFlash?.24:.2+.1*Math.sin(t*1.6);
     if(stones.t>0&&stones.t<1&&Math.random()<dt*20){const st=stones.list[Math.floor(Math.random()*3)];puff(st.m.position.x,POOL.y,st.m.position.z,2,.6,[.85,.95,1],.3,.8);}}
   for(const r of runes)if(G.region!=='ch1')r.light.intensity=0;
+  if(G.region==='ch1')updateOrchardVis();
   updateSeedInstances(t);updatePetals(t);updateWaystones(t);updateVale(dt,t);updateReal(dt,t);updateRings(dt);
   updateGreet(dt);updateGiant(dt,t);updateSpriteVis(dt,t);
   // ending: water and light
@@ -177,13 +178,28 @@ function updateGiant(dt,t){
   g.visGround=g.onGround;g.lastVy=g.vel.y;
   placeRing(g.ring,g,1.5);
 }
+// shoulder sit: when both stand still close together for a few seconds, the Sprite flies up and sits on the
+// Giant's shoulder. Visual only (the Sprite's real position stays put), so it works the same online.
+const PERCH={idle:0,a:0,pos:new V3(),_p:new V3()};
+function updatePerch(dt){
+  const g=golem,s=sprite,P=PERCH;
+  const calm=b=>b.onGround&&Math.hypot(b.vel.x,b.vel.z)<.15&&Math.abs(b.vel.y)<.1&&!(b.A&&b.A.busy());
+  const ok=G.phase==='play'&&!G.ending&&!G.scene&&!s.held&&!g.holding&&!g.charging&&dxz(g.pos,s.pos)<3.2&&Math.abs(g.pos.y-s.pos.y)<.6&&calm(g)&&calm(s);
+  P.idle=ok?P.idle+dt:0;
+  P.a=approach(P.a,P.idle>3.5?1:0,dt/(P.idle>3.5?.9:.35));
+  if(P.a<=0)return false;
+  const b=g.shoulder;if(b){b.getWorldPosition(P._p);P._p.y+=.12;}else P._p.set(g.pos.x,g.pos.y+2.1,g.pos.z);
+  const k=smooth(0,1,P.a);P.pos.lerpVectors(s.pos,P._p,k);P.pos.y+=Math.sin(Math.PI*k)*.6;return true;
+}
 function updateSpriteVis(dt,t){
-  const s=sprite,sr=s.root;sr.position.copy(s.pos);sr.rotation.y=faceYaw(s,golem,dt);
+  const s=sprite,sr=s.root;const perched=updatePerch(dt);
+  if(perched){sr.position.copy(PERCH.pos);const gy=golem.root.rotation.y;sr.rotation.y=angLerp(s.yaw,gy,smooth(0,1,PERCH.a));}
+  else{sr.position.copy(s.pos);sr.rotation.y=faceYaw(s,golem,dt);}
   const ss=Math.hypot(s.vel.x,s.vel.z);
   if(s.A){
     let n='Idle',ts=1;
     if(G.ending||G.phase==='end')n='Cheer';
-    else if(s.held)n='Sit_Floor_Idle';
+    else if(s.held||PERCH.a>.6)n='Sit_Floor_Idle';
     else if(!s.onGround)n='Jump_Idle';
     else if(ss>.35){n='Running_A';ts=clamp(ss/3.2,.6,1.6);}
     if(!s.A.busy())s.A.play(n,.15,ts);
@@ -191,10 +207,10 @@ function updateSpriteVis(dt,t){
   }
   const flap=s.gliding?Math.sin(t*30)*.45+.9:(s.onGround?Math.sin(t*5)*.1+.3:Math.sin(t*20)*.5+.6);
   flapWings(flap);
-  sr.position.y+=s.onGround?0:.02*Math.sin(t*4);
+  if(!perched)sr.position.y+=s.onGround?0:.02*Math.sin(t*4);
   s.halo.material.opacity=.2+Math.sin(t*3)*.05;
-  if(Math.random()<dt*(PROG.settings.reduceFlash?.4:1)*(s.onGround?(ss>.5?6:1.5):(s.gliding?24:12)))emit(s.pos.x+(Math.random()-.5)*.12,s.pos.y+.22,s.pos.z+(Math.random()-.5)*.12,(Math.random()-.5)*.2,.15+Math.random()*.2,(Math.random()-.5)*.2,.55,1,.85,.06,.9,-.1,.6);
-  placeRing(s.ring,s,.75);if(s.held)s.ring.visible=false;
+  if(Math.random()<dt*(PROG.settings.reduceFlash?.4:1)*(s.onGround?(ss>.5?6:1.5):(s.gliding?24:12)))emit(sr.position.x+(Math.random()-.5)*.12,sr.position.y+.22,sr.position.z+(Math.random()-.5)*.12,(Math.random()-.5)*.2,.15+Math.random()*.2,(Math.random()-.5)*.2,.55,1,.85,.06,.9,-.1,.6);
+  placeRing(s.ring,s,.75);if(s.held||PERCH.a>.3)s.ring.visible=false;
   s.walk+=dt*ss*2.6;const st=Math.floor(s.walk/Math.PI);if(st!==s.stepSound&&ss>1.2&&s.onGround){s.stepSound=st;SFX.tick(surfaceUnder(s));}
 }
 

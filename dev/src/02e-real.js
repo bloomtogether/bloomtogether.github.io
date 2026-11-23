@@ -104,6 +104,7 @@ void main(){float ao=mix(.28,1.,smoothstep(0.,.8,vShade));
   for(let i=0;i<n;i++)GRASS.slots.push({key:null,i});
 }
 function grassAllowed(x,z){
+  if(inCave(x,z,.5))return 0;
   if(Math.max(Math.abs(x),Math.abs(z))>118)return 0;
   if(riverDist(x,z)<RIVER_W+2.2)return 0;
   const pd=pathDist(x,z);if(pd<1.3)return 0;
@@ -161,7 +162,7 @@ function leafify(src){
   const dm=new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking,map:m.map,alphaTest:.45});return {mat:m,depth:dm};}
 function buildRealForest(spots,opt){
   if(!REAL.treeSrc)return;
-  opt=opt||{};const hAt=opt.h||valeH,isNearSpot=opt.near||(sp=>Math.max(Math.abs(sp[0]),Math.abs(sp[1]))<110);
+  opt=opt||{};const hAt=opt.h||valeH;
   // the forest uses the dense Jacaranda canopy (shared with the Heart Tree) over the lighter wood
   const parts=treeParts(REAL.treeSrc).filter(p=>!/Leaves/.test(p.name));
   if(REAL.heartSrc){let lv=null;REAL.heartSrc.traverse(o=>{if(o.isMesh&&/Leaves/.test(o.name))lv=o;});if(lv)parts.push({name:'Leaves',geo:lv.geometry,mat:lv.material.clone()});}
@@ -171,23 +172,38 @@ function buildRealForest(spots,opt){
   wood.mat=new THREE.MeshLambertMaterial({map:wood.mat.map,color:wood.mat.color.clone()});
   // a light trunk for distant trees: the canopy hides the branches anyway
   const stub=new THREE.CylinderGeometry(.55,1.0,9,7,1,true);stub.translate(0,4.5,0);
-  const near=spots.filter(isNearSpot),far=spots.filter(sp=>!isNearSpot(sp));
-  const groups=[];
-  for(const [list,isNear] of [[near,true],[far,false]]){const sect=new Map();
-    list.forEach(sp=>{const k=Math.floor((Math.atan2(sp[1],sp[0])+Math.PI)/(Math.PI*2)*10)+(Math.hypot(sp[0],sp[1])>60?10:0);if(!sect.has(k))sect.set(k,[]);sect.get(k).push(sp);});
-    for(const lst of sect.values())groups.push({lst,isNear});}
+  if(!leaves.sparse)leaves.sparse=sparseLeaves(leaves.geo,.5,1.3);
+  if(!leaves.sparser)leaves.sparser=sparseLeaves(leaves.geo,.2,1.75); // far away, in the haze
+  // trees are grouped by sector (for frustum culling); each group has a full-detail set and a light set,
+  // and every few frames each tree goes into one or the other by its distance from the camera
+  const sect=new Map();
+  spots.forEach((sp,j)=>{const k=Math.floor((Math.atan2(sp[1],sp[0])+Math.PI)/(Math.PI*2)*12)+(Math.hypot(sp[0],sp[1])>60?12:0);if(!sect.has(k))sect.set(k,[]);sect.get(k).push(j);});
   const shared=(src)=>{const g=new THREE.BufferGeometry();g.index=src.index;for(const k in src.attributes)g.setAttribute(k,src.attributes[k]);return g;};
-  for(const {lst,isNear} of groups){
-    const box3=new THREE.Box3();for(const [x,z,sc] of lst){const y=hAt(x,z);box3.expandByPoint(new V3(x-14*sc,y-1,z-14*sc));box3.expandByPoint(new V3(x+14*sc,y+22*sc,z+14*sc));}
+  const F={root:ROOT,groups:[],near:opt.lodNear||42,mid:opt.lodMid||100,far:opt.lodFar||330,t:0,cam:new V3(1e9,0,0)};
+  for(const idx of sect.values()){
+    const box3=new THREE.Box3();for(const j of idx){const [x,z,sc]=spots[j];const y=hAt(x,z);box3.expandByPoint(new V3(x-14*sc,y-1,z-14*sc));box3.expandByPoint(new V3(x+14*sc,y+22*sc,z+14*sc));}
     const sphere=box3.getBoundingSphere(new THREE.Sphere());
-    for(const part of [isNear?wood:{geo:stub,mat:wood.mat,name:'stub'},leaves]){
-      const g=shared(part===leaves&&!isNear?(leaves.sparse||(leaves.sparse=sparseLeaves(leaves.geo,.5,1.3))):part.geo);g.boundingSphere=sphere.clone();g.boundingBox=box3.clone();
-      const im=new THREE.InstancedMesh(g,part.mat,lst.length);im.castShadow=isNear&&part!==leaves;im.receiveShadow=isNear;
-      if(part===leaves)im.customDepthMaterial=depth;
-      lst.forEach(([x,z,sc],i)=>{const j=spots.indexOf(lst[i]);const y=hAt(x,z)-.15;p.set(x,y,z);q.setFromAxisAngle(_yAx,(j*2.399)%6.283);s.set(sc,sc*(.9+((j*7)%5)*.05),sc);m4.compose(p,q,s);im.setMatrixAt(i,m4);
-        if(part===leaves){col.setHSL(.2+((j*13)%9)*.008,.2,.86+((j*5)%7)*.02);im.setColorAt(i,col);}});
-      im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;ROOT.add(im);REAL.forest.push(im);}}
+    const mk=(geo,mat,leafy,full)=>{const g=shared(geo);g.boundingSphere=sphere.clone();g.boundingBox=box3.clone();
+      const im=new THREE.InstancedMesh(g,mat,idx.length);im.count=0;im.castShadow=full&&!leafy;im.receiveShadow=full;if(leafy)im.customDepthMaterial=depth;
+      if(leafy){im.setColorAt(0,col.set('#fff'));}ROOT.add(im);REAL.forest.push(im);return im;};
+    const trees=idx.map(j=>{const [x,z,sc]=spots[j];const y=hAt(x,z)-.15;p.set(x,y,z);q.setFromAxisAngle(_yAx,(j*2.399)%6.283);s.set(sc,sc*(.9+((j*7)%5)*.05),sc);
+      return {x,z,m:new THREE.Matrix4().compose(p,q,s),c:new THREE.Color().setHSL(.2+((j*13)%9)*.008,.2,.86+((j*5)%7)*.02)};});
+    F.groups.push({trees,fullWood:mk(wood.geo,wood.mat,false,true),fullLeaf:mk(leaves.geo,leaves.mat,true,true),lightWood:mk(stub,wood.mat,false,false),lightLeaf:mk(leaves.sparse,leaves.mat,true,false),farLeaf:mk(leaves.sparser,leaves.mat,true,false)});
+  }
+  REAL.forestSets=REAL.forestSets||[];REAL.forestSets.push(F);updateForestLOD(F,true);
 }
+// re-sort trees into full detail (near the camera) and light (further away); far beyond the fog they are skipped
+function updateForestLOD(F,force){
+  const c=camera.position;if(!force&&Math.hypot(c.x-F.cam.x,c.z-F.cam.z)<3)return;F.cam.copy(c);
+  const n2=F.near*F.near,m2=F.mid*F.mid,f2=F.far*F.far;
+  for(const G of F.groups){let a=0,b=0,e=0;
+    for(const t of G.trees){const d2=(t.x-c.x)**2+(t.z-c.z)**2;if(d2>f2)continue;
+      if(d2<n2){G.fullWood.setMatrixAt(a,t.m);G.fullLeaf.setMatrixAt(a,t.m);G.fullLeaf.setColorAt(a,t.c);a++;}
+      else{G.lightWood.setMatrixAt(b,t.m);b++;const L=d2<m2?G.lightLeaf:G.farLeaf,k=d2<m2?b-1-e:e;if(d2<m2)L.setMatrixAt(k,t.m),L.setColorAt(k,t.c);else{L.setMatrixAt(e,t.m);L.setColorAt(e,t.c);e++;}}}
+    G.fullWood.count=G.fullLeaf.count=a;G.lightWood.count=b;G.lightLeaf.count=b-e;G.farLeaf.count=e;
+    for(const im of [G.fullWood,G.fullLeaf,G.lightWood,G.lightLeaf,G.farLeaf]){im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;}}
+}
+function updateForests(){if(!REAL.forestSets||!curReg)return;for(const F of REAL.forestSets)if(F.root===curReg.group)updateForestLOD(F);}
 function buildRealHeartTree(th){
   if(!REAL.heartSrc)return null;
   const t=REAL.heartSrc;t.scale.setScalar(2.3);t.position.set(0,th-.3,0);
@@ -204,6 +220,7 @@ function realifyProp(root){root.traverse(o=>{if(!o.isMesh)return;const n=o.mater
   if(n==='Stone'||n==='Trim')o.material=n==='Trim'?(stoneReal.trim||(stoneReal.trim=pbr('masonry',1,{color:new THREE.Color('#a89a88')}))):stoneReal();
   else if(n==='Wood')o.material=new THREE.MeshStandardMaterial({map:o.material.map,color:'#8a7a68',roughness:.85});});}
 function updateReal(dt,t){
+  updateForests();
   if(G.region==='ch1'){updateGrass(GRASS_CH1,t);return;}
   if(G.region!=='vale')return;
   updateGrass(GRASS,t);

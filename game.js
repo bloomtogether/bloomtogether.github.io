@@ -248,7 +248,7 @@ function holeMarker(x0,x1,z0,z1,faces,ix,iz){
 }
 
 // chapter 1 play areas outside the original strip (decor scatter keeps out of them)
-function inPlayZone(x,z,m){return (x>11-m&&x<41+m&&z<5+m&&z>-24-m)||(x>-41-m&&x<-11+m&&z<-43.5+m&&z>-66.5-m);}
+function inPlayZone(x,z,m){return (x>11-m&&x<41+m&&z<5+m&&z>-24-m)||(x>-41-m&&x<-11+m&&z<-43.5+m&&z>-66.5-m)||(x>ORCH.x0-1-m&&x<ORCH.x1+m&&z>ORCH.z0-m&&z<-23+m);}
 const beacons=[]; // bouncing arrows over the next thing to use
 function makeBeacon(){const s=new THREE.Sprite(new THREE.SpriteMaterial({map:TEX.arrow,transparent:true,depthWrite:false}));s.scale.set(.5,.5,1);s.visible=false;ROOT.add(s);beacons.push(s);return s;}
 
@@ -590,6 +590,11 @@ const RIVER_W=5;              // half width of the flat bed; banks slope 5 m bey
 const RIVER_BED=-1.9,RIVER_WATER=-.75;
 const VALE_HILL={x:72,z:-66};
 const VALE_SPAWN={g:[-1.6,0,88],s:[1.6,0,88]};
+// side caves cut into the hills at the edge (built in 02h-caves.js); the ground is flattened where they are
+const CAVES=[{id:'grotto',name:'Glow-worm Grotto',x:-110,z:26,dir:-1,len:16,w:8},{id:'echo',name:'Echo Cave',x:110,z:22,dir:1,len:16,w:8}];
+function caveRect(c){const a=c.x-c.dir*3.5,b=c.x+c.dir*(c.len+1.6);return {x0:Math.min(a,b),x1:Math.max(a,b),z0:c.z-c.w/2-1.6,z1:c.z+c.w/2+1.6};}
+function caveDist(c,x,z){const r=caveRect(c);return Math.max(r.x0-x,x-r.x1,r.z0-z,z-r.z1);}
+function inCave(x,z,m){for(const c of CAVES)if(caveDist(c,x,z)<(m||0))return c;return null;}
 function riverDist(x,z){let best=1e9;for(let i=0;i<RIVER.length-1;i++){const [ax,az]=RIVER[i],[bx,bz]=RIVER[i+1];const dx=bx-ax,dz=bz-az;
   const t=clamp(((x-ax)*dx+(z-az)*dz)/(dx*dx+dz*dz),0,1);const d=Math.hypot(x-ax-dx*t,z-az-dz*t);if(d<best)best=d;}return best;}
 function riverZ(x){for(let i=0;i<RIVER.length-1;i++){const [ax,az]=RIVER[i],[bx,bz]=RIVER[i+1];if(x>=ax&&x<=bx)return lerp(az,bz,(x-ax)/(bx-ax));}return 50;}
@@ -600,11 +605,13 @@ function valeBase(x,z){
   const e=Math.max(Math.abs(x),Math.abs(z));if(e>108){const k=(e-108)/30;h+=Math.pow(k,1.5)*15+fbm(x*.02+9,z*.02+3,1e6,3,41)*14*smooth(0,.8,k);} // wooded hills ring the Vale
   return h;
 }
+CAVES.forEach(c=>c.f=valeBase(c.x-c.dir*3,c.z));
 const BRIDGES=[0,-78,84].map(x=>{const z=riverZ(x);return {x,z,y:(valeBase(x,z-11)+valeBase(x,z+11))/2+.05};});
 function valeH(x,z){
   let h=valeBase(x,z);
   for(const b of BRIDGES){const ax=Math.abs(x-b.x),az=Math.abs(z-b.z);if(ax<6&&az<16)h=lerp(h,b.y,smooth(6,3.2,ax)*smooth(16,10,az));}
   const d=riverDist(x,z);if(d<RIVER_W+5)h=lerp(h,RIVER_BED,smooth(RIVER_W+5,RIVER_W,d));
+  for(const c of CAVES){const cd=caveDist(c,x,z);if(cd<3)h=lerp(h,c.f,smooth(3,0,cd));}
   return h;
 }
 const VALE_PATHS=[[[0,92],[0,62],[0,40],[0,30]],[[0,-30],[0,-70],[0,-104]],[[72,-66],[52,-50],[26,-22]],[[-14,80],[-6,84]],[[7,-100],[0,-96]]];
@@ -637,7 +644,7 @@ function buildVale(){
   const S=340,N=170,geo=new THREE.PlaneGeometry(S,S,N,N);geo.rotateX(-Math.PI/2);
   const pos=geo.attributes.position,cols=new Float32Array(pos.count*3);
   for(let i=0;i<pos.count;i++){const x=pos.getX(i),z=pos.getZ(i),h=valeH(x,z);pos.setY(i,h);
-    const e=Math.max(Math.abs(x),Math.abs(z));let wp=smooth(2.1,.9,pathDist(x,z)),wr=smooth(RIVER_W+3.8,RIVER_W+.6,riverDist(x,z)),wk=smooth(16,30,h)*.7;
+    const e=Math.max(Math.abs(x),Math.abs(z));let wp=smooth(2.1,.9,pathDist(x,z)),wr=smooth(RIVER_W+3.8,RIVER_W+.6,riverDist(x,z)),wk=Math.max(smooth(16,30,h)*.7,inCave(x,z,1.5)?.95:0);
     const sum=wp+wr+wk;if(sum>1){wp/=sum;wr/=sum;wk/=sum;}cols[i*3]=wp;cols[i*3+1]=wr;cols[i*3+2]=wk;}
   geo.setAttribute('color',new THREE.BufferAttribute(cols,3));geo.computeVertexNormals();
   VALE.groundMat=REAL.ready?terrainMaterial():new THREE.MeshLambertMaterial({vertexColors:true});
@@ -714,6 +721,7 @@ function buildVale(){
   const hy=valeH(VALE_HILL.x,VALE_HILL.z);
   for(let k=0;k<6;k++){const a=k/6*6.28;ruin(VALE_HILL.x+Math.cos(a)*6,VALE_HILL.z+Math.sin(a)*6,2.4+(k%2)*1.4,.45,k%3===0);}
   box(VALE_HILL.x-1.6,VALE_HILL.x+1.6,hy-1,hy+.35,VALE_HILL.z-1.6,VALE_HILL.z+1.6,REAL.ready?stoneReal():M.pave,{fade:false,surface:'stone'});
+  buildCaves();
   // ---------- forests (batched) ----------
   buildValeForest();
   if(REAL.ready){GRASS=newGrassField(grassAllowed,valeH,()=>VALE.wake);buildGrass(GRASS);if(VALE.veinTex)GRASS.mat.uniforms.uVein.value=VALE.veinTex;}else buildValeTufts();
@@ -729,6 +737,7 @@ function buildValeForest(){
   const spots=[];
   const ok=(x,z,clear)=>{if(Math.hypot(x,z)<40||pathDist(x,z)<4||riverDist(x,z)<RIVER_W+6)return false;
     for(const g of [[0,-108],[78,-72],[104,-8],[78,74],[-78,74],[-104,-8],[-78,-72],[0,88],[-15,80],[8,84],[6,36],[8,-96],[VALE_HILL.x,VALE_HILL.z]])if(Math.hypot(x-g[0],z-g[1])<(clear||14))return false;
+    if(inCave(x,z,18))return false; // a clearing in front of each cave
     for(const s of spots)if(Math.hypot(x-s[0],z-s[1])<(REAL.ready?10:4.2))return false;return true;};
   let seed=1;const rnd=()=>{seed=Math.imul(seed^(seed>>>15),2246822507)+0x6D2B79F5|0;return ((seed>>>0)%100000)/100000;};
   for(let i=0;i<1400&&spots.length<(REAL.ready?170:240);i++){const a=rnd()*Math.PI*2,r=lerp(96,165,rnd());const x=Math.cos(a)*r,z=Math.sin(a)*r;if(Math.max(Math.abs(x),Math.abs(z))>(REAL.ready?150:134))continue;if(ok(x,z))spots.push([x,z,.9+rnd()*.7]);}
@@ -768,6 +777,7 @@ const _realLeafSleep=new THREE.Color('#b9b6a4'),_sleepLeaf=new THREE.Color('#c8c
 function valeWakeTarget(){return PROG.roots>=1?1:0;}
 function updateVale(dt,t){
   if(G.region!=='vale')return;
+  updateCavesVis(t);
   VALE.wakeT=(G.scene==='root1'&&G.line<1)?0:valeWakeTarget();
   VALE.wake=approach(VALE.wake,VALE.wakeT,dt/3.5);
   const w=VALE.wake;
@@ -806,7 +816,7 @@ function buildCh1Extras(){
   addWaystone('ch1_court','Courtyard',8.2,0,1.2,Math.PI);
 
   // ---------- east: terraced garden ----------
-  wall(11,41,4,5,3);wall(40,41,4,-24,4);wall(11,41,-23,-24,4.5);
+  wall(11,41,4,5,3);wall(40,41,4,-24,4);wall(11,26.8,-23,-24,4.5);wall(29.2,41,-23,-24,4.5);box(26.8,29.2,0,4.5,-23,-24,M.wall); // the aqueduct walk leaves over the gap
   // opening from the courtyard gets a stone arch frame
   box(10,11,3.4,4,-1,-6,M.wallTop,{collide:false,fade:false});
   // raised terrace along the east wall with two steps
@@ -824,12 +834,11 @@ function buildCh1Extras(){
   box(29,33,0,2.6,-10,-16,M.wall);box(28.94,33.06,2.6,2.72,-9.94,-16.06,M.wallTop,{fade:false});
   // the hidden balcony: only a ground-pound launch gets the Sprite this high
   box(25,31,0,4.8,-17,-23,M.wall);box(24.94,31.06,4.8,4.94,-16.94,-23,M.wallTop,{fade:false});
-  box(25,25.3,4.94,5.5,-17,-23,M.stone,{fade:false});box(30.7,31,4.94,5.5,-17,-23,M.stone,{fade:false});
+  box(25,25.3,4.94,5.5,-17,-20.6,M.stone,{fade:false});box(30.7,31,4.94,5.5,-17,-23,M.stone,{fade:false}); // the west rail stops short: the stair arrives at the back
   box(25,26.4,4.94,5.5,-16.95,-17.25,M.stone,{fade:false});box(29.6,31,4.94,5.5,-16.95,-17.25,M.stone,{fade:false});
-  // a dark doorway into the wall, a little shrine for the petal
-  box(26.8,29.2,4.94,7.4,-22.8,-23.02,M.holeDark,{collide:false,fade:false,cast:false});
+  // a doorway at the back of the balcony: the old aqueduct walk to the Hanging Orchard
   box(26.6,29.4,7.4,7.7,-22.7,-23.1,M.wallTop,{collide:false,fade:false});
-  addColumn(13.5,-21,3.4,.42,false);addColumn(21,-20.5,2.2,.42,true);addColumn(16,-3.5,1.4,.42,true);
+  addColumn(13.5,-18.6,3.4,.42,false);addColumn(20.5,-18.4,2.2,.42,true);addColumn(16,-3.5,1.4,.42,true);
   addRock(20,.15,2.6,.6,12.1,true);addRock(33.5,.15,-19.5,.5,13.3,false);
   // ---------- the cracked floor and the cellar beneath it ----------
   const C=CELLAR,Hh=C.hole;
@@ -1011,6 +1020,7 @@ void main(){float ao=mix(.28,1.,smoothstep(0.,.8,vShade));
   for(let i=0;i<n;i++)GRASS.slots.push({key:null,i});
 }
 function grassAllowed(x,z){
+  if(inCave(x,z,.5))return 0;
   if(Math.max(Math.abs(x),Math.abs(z))>118)return 0;
   if(riverDist(x,z)<RIVER_W+2.2)return 0;
   const pd=pathDist(x,z);if(pd<1.3)return 0;
@@ -1068,7 +1078,7 @@ function leafify(src){
   const dm=new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking,map:m.map,alphaTest:.45});return {mat:m,depth:dm};}
 function buildRealForest(spots,opt){
   if(!REAL.treeSrc)return;
-  opt=opt||{};const hAt=opt.h||valeH,isNearSpot=opt.near||(sp=>Math.max(Math.abs(sp[0]),Math.abs(sp[1]))<110);
+  opt=opt||{};const hAt=opt.h||valeH;
   // the forest uses the dense Jacaranda canopy (shared with the Heart Tree) over the lighter wood
   const parts=treeParts(REAL.treeSrc).filter(p=>!/Leaves/.test(p.name));
   if(REAL.heartSrc){let lv=null;REAL.heartSrc.traverse(o=>{if(o.isMesh&&/Leaves/.test(o.name))lv=o;});if(lv)parts.push({name:'Leaves',geo:lv.geometry,mat:lv.material.clone()});}
@@ -1078,23 +1088,38 @@ function buildRealForest(spots,opt){
   wood.mat=new THREE.MeshLambertMaterial({map:wood.mat.map,color:wood.mat.color.clone()});
   // a light trunk for distant trees: the canopy hides the branches anyway
   const stub=new THREE.CylinderGeometry(.55,1.0,9,7,1,true);stub.translate(0,4.5,0);
-  const near=spots.filter(isNearSpot),far=spots.filter(sp=>!isNearSpot(sp));
-  const groups=[];
-  for(const [list,isNear] of [[near,true],[far,false]]){const sect=new Map();
-    list.forEach(sp=>{const k=Math.floor((Math.atan2(sp[1],sp[0])+Math.PI)/(Math.PI*2)*10)+(Math.hypot(sp[0],sp[1])>60?10:0);if(!sect.has(k))sect.set(k,[]);sect.get(k).push(sp);});
-    for(const lst of sect.values())groups.push({lst,isNear});}
+  if(!leaves.sparse)leaves.sparse=sparseLeaves(leaves.geo,.5,1.3);
+  if(!leaves.sparser)leaves.sparser=sparseLeaves(leaves.geo,.2,1.75); // far away, in the haze
+  // trees are grouped by sector (for frustum culling); each group has a full-detail set and a light set,
+  // and every few frames each tree goes into one or the other by its distance from the camera
+  const sect=new Map();
+  spots.forEach((sp,j)=>{const k=Math.floor((Math.atan2(sp[1],sp[0])+Math.PI)/(Math.PI*2)*12)+(Math.hypot(sp[0],sp[1])>60?12:0);if(!sect.has(k))sect.set(k,[]);sect.get(k).push(j);});
   const shared=(src)=>{const g=new THREE.BufferGeometry();g.index=src.index;for(const k in src.attributes)g.setAttribute(k,src.attributes[k]);return g;};
-  for(const {lst,isNear} of groups){
-    const box3=new THREE.Box3();for(const [x,z,sc] of lst){const y=hAt(x,z);box3.expandByPoint(new V3(x-14*sc,y-1,z-14*sc));box3.expandByPoint(new V3(x+14*sc,y+22*sc,z+14*sc));}
+  const F={root:ROOT,groups:[],near:opt.lodNear||42,mid:opt.lodMid||100,far:opt.lodFar||330,t:0,cam:new V3(1e9,0,0)};
+  for(const idx of sect.values()){
+    const box3=new THREE.Box3();for(const j of idx){const [x,z,sc]=spots[j];const y=hAt(x,z);box3.expandByPoint(new V3(x-14*sc,y-1,z-14*sc));box3.expandByPoint(new V3(x+14*sc,y+22*sc,z+14*sc));}
     const sphere=box3.getBoundingSphere(new THREE.Sphere());
-    for(const part of [isNear?wood:{geo:stub,mat:wood.mat,name:'stub'},leaves]){
-      const g=shared(part===leaves&&!isNear?(leaves.sparse||(leaves.sparse=sparseLeaves(leaves.geo,.5,1.3))):part.geo);g.boundingSphere=sphere.clone();g.boundingBox=box3.clone();
-      const im=new THREE.InstancedMesh(g,part.mat,lst.length);im.castShadow=isNear&&part!==leaves;im.receiveShadow=isNear;
-      if(part===leaves)im.customDepthMaterial=depth;
-      lst.forEach(([x,z,sc],i)=>{const j=spots.indexOf(lst[i]);const y=hAt(x,z)-.15;p.set(x,y,z);q.setFromAxisAngle(_yAx,(j*2.399)%6.283);s.set(sc,sc*(.9+((j*7)%5)*.05),sc);m4.compose(p,q,s);im.setMatrixAt(i,m4);
-        if(part===leaves){col.setHSL(.2+((j*13)%9)*.008,.2,.86+((j*5)%7)*.02);im.setColorAt(i,col);}});
-      im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;ROOT.add(im);REAL.forest.push(im);}}
+    const mk=(geo,mat,leafy,full)=>{const g=shared(geo);g.boundingSphere=sphere.clone();g.boundingBox=box3.clone();
+      const im=new THREE.InstancedMesh(g,mat,idx.length);im.count=0;im.castShadow=full&&!leafy;im.receiveShadow=full;if(leafy)im.customDepthMaterial=depth;
+      if(leafy){im.setColorAt(0,col.set('#fff'));}ROOT.add(im);REAL.forest.push(im);return im;};
+    const trees=idx.map(j=>{const [x,z,sc]=spots[j];const y=hAt(x,z)-.15;p.set(x,y,z);q.setFromAxisAngle(_yAx,(j*2.399)%6.283);s.set(sc,sc*(.9+((j*7)%5)*.05),sc);
+      return {x,z,m:new THREE.Matrix4().compose(p,q,s),c:new THREE.Color().setHSL(.2+((j*13)%9)*.008,.2,.86+((j*5)%7)*.02)};});
+    F.groups.push({trees,fullWood:mk(wood.geo,wood.mat,false,true),fullLeaf:mk(leaves.geo,leaves.mat,true,true),lightWood:mk(stub,wood.mat,false,false),lightLeaf:mk(leaves.sparse,leaves.mat,true,false),farLeaf:mk(leaves.sparser,leaves.mat,true,false)});
+  }
+  REAL.forestSets=REAL.forestSets||[];REAL.forestSets.push(F);updateForestLOD(F,true);
 }
+// re-sort trees into full detail (near the camera) and light (further away); far beyond the fog they are skipped
+function updateForestLOD(F,force){
+  const c=camera.position;if(!force&&Math.hypot(c.x-F.cam.x,c.z-F.cam.z)<3)return;F.cam.copy(c);
+  const n2=F.near*F.near,m2=F.mid*F.mid,f2=F.far*F.far;
+  for(const G of F.groups){let a=0,b=0,e=0;
+    for(const t of G.trees){const d2=(t.x-c.x)**2+(t.z-c.z)**2;if(d2>f2)continue;
+      if(d2<n2){G.fullWood.setMatrixAt(a,t.m);G.fullLeaf.setMatrixAt(a,t.m);G.fullLeaf.setColorAt(a,t.c);a++;}
+      else{G.lightWood.setMatrixAt(b,t.m);b++;const L=d2<m2?G.lightLeaf:G.farLeaf,k=d2<m2?b-1-e:e;if(d2<m2)L.setMatrixAt(k,t.m),L.setColorAt(k,t.c);else{L.setMatrixAt(e,t.m);L.setColorAt(e,t.c);e++;}}}
+    G.fullWood.count=G.fullLeaf.count=a;G.lightWood.count=b;G.lightLeaf.count=b-e;G.farLeaf.count=e;
+    for(const im of [G.fullWood,G.fullLeaf,G.lightWood,G.lightLeaf,G.farLeaf]){im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;}}
+}
+function updateForests(){if(!REAL.forestSets||!curReg)return;for(const F of REAL.forestSets)if(F.root===curReg.group)updateForestLOD(F);}
 function buildRealHeartTree(th){
   if(!REAL.heartSrc)return null;
   const t=REAL.heartSrc;t.scale.setScalar(2.3);t.position.set(0,th-.3,0);
@@ -1111,6 +1136,7 @@ function realifyProp(root){root.traverse(o=>{if(!o.isMesh)return;const n=o.mater
   if(n==='Stone'||n==='Trim')o.material=n==='Trim'?(stoneReal.trim||(stoneReal.trim=pbr('masonry',1,{color:new THREE.Color('#a89a88')}))):stoneReal();
   else if(n==='Wood')o.material=new THREE.MeshStandardMaterial({map:o.material.map,color:'#8a7a68',roughness:.85});});}
 function updateReal(dt,t){
+  updateForests();
   if(G.region==='ch1'){updateGrass(GRASS_CH1,t);return;}
   if(G.region!=='vale')return;
   updateGrass(GRASS,t);
@@ -1213,6 +1239,9 @@ function ch1GrassMask(){
   fill(POOL.x0-.4,POOL.x1+.4,POOL.z0-.4,POOL.z1+.4,0);
   fill(CELLAR.hole.x0-.3,CELLAR.hole.x1+.3,CELLAR.hole.z0-.3,CELLAR.hole.z1+.3,0);
   fill(-2.2,2.2,6,2,0);                     // the exit gate threshold
+  // the orchard plateau: grass on top, cleared under what stands on it
+  const O=ORCH;fill(O.x0+.4,O.x1-.4,O.z0+.4,O.z1-.4,1);
+  for(const c of colliders){if(!c.on||c.kind==='golem')continue;if(c.min.y>O.y-.3&&c.min.y<O.y+.3&&c.max.y>O.y+.05)fill(c.min.x-.2,c.max.x+.2,c.min.z-.2,c.max.z+.2,0);}
 }
 function ch1GrassAllowed(x,z){const C=CH1R;const i=Math.floor((x-C.x0)/C.cell),j=Math.floor((z-C.z0)/C.cell);
   if(i<0||j<0||i>=C.nx||j>=C.nz)return 0;return C.mask[j*C.nx+i]?.85:0;}
@@ -1222,15 +1251,190 @@ function ch1RealFinish(){
   ROOT.traverse(o=>{if(o.isMesh&&o.material===M.ground&&!o.geometry.attributes.color){const n=o.geometry.attributes.position.count;o.geometry.setAttribute('color',new THREE.Float32BufferAttribute(new Float32Array(n*3),3));}});
   // trees: the hand-placed ones plus a ring that hides the edge of the land
   const spots=CH1R.trees.slice();let seed=7;const rnd=()=>{seed=Math.imul(seed^(seed>>>15),2246822507)+0x6D2B79F5|0;return ((seed>>>0)%100000)/100000;};
-  const ok=(x,z)=>!((z<-24&&z>-36))&&!inPlayZone(x,z,4)&&!(Math.abs(x)<13&&z<8&&z>-86)&&spots.every(s=>Math.hypot(x-s[0],z-s[1])>8);
+  const ok=(x,z)=>!((z<-24&&z>-36))&&!inPlayZone(x,z,4)&&!inOrchard(x,z,6)&&!(Math.abs(x)<13&&z<8&&z>-86)&&spots.every(s=>Math.hypot(x-s[0],z-s[1])>8);
   for(let i=0;i<900&&spots.length<150;i++){
     const side=Math.floor(rnd()*4);let x,z;
     if(side<2){x=(side?1:-1)*lerp(46,86,rnd());z=lerp(-160,52,rnd());}else{x=lerp(-86,86,rnd());z=side===2?lerp(14,52,rnd()):lerp(-96,-160,rnd());}
     if(ok(x,z))spots.push([x,z,.42+rnd()*.22]);}
-  buildRealForest(spots,{h:()=>0,near:sp=>Math.abs(sp[0])<34&&sp[1]>-100});
+  buildRealForest(spots,{h:ch1H});
   // grass
   ch1GrassMask();
-  GRASS_CH1=newGrassField(ch1GrassAllowed,()=>0,()=>1);buildGrass(GRASS_CH1);
+  GRASS_CH1=newGrassField(ch1GrassAllowed,ch1H,()=>1);buildGrass(GRASS_CH1);
+}
+
+// ================= Chapter 1: the upper terrace and the Hanging Orchard =================
+// A raised orchard north of the ravine, east of the main garden. The way up: the Sprite reaches the hidden
+// balcony with a ground-pound seesaw launch and pulls a lever that raises a stone stair for the Giant; from the
+// balcony an old aqueduct walk crosses the ravine to the orchard. Up there: a belvedere tower (a landmark you can
+// see from the whole garden), a waystone, and an optional throw puzzle that opens the Sun Pavilion (a secret).
+const ORCH={x0:12,x1:44,z0:-80,z1:-36,y:4.94};
+const TOWER={x0:34,x1:40,z0:-73,z1:-67,h:10.5,ledge:{x0:32.5,x1:34,z0:-71.6,z1:-68.4,y:3.9}};
+const PAV={x0:15,x1:25,z0:-77,z1:-67,h:2.3,door:{x0:18.8,x1:21.2}};
+const stair={raised:false,t:0,steps:[]};
+const pav={open:false,t:0,door:null};
+function inOrchard(x,z,m){m=m||0;return x>ORCH.x0-m&&x<ORCH.x1+m&&z>ORCH.z0-m&&z<ORCH.z1+m;}
+// ground height in Chapter 1 for grass and trees: the orchard plateau, else the garden floor
+function ch1H(x,z){return inOrchard(x,z)?ORCH.y:0;}
+
+function buildOrchard(){
+  const O=ORCH,Y=O.y;
+  // ---------- the stone stair along the east garden's north wall (sunk until the lever raises it) ----------
+  for(let i=0;i<11;i++){const xa=13+i*1.09,xb=xa+1.09,top=+(.449*(i+1)).toFixed(3);
+    const c=box(xa,xb,0,top,-20.8,-23,M.stone,{fade:false,surface:'stone'});c.on=false;c.top=top;c.mesh.position.y=top/2-top-.05;
+    stair.steps.push(c);}
+  levers.push(makeLever(30.3,-18.2,-Math.PI/2,'stair',4.94));
+
+  // ---------- the aqueduct walk over the ravine, from the balcony doorway to the orchard ----------
+  box(26.8,29.2,Y-.5,Y,-23,-36,M.pave,{fade:false,surface:'stone'});
+  for(const x of [26.5,29.2]){box(x,x+.3,Y,Y+.8,-23.4,-36,M.wallTop,{fade:false});invis(x,x+.3,Y+.8,14,-23.4,-36);}
+  for(const z of [-26.2,-32.8])box(27,29,-8,Y-.5,z,z-1,M.wall,{fade:false,cast:false}); // piers down into the ravine
+  box(26.8,29.2,Y-1.4,Y-.5,-27.2,-32.8,M.wall,{fade:false,cast:false,collide:false});      // the arch's span
+  // the doorway at the back of the balcony becomes a real opening: two posts under the old lintel
+  for(const x of [26.3,29.2])box(x,x+.5,Y,7.4,-22.7,-23.5,M.stone,{fade:false});
+
+  // ---------- the plateau: sandstone retaining walls, a grass top, a balustrade all round ----------
+  box(O.x0,O.x1,0,Y-.4,O.z0,O.z1,M.wall,{fade:false,cast:false});
+  box(O.x0,O.x1,Y-.4,Y,O.z0,O.z1,M.ground,{fade:false,cast:false,surface:'grass'});
+  box(O.x0-.06,O.x1+.06,Y-.55,Y-.4,O.z0-.06,O.z1+.06,M.wallTop,{fade:false,collide:false});
+  const rail=(xa,xb,za,zb)=>{box(xa,xb,Y,Y+.75,za,zb,M.wallTop,{fade:false});invis(xa,xb,Y+.75,14,za,zb);};
+  rail(O.x0,O.x0+.35,O.z0,O.z1);rail(O.x1-.35,O.x1,O.z0,O.z1);rail(O.x0,O.x1,O.z0,O.z0+.35);
+  rail(O.x0,26.8,O.z1-.35,O.z1);rail(29.2,O.x1,O.z1-.35,O.z1);
+  // the walk crosses the gap between the ravine edge and the plateau
+  box(26.8,29.2,Y-.5,Y,O.z1-.2,O.z1+.6,M.pave,{fade:false,surface:'stone'});
+
+  // ---------- the belvedere tower: a landmark seen from the whole garden ----------
+  const T=TOWER;
+  box(T.x0,T.x1,Y,Y+T.h,T.z0,T.z1,M.wall,{fade:true});invis(T.x0,T.x1,Y+T.h,30,T.z0,T.z1);
+  box(T.x0-.2,T.x1+.2,Y+T.h,Y+T.h+.35,T.z0-.2,T.z1+.2,M.wallTop,{fade:false,collide:false});
+  const roof=new THREE.Mesh(new THREE.ConeGeometry(4.6,3.6,4,1),M.terracotta);roof.rotation.y=Math.PI/4;roof.position.set((T.x0+T.x1)/2,Y+T.h+.35+1.8,(T.z0+T.z1)/2);roof.castShadow=true;ROOT.add(roof);
+  for(const yy of [3.2,6.6])for(const z of [-69,-71])box(T.x0-.03,T.x0,Y+yy,Y+yy+1.4,z-.35,z+.35,M.holeDark,{fade:false,collide:false,cast:false}); // windows
+  // the ledge on its west face: too high to jump, a high lob from the Giant reaches it
+  const L=T.ledge;box(L.x0,L.x1,Y+L.y-.3,Y+L.y,L.z0,L.z1,M.wallTop,{fade:false});
+  for(const z of [L.z0,L.z1-.3])box(L.x0,L.x0+.25,Y+L.y,Y+L.y+.5,z,z+.3,M.stone,{fade:false});
+  levers.push(makeLever(33.4,-70,Math.PI/2,'pavilion',Y+L.y));
+
+  // ---------- the Sun Pavilion: walled, its gate opens from the tower ledge ----------
+  const P=PAV,D=P.door;
+  const pw=(xa,xb,za,zb)=>{box(xa,xb,Y,Y+P.h,za,zb,M.wall);invis(xa,xb,Y+P.h,14,za,zb);box(xa-.05,xb+.05,Y+P.h,Y+P.h+.14,za-.05,zb+.05,M.wallTop,{fade:false,collide:false});};
+  pw(P.x0,P.x0+.4,P.z0,P.z1);pw(P.x1-.4,P.x1,P.z0,P.z1);pw(P.x0,P.x1,P.z0,P.z0+.4);
+  pw(P.x0,D.x0,P.z1-.4,P.z1);pw(D.x1,P.x1,P.z1-.4,P.z1);
+  pav.door=box(D.x0,D.x1,Y,Y+P.h,P.z1-.35,P.z1-.05,M.wood,{fade:false,kind:'door',surface:'wood'});
+  const sun=new THREE.Mesh(new THREE.CircleGeometry(1.4,24),new THREE.MeshLambertMaterial({color:'#f2c14e',emissive:'#f2a43a',emissiveIntensity:.35}));
+  sun.rotation.x=-Math.PI/2;sun.position.set((P.x0+P.x1)/2,Y+.02,(P.z0+P.z1)/2);ROOT.add(sun);
+  for(const [x,z] of [[P.x0+1.2,P.z0+1.2],[P.x1-1.2,P.z0+1.2]])addUrnAt(x,Y,z,1.1);
+
+  // ---------- orchard trees, a bench, the waystone ----------
+  // two orchard blocks either side of a clear walk from the aqueduct to the tower; small trees in rows
+  const rows=[];for(const x0 of [15,34])for(let i=0;i<2;i++)for(let j=0;j<3;j++){const x=x0+i*6+(j%2)*1.5,z=-44-j*7.5;rows.push([x,z]);}
+  for(const [x,z] of rows)orchardTree(x,z,.2+hash2(x|0,z|0,71)*.07);
+  for(const [x,z] of [[42,-77],[14.5,-62],[42,-62]])orchardTree(x,z,.26+hash2(x|0,z|0,72)*.06);
+  box(36,39,Y,Y+.45,-45.2,-46,M.wood,{fade:false,surface:'wood'});
+  addWaystone('ch1_orchard','Hanging Orchard',30.5,Y,-41.5,0);
+
+  // ---------- collectibles ----------
+  [[28,Y,-29],[28,Y,-33.6],[17.5,Y,-38.6],[40,Y,-39.5],[22,Y,-53],[36,Y,-57],[14.5,Y,-78],[33.3,Y+L.y,-68.9],[33.3,Y+L.y,-71.1],[20,Y,-72]]
+    .forEach(([x,y,z],i)=>addSeed('c1o'+i,x,y,z));
+}
+// a tree on the plateau (realistic Jacaranda when the real assets loaded, else a simple tree raised to the plateau)
+function orchardTree(x,z,s){
+  if(CH1R.on){CH1R.trees.push([x,z,s]);return;}
+  const g=new THREE.Group();g.position.y=ORCH.y;ROOT.add(g);const R0=ROOT;ROOT=g;addTree(x,z,s*2.6,(x*7+z)|0);ROOT=R0;
+}
+function addUrnAt(x,y,z,s){const g=new THREE.Group();g.position.y=y;ROOT.add(g);const R0=ROOT;ROOT=g;addUrn(x,z,s);ROOT=R0;
+  // addUrn's collider was made at floor level: lift it with the group
+  const c=colliders[colliders.length-1];c.min.y+=y;c.max.y+=y;}
+
+// a block that rises under someone lifts them onto its top instead of trapping them inside it
+function liftOnto(c){for(const b of [golem,sprite]){if(b.held)continue;if(ov(b,c)){b.pos.y=c.max.y+.01;b.vel.y=0;if(b===golem)syncGolemCol();}}}
+// ---- per-step: the stair rises and the pavilion gate sinks once their levers are pulled ----
+function stepOrchard(dt){
+  stair.t=approach(stair.t,stair.raised?1:0,dt/2.6);for(const c of stair.steps){const on=stair.t>.96;if(on&&!c.on)liftOnto(c);c.on=on;}
+  pav.t=approach(pav.t,pav.open?1:0,dt/1.8);if(pav.door)pav.door.on=pav.t<.5;
+}
+function updateOrchardVis(){
+  const k=smooth(0,1,stair.t);for(let i=0;i<stair.steps.length;i++){const c=stair.steps[i],kk=smooth(i/stair.steps.length*.5,.5+i/stair.steps.length*.5,k);c.mesh.position.y=c.top/2-(c.top+.05)*(1-kk);}
+  if(pav.door&&pav.door.mesh)pav.door.mesh.position.y=ORCH.y+PAV.h/2-PAV.h*smooth(0,1,pav.t);
+}
+function resetOrchard(){
+  stair.raised=!!PROG.ch1.stair;stair.t=stair.raised?1:0;pav.open=!!PROG.ch1.pav;pav.t=pav.open?1:0;
+  for(const l of levers){if(l.id==='stair'){l.pulled=stair.raised;l.t=+stair.raised;}if(l.id==='pavilion'){l.pulled=pav.open;l.t=+pav.open;}}
+  stepOrchard(0);updateOrchardVis();
+}
+
+// ================= the Vale's side caves =================
+// Two caves cut into the wooded hills at the edge of the Vale, each a small co-op puzzle with a memory petal,
+// golden seeds and a secret. (CAVES, caveRect and caveCarve live in 02c-vale.js because the terrain uses them.)
+//  - Glow-worm Grotto (west): a stone door with a low gap. Only the Sprite fits under it; a lever inside lifts it.
+//  - Echo Cave (east): a rock wall across the mouth. The Sprite leaps over it from the Giant's head; a lever inside
+//    raises stone steps on both sides so the Giant can climb over.
+const VCAVE={grotto:{open:false,t:0,door:null,slab:null},echo:{raised:false,t:0,steps:[]}};
+const VLEVERS=[];
+
+function caveRock(){return REAL.ready?rockMat('caveRock','#9c9284'):M.rock;}
+function buildCaves(){
+  const RM=caveRock();
+  for(const c of CAVES){
+    const r=caveRect(c),f=c.f,d=c.dir,m=c.x,e=c.x+d*c.len,z0=c.z-c.w/2,z1=c.z+c.w/2;
+    const xa=Math.min(m-d*.4,e+d*1.6),xb=Math.max(m-d*.4,e+d*1.6);
+    // side walls, back wall, a roof that fades when it hides the players, boulders on top
+    box(xa,xb,f-1,f+6.4,z0-1.6,z0,RM,{fade:false});box(xa,xb,f-1,f+6.4,z1,z1+1.6,RM,{fade:false});
+    box(Math.min(e,e+d*1.6),Math.max(e,e+d*1.6),f-1,f+6.4,z0-1.6,z1+1.6,RM,{fade:false});
+    box(xa,xb,f+5.2,f+6.4,z0-1.6,z1+1.6,RM,{fade:true,cast:true});
+    for(let i=0;i<5;i++){const x=lerp(m,e,.15+i*.18),z=c.z+(hash2(i,c.len,91)-.5)*c.w,s=1.6+hash2(i,3,92)*1.4;
+      const rk=new THREE.Mesh(REAL.ready?realRockGeo(s,s*.6,s*.8,i+c.len):lowPoly(s,s*.6,s*.8,0,i*13,.35),RM);rk.position.set(x,f+6.2,z);rk.rotation.y=i;rk.castShadow=true;ROOT.add(rk);}
+    // boulders heaped either side of the mouth
+    for(let i=0;i<6;i++){const side=i%2?1:-1,zz=c.z+side*(c.w/2+1.2+hash2(i,7,95)*1.6),x=m-d*(.5+hash2(i,8,95)*2.2),s=1+hash2(i,9,95)*1.3;
+      const rk=new THREE.Mesh(REAL.ready?realRockGeo(s,s*.75,s*.9,i*3+c.len):lowPoly(s,s*.75,s*.9,0,i*7,.35),RM);rk.position.set(x,f+s*.35,zz);rk.rotation.y=i*1.3;rk.castShadow=true;rk.receiveShadow=true;ROOT.add(rk);
+      box(x-s*.6,x+s*.6,f-1,f+s*.9,zz-s*.6,zz+s*.6,null);}
+    // a lintel over the mouth and two rough posts
+    for(const zz of [z0,z1-.9])box(m-d*.4,m+d*.5,f,f+5.2,zz,zz+.9,RM,{fade:false});
+    // inside: a few lights so it reads as a cave, not a black box
+    const L=new THREE.PointLight(c.id==='grotto'?'#9fffe0':'#bcd7ff',1.1,c.len+4,1.6);L.position.set(lerp(m,e,.55),f+3.8,c.z);ROOT.add(L);
+    if(c.id==='grotto'){ // glow-worms on the ceiling
+      const g=new THREE.InstancedMesh(new THREE.SphereGeometry(.045,6,4),new THREE.MeshBasicMaterial({color:'#b8ffe9'}),90);const m4=new THREE.Matrix4();
+      for(let i=0;i<90;i++){m4.makeTranslation(lerp(m+d*1.5,e,hash2(i,1,93)),f+5.16-hash2(i,4,93)*.1,lerp(z0+.3,z1-.3,hash2(i,2,93)));g.setMatrixAt(i,m4);}ROOT.add(g);
+    }else{ // pale crystals along the walls
+      for(let i=0;i<9;i++){const cm=new THREE.Mesh(new THREE.OctahedronGeometry(.25+hash2(i,1,94)*.25),M.gem);const side=i%2?z0+.25:z1-.25;cm.position.set(lerp(m+d*3,e-d*1,hash2(i,2,94)),f+.4+hash2(i,3,94)*2.6,side);cm.scale.y=1.7;cm.rotation.z=(hash2(i,5,94)-.5)*.8;ROOT.add(cm);}}
+    const lab=labelSprite(c.name,'Side cave','#8a6448');lab.scale.set(3.6,1.12,1);lab.position.set(m-d*1.5,f+7.6,c.z);ROOT.add(lab);
+  }
+  // ---------- Glow-worm Grotto: the door with a gap at the bottom ----------
+  {const c=CAVES[0],G0=VCAVE.grotto,f=c.f,d=c.dir,x0=c.x+d*.6,x1=c.x+d*1.2,z0=c.z-c.w/2,z1=c.z+c.w/2;
+    G0.door=box(x0,x1,f+.55,f+5.2,z0,z1,null,{kind:'door'});
+    G0.slab=new THREE.Mesh(new THREE.BoxGeometry(Math.abs(x1-x0),4.65,c.w),REAL.ready?stoneReal():M.stone);G0.slab.position.set((x0+x1)/2,f+.55+2.325,c.z);G0.slab.castShadow=true;G0.slab.receiveShadow=true;ROOT.add(G0.slab);
+    const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:TEX.glow,color:'#5ff3cf',transparent:true,depthWrite:false,opacity:.55}));glow.scale.set(c.w*.8,.7,1);glow.position.set((x0+x1)/2-d*.3,f+.3,c.z);ROOT.add(glow);G0.glow=glow;
+    VLEVERS.push(makeValeLever(c.x+d*(c.len-1.6),c.z+2.2,f,'grotto'));
+    addPetal('m4',c.x+d*(c.len-2.4),f,c.z-1.6);
+    [[3.5,-2.5],[6.5,2.6],[9.5,-2.4],[12.5,1.2]].forEach(([a,b],i)=>addSeed('vc'+i,c.x+d*a,f,c.z+b));}
+  // ---------- Echo Cave: the wall across the mouth and the steps a lever raises ----------
+  {const c=CAVES[1],E=VCAVE.echo,f=c.f,d=c.dir,z0=c.z-c.w/2,z1=c.z+c.w/2,wx0=c.x+d*.6,wx1=c.x+d*1.8;
+    box(wx0,wx1,f,f+2.6,z0,z1,REAL.ready?stoneReal():M.wall,{fade:false,surface:'stone'});
+    for(const side of [-1,1])for(let i=0;i<6;i++){ // outside (side -1) and inside (side 1), each climbing to the wall top
+      const top=f+.44*(i+1),xa=side<0?wx0-d*(6.6-i*1.1):wx1+d*(6.6-i*1.1),xb=side<0?xa+d*1.1:xa-d*1.1;
+      const s=box(xa,xb,f-.5,top,c.z-1.2,c.z+1.2,REAL.ready?stoneReal():M.stone,{fade:false,surface:'stone'});s.on=false;s.top=top-f;s.base=f;E.steps.push(s);}
+    VLEVERS.push(makeValeLever(c.x+d*(c.len-1.6),c.z-2.2,f,'echo'));
+    addPetal('m5',c.x+d*(c.len-2.4),f,c.z+1.6);
+    [[4,2.6],[7,-2.6],[10,2.4],[13,-1]].forEach(([a,b],i)=>addSeed('vc'+(4+i),c.x+d*a,f,c.z+b));}
+}
+function makeValeLever(x,z,y,id){const l=makeLever(x,z,0,id,y);l.vale=true;return l;}
+function stoneReal(){return typeof stoneMat==='function'&&REAL.ready?stoneMat('caveStone','#e6dccb'):M.stone;}
+// ---- the Sprite pulls a cave lever ----
+function pullValeLever(l){l.pulled=true;PROG.vale=PROG.vale||{};
+  if(l.id==='grotto'){VCAVE.grotto.open=true;PROG.vale.grotto=1;}else if(l.id==='echo'){VCAVE.echo.raised=true;PROG.vale.echo=1;}saveSoon();}
+// ---- per-step and visuals ----
+function stepCaves(dt){
+  const G0=VCAVE.grotto,E=VCAVE.echo;
+  G0.t=approach(G0.t,G0.open?1:0,dt/1.6);if(G0.door)G0.door.on=G0.t<.5;
+  E.t=approach(E.t,E.raised?1:0,dt/2.2);for(const s of E.steps){const on=E.t>.96;if(on&&!s.on)liftOnto(s);s.on=on;}
+}
+function updateCavesVis(t){
+  const G0=VCAVE.grotto,E=VCAVE.echo;
+  if(G0.slab){const k=smooth(0,1,G0.t);G0.slab.position.y=CAVES[0].f+.55+2.325-k*5.3;/* sinks into the floor */G0.glow.material.opacity=(1-k)*(PROG.settings.reduceFlash?.45:.45+.15*Math.sin(t*2.2));}
+  const k=smooth(0,1,E.t);for(const s of E.steps)if(s.mesh){const h=s.top+.5;s.mesh.position.y=s.base-.5+h/2-(h+.05)*(1-k);}
+  for(const l of VLEVERS)l.t=approach(l.t,l.pulled?1:0,1/60/.35);
+}
+function resetCaves(){
+  const p=PROG.vale||{};VCAVE.grotto.open=!!p.grotto;VCAVE.grotto.t=+!!p.grotto;VCAVE.echo.raised=!!p.echo;VCAVE.echo.t=+!!p.echo;
+  for(const l of VLEVERS){l.pulled=l.id==='grotto'?!!p.grotto:!!p.echo;l.t=+l.pulled;}stepCaves(0);updateCavesVis(0);
 }
 
 // ================= characters =================
@@ -1289,7 +1493,7 @@ function buildGolem(){
     m.root.traverse(o=>{if(o.isMesh&&o.material.name==='GiantBody'){const k=o.material;k.color.setScalar(.8);if(k.normalScale)k.normalScale.multiplyScalar(1.8);k.roughness=.88;k.metalness=0;}
       if(o.isMesh&&o.material.name==='GiantEye'){o.material.emissive.set('#ff9a2e');o.material.emissiveIntensity=1.6;o.material.color.set('#ffb054');}});
     golem.A=makeAnimator(m.root,MODELS.giant.animations);golem.A.play('Idle',0);
-    golem.armL=findBone(m.root,'upperarml');golem.armR=findBone(m.root,'upperarmr');golem.chest=findBone(m.root,'chest');
+    golem.armL=findBone(m.root,'upperarml');golem.armR=findBone(m.root,'upperarmr');golem.chest=findBone(m.root,'chest');golem.shoulder=findBone(m.root,'upperarml');
     // carry pose: both hands come up beside the head to steady the Sprite (worked out on the Blender rig)
     golem.carryPose=[['upperarml',-2.3,-.2],['upperarmr',-2.3,.2],['lowerarml',-1.4,.2],['lowerarmr',-1.4,-.2]].map(([n,x,z])=>{const b=findBone(m.root,n);
       return b?{b,q:b.quaternion.clone().multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(x,0,z,'XYZ')))}:null;}).filter(Boolean);
@@ -1442,7 +1646,7 @@ function resetLevel(){
   if(PROG.ch1.done){ // the garden remembers: doors open, fountain running, runes set
     gate.open=bridge.open=port.open=true;gate.t=bridge.t=port.t=1;latch.t=1.1;levers[0].pulled=levers[1].pulled=true;levers[0].t=levers[1].t=1;crank.used=true;crank.t=1;
     runes.forEach(r=>r.state='placed');G.placed=3;G.fountainOn=true;}
-  applyDoorColliders();
+  applyDoorColliders();resetOrchard();
   placeAt(golem,CP[0].g);placeAt(sprite,CP[0].s);golem.yaw=sprite.yaw=Math.PI;
   W.basinWater.visible=false;W.jet.visible=false;W.fLight.intensity=0;W.sockets.forEach(s=>s.visible=false);
   hintsShown.clear();camSnap=true;
@@ -1456,7 +1660,7 @@ function travel(reg,g,s,yaw){
   golem.holding=false;golem.charging=false;golem.pound=false;sprite.held=false;
   if(g)placeAt(golem,g);if(s)placeAt(sprite,s);if(yaw!=null)golem.yaw=sprite.yaw=yaw;
   golem.safe=null;sprite.safe=null;syncGolemCol();camSnap=true;camYawT=Math.round(camYawT/(Math.PI*2))*Math.PI*2;
-  if(reg==='vale')VALE.wake=(PROG.roots>=1&&!PROG.seen.root1)?0:valeWakeTarget();
+  if(reg==='vale'){VALE.wake=(PROG.roots>=1&&!PROG.seen.root1)?0:valeWakeTarget();resetCaves();}
   if(reg==='vale'&&!PROG.seen.prologue)playScene('prologue');
   else if(reg==='vale'&&PROG.roots>=1&&!PROG.seen.root1)playScene('root1');
   else if(reg==='ch1'&&!PROG.seen.ch1_intro)playScene('ch1_intro');
@@ -1494,10 +1698,11 @@ function spriteTarget(){
   const s=sprite;let best=null,bd=1.2;
   const consider=(obj,p,label)=>{const d=dxz(s.pos,p);if(d<bd&&Math.abs(p.y-s.pos.y)<1.0){bd=d;best={obj,label};}};
   if(inCh1()){
-    for(const l of levers)if(!l.pulled)consider(l,l.pos,l.id==='stones'?'Pull the lever (raise the stones)':'Pull the lever');
+    for(const l of levers)if(!l.pulled)consider(l,l.pos,l.id==='stones'?'Pull the lever (raise the stones)':l.id==='stair'?'Pull the lever (raise the stair)':l.id==='pavilion'?'Pull the lever (open the pavilion)':'Pull the lever');
     if(!crank.used)consider(crank,crank.pos,'Turn the crank');
     const r1=runes[1];if(r1.state==='perched')consider(r1,r1.pos,'Nudge the rune stone off');
   }
+  if(G.region==='vale')for(const l of VLEVERS)if(!l.pulled)consider(l,l.pos,l.id==='grotto'?'Pull the lever (lift the stone door)':'Pull the lever (raise the steps)');
   if(!best){const w=nearWaystone(s,2.4);if(w)best={obj:w,label:'Travel from the waystone'};}
   if(!best&&G.region==='vale'&&plotNear(s)&&seedsToPlant()>=5)best={obj:'plot',label:'Plant 5 golden seeds'};
   return best;
@@ -1506,9 +1711,11 @@ function spriteAction(){
   const t=spriteTarget();if(!t)return;G.useN++;
   if(t.obj==='plot'){plantSeeds();return;}
   if(WAYS.includes(t.obj)){G.travelReq++;return;}
+  if(t.obj.vale){pullValeLever(t.obj);return;}
   if(t.obj===crank){crank.used=true;bridge.open=true;}
   else if(t.obj.kind==='rune'){const r=t.obj;r.state='free';r.pos.y+=.05;r.vel.set(-3.8,3.2,2.0);r.onGround=false;}
-  else{t.obj.pulled=true;if(t.obj.id==='gate')gate.open=true;else if(t.obj.id==='stones')stones.raised=true;else{const r=runes[2];if(r.state==='vault'){r.state='rolling';r.t=0;}}}
+  else{t.obj.pulled=true;if(t.obj.id==='gate')gate.open=true;else if(t.obj.id==='stones')stones.raised=true;
+    else if(t.obj.id==='stair'){stair.raised=true;PROG.ch1.stair=1;saveSoon();}else if(t.obj.id==='pavilion'){pav.open=true;PROG.ch1.pav=1;saveSoon();}else{const r=runes[2];if(r.state==='vault'){r.state='rolling';r.t=0;}}}
 }
 
 // ---- per-step simulation ----
@@ -1549,7 +1756,8 @@ function stepSim(dt,IG,IS){
       else G.launchN+=0;}
     if(seesaw.tiltT>0){if(onSeesaw(g,-1))seesaw.hold=0;else{seesaw.hold+=dt;if(seesaw.hold>.7)seesaw.tiltT=-1;}}
     seesaw.tilt=approach(seesaw.tilt,seesaw.tiltT,dt*(seesaw.tiltT>seesaw.tilt?9:1.4));syncSeesaw();
-    stones.t=approach(stones.t,stones.raised?1:0,dt/2.2);stones.list.forEach(st=>st.col.on=stones.t>.96);
+    stones.t=approach(stones.t,stones.raised?1:0,dt/2.2);stones.list.forEach(st=>{const on=stones.t>.96;if(on&&!st.col.on)liftOnto(st.col);st.col.on=on;});
+    stepOrchard(dt);
     // ---- block ----
     block.vel.y-=GRAV*dt;block.vel.x=block.vel.z=0;const l=listFor(block);moveBody(block,dt,l);syncBlock();if(block.pos.y<-4){block.pos.copy(block.home);block.vel.set(0,0,0);syncBlock();}
   }
@@ -1602,6 +1810,7 @@ function stepSim(dt,IG,IS){
       if(b===g)syncGolemCol();
     }
   }
+  if(G.region==='vale')stepCaves(dt);
   worldChecks();
   // ---- ending ----
   if(ch1&&!G.ending&&!G.fountainOn&&G.placed>=3&&!s.held&&dxz(s.pos,W.spout)<.95&&s.pos.y>3.4&&s.pos.y<5){G.ending=true;G.endT=0;G.fountainOn=true;chapterComplete();}
@@ -1944,6 +2153,8 @@ function updateHUD(dt){
   if(hintT>0){hintT-=dt;if(hintT<=0)$('hint').style.opacity=0;}
   const mineG=mode==='local'||myRole==='g',mineS=mode==='local'||myRole==='s';
   if(G.region==='vale'){
+    if(mineS&&!VCAVE.grotto.open&&inCave(sprite.pos.x,sprite.pos.z,4)===CAVES[0])hint('grotto','Sprite: slip under the stone door, then pull the lever inside to lift it for the Giant.');
+    if(!VCAVE.echo.raised&&(inCave(golem.pos.x,golem.pos.z,4)===CAVES[1]))hint('echo','Giant: lift the Sprite. Sprite: jump from the Giant\'s head over the wall.');
     if(mineG||mineS){if(plotNear(golem)||plotNear(sprite))hint('plot','Seed Garden: every 5 golden seeds you plant here grow into flowers. Your garden shows your progress.');}
     return;}
   if(dxz(golem.pos,{x:SEESAW.x,z:SEESAW.z})<6.5||dxz(sprite.pos,{x:SEESAW.x,z:SEESAW.z})<6.5)hint('seesaw','Seesaw: the Sprite stands in the mint cup. The Giant jumps onto the orange end, and the Sprite flies.');
@@ -1958,6 +2169,8 @@ function updateHUD(dt){
   if(!port.open&&(golem.pos.z<-50||sprite.pos.z<-50))hint('plates','Two plates must be held at once. Giant on the big one, Sprite slips into the alcove on the right.');
   if(port.open&&(golem.pos.z<-64||sprite.pos.z<-64))hint('fountain','Giant: set the runes into the fountain. Then lift the Sprite and let it leap onto the spout.');
   if(mineS&&sprite.airT>.45&&!sprite.held&&G.region==='ch1')hint('glide','Sprite: hold jump while falling to glide.');
+  if(!stair.raised&&PROG.secrets.c1_balcony&&dxz(golem.pos,{x:19,z:-21.9})<4)hint('stair','A stair is sunk into the ground here. Its lever must be up on the balcony.');
+  if(!pav.open&&dxz(golem.pos,{x:31,z:-70})<6)hint('tower','Giant: lift the Sprite and tap '+actKey('g')+' for a high lob onto the tower ledge.');
 }
 
 // ================= story: scenes, dialogue, memory cards =================
@@ -2011,6 +2224,9 @@ const DLG={
   v6:{who:'s',text:"The river's back! Don't fall in, {g}. You'd sink like a stone.",next:'v6b'},
   v6b:{who:'g',text:'I am a stone, {s}.'},
   v7:{who:'s',text:'You can see the whole Vale from up here.'},
+  v8:{who:'s',text:"A cave! The door is stuck, but there's a gap under it just my size."},
+  v9:{who:'g',text:'This wall is too high for me. Up on my head, {s}, and over you go.'},
+  v10:{who:'s',text:'Hello… hello… hello! {g}, it answers!'},
   c1:{who:'s',text:"It's so quiet here… stay close, {g}."},
   c2:{who:'s',text:"{g}, if you jump on the orange end, I bet I'd fly!"},
   c3:{who:'g',text:'Higher? Maybe if I really slam it down…'},
@@ -2020,6 +2236,10 @@ const DLG={
   c7:{who:'s',text:'Listen. Water, deep under the stones.'},
   c8:{who:'s',text:'A lever! Maybe it lifts those sunken stones.'},
   c9:{who:'s',text:'I can fly back… no, I really can’t. Pull the lever?'},
+  c10:{who:'s',text:"{g}! There's a lever up here, and the stones along the wall look loose."},
+  c11:{who:'g',text:'An old water walk. It still holds. Look how far you can see, {s}.'},
+  c12:{who:'s',text:'That ledge on the tower is too high for me. Toss me up, {g}?'},
+  c13:{who:'g',text:'Someone sat here every morning, watching the sun come up. I think it was us.'},
 };
 const fill=t=>t.replace(/\{g\}/g,nameOf('g')).replace(/\{s\}/g,nameOf('s'));
 let dlgPending=null;
@@ -2032,10 +2252,12 @@ const MEMS=[
   {id:'m1',where:'Chapter 1: the hidden balcony',title:'The First Seed',text:'A muddy riverbank and a tiny light. The Sprite was guarding a single seed, far too heavy to carry alone. A stone Giant knelt down and held out one hand.'},
   {id:'m2',where:'Chapter 1: the cellar',title:'Across the Vale',text:'Nine days of walking. The Giant carried the seed; the Sprite rode on the Giant’s head and sang to keep the rain away.'},
   {id:'m3',where:'Chapter 1: the flooded island',title:'Where Water Sleeps',text:'They found a hollow where the river bent. “Here,” said the Sprite. The Giant pressed the seed into the soft earth with one careful thumb.'},
+  {id:'m4',where:'The Vale: the glow-worm grotto',title:'The Long Winter',text:'Snow filled the hollow. The Giant sat around the little shoot all winter like a wall, and the Sprite slept in a crack in his shoulder, glowing just enough to keep it warm.'},
+  {id:'m5',where:'The Vale: the echo cave',title:'First Leaves',text:'In spring the shoot opened its first leaves. The Sprite gave every leaf a name. The Giant could never remember them, but he laughed each time he tried.'},
 ];
 function drawMemory(c,id,W,H){
   const sky=c.createLinearGradient(0,0,0,H);
-  const pal={m0:['#ffd9a8','#f7a7a0'],m1:['#bfe3f2','#e6f3e0'],m2:['#9fb8c9','#d2dfe0'],m3:['#ffe7b8','#cfe9c8']}[id]||['#bfe3f2','#e6f3e0'];
+  const pal={m0:['#ffd9a8','#f7a7a0'],m1:['#bfe3f2','#e6f3e0'],m2:['#9fb8c9','#d2dfe0'],m3:['#ffe7b8','#cfe9c8'],m4:['#c9d6e6','#f1f4f7'],m5:['#d9f0c4','#fff3cf']}[id]||['#bfe3f2','#e6f3e0'];
   sky.addColorStop(0,pal[0]);sky.addColorStop(1,pal[1]);c.fillStyle=sky;c.fillRect(0,0,W,H);
   const hill=(y,col,amp,ph)=>{c.fillStyle=col;c.beginPath();c.moveTo(0,H);for(let x=0;x<=W;x+=8)c.lineTo(x,y+Math.sin(x/W*Math.PI*2*1.2+ph)*amp);c.lineTo(W,H);c.fill();};
   const giant=(x,y,s,kneel)=>{c.fillStyle='#8c7a6a';c.beginPath();c.ellipse(x,y-60*s*(kneel?.75:1),42*s,58*s*(kneel?.75:1),0,0,7);c.fill();c.beginPath();c.arc(x+(kneel?14*s:0),y-(kneel?112:128)*s,24*s,0,7);c.fill();
@@ -2050,6 +2272,10 @@ function drawMemory(c,id,W,H){
   else if(id==='m2'){hill(H*.55,'#a6bfa6',18,1.6);hill(H*.75,'#8fb08a',12,.2);c.strokeStyle='#e6d3a8';c.lineWidth=14;c.beginPath();c.moveTo(W*.1,H);c.bezierCurveTo(W*.3,H*.8,W*.6,H*.86,W*.86,H*.62);c.stroke();
     c.strokeStyle='rgba(255,255,255,.55)';c.lineWidth=2;for(let i=0;i<46;i++){const x=hash2(i,1,4)*W,y=hash2(i,2,4)*H*.7;c.beginPath();c.moveTo(x,y);c.lineTo(x-6,y+16);c.stroke();}
     giant(W*.5,H*.88,1);spr(W*.5,H*.88-150,.9);seed(W*.5+36,H*.88-62,1.1);}
+  else if(id==='m4'){hill(H*.66,'#e9eef3',12,1.1);hill(H*.84,'#dfe6ee',8,2.6);c.fillStyle='rgba(255,255,255,.85)';for(let i=0;i<70;i++){c.beginPath();c.arc(hash2(i,1,5)*W,hash2(i,2,5)*H*.8,1.5+hash2(i,3,5)*2,0,7);c.fill();}
+    c.fillStyle='#6cbf52';c.beginPath();c.ellipse(W*.52,H*.8,3,9,0,0,7);c.fill();giant(W*.44,H*.9,1.1,true);spr(W*.5,H*.52,.8);}
+  else if(id==='m5'){hill(H*.64,'#b5dc8f',12,.8);hill(H*.86,'#93c070',8,2);c.strokeStyle='#7a5a3c';c.lineWidth=5;c.beginPath();c.moveTo(W*.56,H*.86);c.lineTo(W*.56,H*.62);c.stroke();
+    c.fillStyle='#7cc35c';for(let i=0;i<5;i++){c.beginPath();c.ellipse(W*.56+(i-2)*14,H*.6-Math.abs(i-2)*6,10,6,(i-2)*.4,0,7);c.fill();}giant(W*.36,H*.92,1);spr(W*.64,H*.56,.9);}
   else{hill(H*.62,'#a3cf84',12,2.2);c.fillStyle='#7fb7c9';c.beginPath();c.ellipse(W*.25,H*.82,150,26,-.1,0,7);c.fill();hill(H*.86,'#8a6a4c',4,1);
     giant(W*.58,H*.94,1.1,true);c.fillStyle='#6cbf52';c.beginPath();c.ellipse(W*.7,H*.84,4,12,0,0,7);c.fill();c.beginPath();c.ellipse(W*.7+8,H*.8,9,4,.4,0,7);c.fill();spr(W*.76,H*.7,1);}
   // soft vignette like an old storybook page
@@ -2086,7 +2312,7 @@ function renderJournal(){
   if(jTab==='story'){const el=$('jStory');el.textContent='';
     for(const [h,t] of storySoFar()){const d=document.createElement('div');d.className='jentry';const b=document.createElement('h3');b.textContent=h;const p=document.createElement('p');p.textContent=t;d.append(b,p);el.appendChild(d);}
     const st=document.createElement('dl');st.className='stats';const add=(a,b)=>{const dt=document.createElement('dt');dt.textContent=a;const dd=document.createElement('dd');dd.textContent=b;st.append(dt,dd);};
-    add('Roots awake',PROG.roots+' of 7');add('Golden seeds found',seedsFound()+' (planted '+PROG.planted+')');add('Memory petals',countKeys(PROG.petals)+' of '+MEMS.length);add('Secrets',countKeys(PROG.secrets)+' of 4');add('Waystones',countKeys(PROG.ws)+' of '+WAYS.length);
+    add('Roots awake',PROG.roots+' of 7');add('Golden seeds found',seedsFound()+' (planted '+PROG.planted+')');add('Memory petals',countKeys(PROG.petals)+' of '+MEMS.length);add('Secrets',countKeys(PROG.secrets)+' of '+Object.values(REG).reduce((a,r)=>a+r.secrets.length,0));add('Waystones',countKeys(PROG.ws)+' of '+WAYS.length);
     if(PROG.ch1.best)add('Best time, Chapter 1',Math.floor(PROG.ch1.best/60)+' min '+(PROG.ch1.best%60)+' s');
     el.appendChild(st);}
   if(jTab==='mem'){const el=$('jMem');el.textContent='';
@@ -2105,7 +2331,7 @@ function buildValeMapImage(){const N=200,cv=document.createElement('canvas');cv.
   c.putImageData(im,0,0);valeMapImg=cv;}
 function drawMap(cv){
   const c=cv.getContext('2d'),W=cv.width,H=cv.height;c.clearRect(0,0,W,H);c.fillStyle='#e9e2d0';c.fillRect(0,0,W,H);
-  let x0,x1,z0,z1;if(G.region==='vale'){x0=-128;x1=128;z0=-128;z1=128;}else{x0=-44;x1=44;z0=-86;z1=8;}
+  let x0,x1,z0,z1;if(G.region==='vale'){x0=-128;x1=128;z0=-128;z1=128;}else{x0=-44;x1=48;z0=-86;z1=8;}
   const s=Math.min((W-40)/(x1-x0),(H-40)/(z1-z0)),ox=(W-(x1-x0)*s)/2,oz=(H-(z1-z0)*s)/2;
   const X=x=>ox+(x-x0)*s,Z=z=>oz+(z-z0)*s;
   if(G.region==='vale'){
@@ -2117,6 +2343,7 @@ function drawMap(cv){
     c.fillStyle='#4e8f43';c.beginPath();c.arc(X(0),Z(0),15*s,0,7);c.fill();c.fillStyle='#ffb3cf';c.beginPath();c.arc(X(0),Z(0),6*s,0,7);c.fill();
     label(c,'Heart Tree',X(0),Z(0)+20*s+12,'#243039');
     for(const g of GATES){c.fillStyle=g.ready?'#f2873a':'#8f9aa3';c.beginPath();c.arc(X(g.pos.x),Z(g.pos.z),7,0,7);c.fill();label(c,g.ch+' · '+g.name,X(g.pos.x),Z(g.pos.z)+(g.pos.z<0?-14:22),g.ready?'#c9621a':'#5c6b76');}
+    for(const cv of CAVES){const r=caveRect(cv);c.fillStyle='#4b4038';c.fillRect(X(r.x0),Z(r.z0),(r.x1-r.x0)*s,(r.z1-r.z0)*s);label(c,cv.name,X(cv.x-cv.dir*4),Z(cv.z)-12,'#5c4636');}
     c.fillStyle='#8a6448';c.beginPath();c.arc(X(VALE.plot.x),Z(VALE.plot.z),6,0,7);c.fill();label(c,'Seed Garden',X(VALE.plot.x)-26,Z(VALE.plot.z)+4,'#5c6b76');
   }else{
     const cols=REG.ch1.colliders.filter(k=>k.mesh&&k.mesh.visible!==false);
@@ -2124,6 +2351,9 @@ function drawMap(cv){
     for(const k of cols)if(k.max.y<=.3&&k.max.y>-.5&&k.max.y-k.min.y<1){c.fillStyle=k.mesh.material===M.pave?'#d9d4c8':'#b9d79a';c.fillRect(X(k.min.x),Z(k.min.z),(k.max.x-k.min.x)*s,(k.max.z-k.min.z)*s);}
     c.fillStyle='#7fc4d6';c.fillRect(X(POOL.x0),Z(POOL.z0),(POOL.x1-POOL.x0)*s,(POOL.z1-POOL.z0)*s);
     for(const k of cols)if(k.max.y>.3&&k.kind==='static'){c.fillStyle=k.max.y>3.6?'#8a7a66':'#b39c7e';c.fillRect(X(k.min.x),Z(k.min.z),Math.max(1.5,(k.max.x-k.min.x)*s),Math.max(1.5,(k.max.z-k.min.z)*s));}
+    const O=ORCH;c.fillStyle='#a9cf8a';c.fillRect(X(O.x0),Z(O.z0),(O.x1-O.x0)*s,(O.z1-O.z0)*s);c.fillStyle='#d9d4c8';c.fillRect(X(26.8),Z(-36),2.4*s,13*s);
+    for(const k of cols)if(k.min.y>O.y-.3&&k.max.y>O.y+.3&&k.kind!=='door'){c.fillStyle=k.max.y>O.y+3?'#8a7a66':'#b39c7e';c.fillRect(X(k.min.x),Z(k.min.z),Math.max(1.5,(k.max.x-k.min.x)*s),Math.max(1.5,(k.max.z-k.min.z)*s));}
+    label(c,'Hanging Orchard',X(28),Z(-52),'#5c6b76');
     c.strokeStyle='#5fb8a0';c.lineWidth=3;c.beginPath();c.arc(X(F.x),Z(F.z),3*s,0,7);c.stroke();label(c,'Fountain',X(F.x),Z(F.z)+4*s+14,'#243039');
     label(c,'To the Vale',X(0),Z(7),'#118a6f');label(c,'Terraced garden',X(26),Z(-1),'#5c6b76');label(c,'Flooded garden',X(-26),Z(-45.5),'#5c6b76');
     for(const p of PETALS)if(p.reg==='ch1'&&PROG.petals[p.id]){c.fillStyle='#ff8fc0';c.beginPath();c.arc(X(p.pos.x),Z(p.pos.z),5,0,7);c.fill();}
@@ -2171,20 +2401,25 @@ function refreshTitleSave(){
 // ================= chapter 1 and Vale story hooks (secrets and lines) =================
 function storyHooks(){
   const hy=valeH(VALE_HILL.x,VALE_HILL.z);
-  REG.vale.secrets=[{id:'v_lookout',name:'The lookout hill',test:b=>Math.hypot(b.pos.x-VALE_HILL.x,b.pos.z-VALE_HILL.z)<4&&b.pos.y>hy-.6}];
+  const deep=(c,b)=>{const t=(b.pos.x-c.x)*c.dir;return t>c.len*.55&&t<c.len&&Math.abs(b.pos.z-c.z)<c.w/2;};
+  REG.vale.secrets=[{id:'v_lookout',name:'The lookout hill',test:b=>Math.hypot(b.pos.x-VALE_HILL.x,b.pos.z-VALE_HILL.z)<4&&b.pos.y>hy-.6},
+    {id:'v_grotto',name:'The glow-worm grotto',test:b=>deep(CAVES[0],b)},{id:'v_echo',name:'The echo cave',test:b=>deep(CAVES[1],b)}];
   REG.vale.talk=[
     {id:'v1',x:0,z:88,r:7,cond:()=>!PROG.ch1.done},{id:'v2',x:0,z:30,r:9,cond:()=>!PROG.ch1.done},{id:'v3',x:0,z:-100,r:9,cond:()=>!PROG.ch1.done},{id:'v4',x:VALE.plot.x,z:VALE.plot.z,r:8,cond:()=>seedsToPlant()>=5},
     ...GATES.slice(1).map(g=>({id:'v5',x:g.pos.x,z:g.pos.z,r:10})),
-    {id:'v6',x:0,z:52,r:14,cond:()=>VALE.wake>.9},{id:'v7',x:VALE_HILL.x,z:VALE_HILL.z,r:5}];
+    {id:'v6',x:0,z:52,r:14,cond:()=>VALE.wake>.9},{id:'v7',x:VALE_HILL.x,z:VALE_HILL.z,r:5},
+    {id:'v8',x:CAVES[0].x+4,z:CAVES[0].z,r:6,cond:()=>!VCAVE.grotto.open},{id:'v9',x:CAVES[1].x-4,z:CAVES[1].z,r:6,cond:()=>!VCAVE.echo.raised},{id:'v10',x:CAVES[1].x+9,z:CAVES[1].z,r:3}];
   const C=CELLAR;
   REG.ch1.secrets=[
     {id:'c1_balcony',name:'The hidden balcony',test:b=>b.pos.x>25&&b.pos.x<31&&b.pos.z<-17&&b.pos.z>-23&&b.pos.y>4.5},
     {id:'c1_cellar',name:'The secret cellar',test:b=>b.pos.x>C.x0&&b.pos.x<C.x1&&b.pos.z>C.z0&&b.pos.z<C.z1&&b.pos.y<-1.5},
-    {id:'c1_island',name:'The flooded island',test:b=>Math.hypot(b.pos.x+34,b.pos.z+55)<2.4&&b.pos.y>0}];
+    {id:'c1_island',name:'The flooded island',test:b=>Math.hypot(b.pos.x+34,b.pos.z+55)<2.4&&b.pos.y>0},
+    {id:'c1_pavilion',name:'The sun pavilion',test:b=>b.pos.x>PAV.x0+.4&&b.pos.x<PAV.x1-.4&&b.pos.z>PAV.z0+.4&&b.pos.z<PAV.z1-.4&&b.pos.y>ORCH.y-.3}];
   REG.ch1.talk=[
     {id:'c1',x:0,z:-2,r:5},{id:'c2',x:SEESAW.x,z:SEESAW.z,r:6.5},{id:'c3',x:SEESAW.x,z:SEESAW.z,r:9,cond:()=>G.ch.launches>=1&&!PROG.secrets.c1_balcony},
     {id:'c4',x:34.8,z:-1.2,r:3.2,cond:()=>!crack.broken},{id:'c5',x:-13.5,z:-54.5,r:4},{id:'c6',x:0,z:-25,r:4.5,cond:()=>!bridge.open},
-    {id:'c7',x:0,z:-66,r:6,cond:()=>!G.fountainOn},{id:'c8',x:-34,z:-55,r:2.6,cond:()=>!stones.raised}];
+    {id:'c7',x:0,z:-66,r:6,cond:()=>!G.fountainOn},{id:'c8',x:-34,z:-55,r:2.6,cond:()=>!stones.raised},
+    {id:'c10',x:30.3,z:-18.2,r:2.6,cond:()=>!stair.raised},{id:'c11',x:28,z:-30,r:3},{id:'c12',x:31,z:-66,r:6,cond:()=>!pav.open},{id:'c13',x:20,z:-72,r:3}];
 }
 
 // ================= camera: calm follow, quarter-turns with Q / R =================
@@ -2253,7 +2488,7 @@ function updateOverlay(){
   const show=G.phase==='play';$('overlay').hidden=!show;if(!show)return;
   for(const r of ['g','s']){
     const b=r==='g'?golem:sprite,top=r==='g'?2.85:(sprite.held?1.25:.8);
-    const p=screenOf(b.pos.x,b.pos.y+top,b.pos.z);
+    const bp=r==='s'&&sprite.root?sprite.root.position:b.pos;const p=screenOf(bp.x,bp.y+top,bp.z);
     const tag=$(r==='g'?'tagG':'tagS');
     tag.style.display=p.inView?'':'none';
     if(p.inView)tag.style.transform='translate('+p.x.toFixed(1)+'px,'+p.y.toFixed(1)+'px) translate(-50%,-100%)';
@@ -2290,7 +2525,7 @@ function updateVisuals(dt,t){
   // doors & mechanisms
   gate.group.position.y=gate.t*3.5;port.group.position.y=port.t*3.5;bridge.pivot.rotation.x=-1.45*(1-bridge.t);
   crank.wheel.rotation.x=crank.t*Math.PI*6;
-  for(const l of levers)l.handle.rotation.z=lerp(-.7,.7,l.t);
+  for(const l of levers)l.handle.rotation.z=lerp(-.7,.7,l.t);for(const l of VLEVERS)l.handle.rotation.z=lerp(-.7,.7,l.t);
   const pulse=.5+.5*Math.sin(t*3.2);
   for(const p of plates){p.mesh.position.y=p.on?-.04:0;p.ring.material.opacity=p.on?1:(port.open?.25:.35+.45*pulse);}
   for(const h of holeMarkers){h.icon.position.y=h.base+Math.sin(t*2)*.08;h.glow.material.opacity=.35+.3*pulse;}
@@ -2309,6 +2544,7 @@ function updateVisuals(dt,t){
     exitGate.veil.material.opacity=PROG.settings.reduceFlash?.24:.2+.1*Math.sin(t*1.6);
     if(stones.t>0&&stones.t<1&&Math.random()<dt*20){const st=stones.list[Math.floor(Math.random()*3)];puff(st.m.position.x,POOL.y,st.m.position.z,2,.6,[.85,.95,1],.3,.8);}}
   for(const r of runes)if(G.region!=='ch1')r.light.intensity=0;
+  if(G.region==='ch1')updateOrchardVis();
   updateSeedInstances(t);updatePetals(t);updateWaystones(t);updateVale(dt,t);updateReal(dt,t);updateRings(dt);
   updateGreet(dt);updateGiant(dt,t);updateSpriteVis(dt,t);
   // ending: water and light
@@ -2366,13 +2602,28 @@ function updateGiant(dt,t){
   g.visGround=g.onGround;g.lastVy=g.vel.y;
   placeRing(g.ring,g,1.5);
 }
+// shoulder sit: when both stand still close together for a few seconds, the Sprite flies up and sits on the
+// Giant's shoulder. Visual only (the Sprite's real position stays put), so it works the same online.
+const PERCH={idle:0,a:0,pos:new V3(),_p:new V3()};
+function updatePerch(dt){
+  const g=golem,s=sprite,P=PERCH;
+  const calm=b=>b.onGround&&Math.hypot(b.vel.x,b.vel.z)<.15&&Math.abs(b.vel.y)<.1&&!(b.A&&b.A.busy());
+  const ok=G.phase==='play'&&!G.ending&&!G.scene&&!s.held&&!g.holding&&!g.charging&&dxz(g.pos,s.pos)<3.2&&Math.abs(g.pos.y-s.pos.y)<.6&&calm(g)&&calm(s);
+  P.idle=ok?P.idle+dt:0;
+  P.a=approach(P.a,P.idle>3.5?1:0,dt/(P.idle>3.5?.9:.35));
+  if(P.a<=0)return false;
+  const b=g.shoulder;if(b){b.getWorldPosition(P._p);P._p.y+=.12;}else P._p.set(g.pos.x,g.pos.y+2.1,g.pos.z);
+  const k=smooth(0,1,P.a);P.pos.lerpVectors(s.pos,P._p,k);P.pos.y+=Math.sin(Math.PI*k)*.6;return true;
+}
 function updateSpriteVis(dt,t){
-  const s=sprite,sr=s.root;sr.position.copy(s.pos);sr.rotation.y=faceYaw(s,golem,dt);
+  const s=sprite,sr=s.root;const perched=updatePerch(dt);
+  if(perched){sr.position.copy(PERCH.pos);const gy=golem.root.rotation.y;sr.rotation.y=angLerp(s.yaw,gy,smooth(0,1,PERCH.a));}
+  else{sr.position.copy(s.pos);sr.rotation.y=faceYaw(s,golem,dt);}
   const ss=Math.hypot(s.vel.x,s.vel.z);
   if(s.A){
     let n='Idle',ts=1;
     if(G.ending||G.phase==='end')n='Cheer';
-    else if(s.held)n='Sit_Floor_Idle';
+    else if(s.held||PERCH.a>.6)n='Sit_Floor_Idle';
     else if(!s.onGround)n='Jump_Idle';
     else if(ss>.35){n='Running_A';ts=clamp(ss/3.2,.6,1.6);}
     if(!s.A.busy())s.A.play(n,.15,ts);
@@ -2380,10 +2631,10 @@ function updateSpriteVis(dt,t){
   }
   const flap=s.gliding?Math.sin(t*30)*.45+.9:(s.onGround?Math.sin(t*5)*.1+.3:Math.sin(t*20)*.5+.6);
   flapWings(flap);
-  sr.position.y+=s.onGround?0:.02*Math.sin(t*4);
+  if(!perched)sr.position.y+=s.onGround?0:.02*Math.sin(t*4);
   s.halo.material.opacity=.2+Math.sin(t*3)*.05;
-  if(Math.random()<dt*(PROG.settings.reduceFlash?.4:1)*(s.onGround?(ss>.5?6:1.5):(s.gliding?24:12)))emit(s.pos.x+(Math.random()-.5)*.12,s.pos.y+.22,s.pos.z+(Math.random()-.5)*.12,(Math.random()-.5)*.2,.15+Math.random()*.2,(Math.random()-.5)*.2,.55,1,.85,.06,.9,-.1,.6);
-  placeRing(s.ring,s,.75);if(s.held)s.ring.visible=false;
+  if(Math.random()<dt*(PROG.settings.reduceFlash?.4:1)*(s.onGround?(ss>.5?6:1.5):(s.gliding?24:12)))emit(sr.position.x+(Math.random()-.5)*.12,sr.position.y+.22,sr.position.z+(Math.random()-.5)*.12,(Math.random()-.5)*.2,.15+Math.random()*.2,(Math.random()-.5)*.2,.55,1,.85,.06,.9,-.1,.6);
+  placeRing(s.ring,s,.75);if(s.held||PERCH.a>.3)s.ring.visible=false;
   s.walk+=dt*ss*2.6;const st=Math.floor(s.walk/Math.PI);if(st!==s.stepSound&&ss>1.2&&s.onGround){s.stepSound=st;SFX.tick(surfaceUnder(s));}
 }
 
@@ -2470,7 +2721,7 @@ function packState(){
     pl:G.placed,en:G.ending?1:0,et:r2(G.endT),f:G.falls,fn:G.fallN,lf:G.lastFall,th:G.throws,pk:G.pick,us:G.useN,
     rg:G.region,sc:[G.scene,G.line,r2(G.lineT)],cd:G.card,fo:G.fountainOn?1:0,
     ev:[G.poundN,r2(G.poundAt[0]),r2(G.poundAt[1]),r2(G.poundAt[2]),G.crackN,G.launchN,G.launchBig,G.seedN,G.petalN,G.secretN,G.lastSecret,G.wsN,G.lastWs,G.splashN,G.lastSplash,G.plantN,G.waitN,G.dlgN,G.dlg,G.travelReq,G.hopN||0],
-    x:[r2(seesaw.tilt),crack.broken?1:0,stones.raised?1:0,r2(stones.t),levers[2]&&levers[2].pulled?1:0,golem.pound?1:0,r2(golem.airT||0)],
+    x:[r2(seesaw.tilt),crack.broken?1:0,stones.raised?1:0,r2(stones.t),levers[2]&&levers[2].pulled?1:0,golem.pound?1:0,r2(golem.airT||0),stair.raised?1:0,r2(stair.t),pav.open?1:0,r2(pav.t),VCAVE.grotto.open?1:0,r2(VCAVE.grotto.t),VCAVE.echo.raised?1:0,r2(VCAVE.echo.t)],
     ch:[G.ch.seeds,G.ch.petals,G.ch.secrets,G.ch.launches],
     pg:{r:PROG.roots,ws:Object.keys(PROG.ws).join(','),sd:Object.keys(PROG.seeds).join(','),pt:Object.keys(PROG.petals).join(','),se:Object.keys(PROG.secrets).join(','),pl:PROG.planted,sn:Object.keys(PROG.seen).join(','),c1:PROG.ch1.done,b1:PROG.ch1.best}};
 }
@@ -2495,7 +2746,9 @@ function applyState(st){
   G.card=MEMS.some(m=>m.id===st.cd)?st.cd:'';G.fountainOn=!!st.fo;
   if(Array.isArray(st.ev)){const e=st.ev;G.poundN=e[0]|0;G.poundAt=[+e[1]||0,+e[2]||0,+e[3]||0];G.crackN=e[4]|0;G.launchN=e[5]|0;G.launchBig=e[6]|0;G.seedN=e[7]|0;G.petalN=e[8]|0;G.secretN=e[9]|0;G.lastSecret=String(e[10]||'').slice(0,40);
     G.wsN=e[11]|0;G.lastWs=String(e[12]||'').slice(0,40);G.splashN=e[13]|0;G.lastSplash=e[14]==='g'?'g':'s';G.plantN=e[15]|0;G.waitN=e[16]|0;G.dlgN=e[17]|0;G.dlg=DLG[e[18]]?e[18]:'';G.travelReq=e[19]|0;G.hopN=e[20]|0;}
-  if(Array.isArray(st.x)){const x=st.x;seesaw.tilt=+x[0]||-1;crack.broken=!!x[1];stones.raised=!!x[2];stones.t=+x[3]||0;if(levers[2])levers[2].pulled=!!x[4];golem.pound=!!x[5];golem.airT=+x[6]||0;}
+  if(Array.isArray(st.x)){const x=st.x;seesaw.tilt=+x[0]||-1;crack.broken=!!x[1];stones.raised=!!x[2];stones.t=+x[3]||0;if(levers[2])levers[2].pulled=!!x[4];golem.pound=!!x[5];golem.airT=+x[6]||0;
+    stair.raised=!!x[7];stair.t=+x[8]||0;pav.open=!!x[9];pav.t=+x[10]||0;for(const l of levers){if(l.id==='stair')l.pulled=stair.raised;if(l.id==='pavilion')l.pulled=pav.open;}stepOrchard(0);
+    VCAVE.grotto.open=!!x[11];VCAVE.grotto.t=+x[12]||0;VCAVE.echo.raised=!!x[13];VCAVE.echo.t=+x[14]||0;for(const l of VLEVERS)l.pulled=l.id==='grotto'?VCAVE.grotto.open:VCAVE.echo.raised;stepCaves(0);}
   if(Array.isArray(st.ch))G.ch={seeds:st.ch[0]|0,petals:st.ch[1]|0,secrets:st.ch[2]|0,launches:st.ch[3]|0};
   if(st.pg&&typeof st.pg==='object'){const p=st.pg;PROG.roots=clamp(p.r|0,0,7);PROG.ws=keySet(p.ws);PROG.seeds=keySet(p.sd);PROG.petals=keySet(p.pt);PROG.secrets=keySet(p.se);PROG.planted=p.pl|0;PROG.seen=keySet(p.sn);PROG.ch1.done=p.c1?1:0;PROG.ch1.best=p.b1|0;}
   G.placed=st.pl|0;G.ending=!!st.en;G.endT=+st.et||0;G.falls=st.f|0;G.lastFall=st.lf==='g'?'g':'s';G.fallN=st.fn|0;G.throws=st.th|0;G.pick=st.pk|0;G.useN=st.us|0;
@@ -2582,7 +2835,7 @@ function showEnd(){
   const dl=$('endStats');dl.textContent='';const m=Math.floor(G.time/60),s=Math.floor(G.time%60);
   const add=(a,b)=>{const dt=document.createElement('dt');dt.textContent=a;const dd=document.createElement('dd');dd.textContent=b;dl.append(dt,dd);};
   add('Time',m+' min '+s+' s');add('Golden seeds',seedsFoundIn('ch1')+' of '+seedsIn('ch1').length);
-  add('Memory petals',PETALS.filter(p=>p.reg==='ch1'&&PROG.petals[p.id]).length+' of 3');add('Secrets',REG.ch1.secrets.filter(x=>PROG.secrets[x.id]).length+' of 3');
+  const pc=PETALS.filter(p=>p.reg==='ch1');add('Memory petals',pc.filter(p=>PROG.petals[p.id]).length+' of '+pc.length);add('Secrets',REG.ch1.secrets.filter(x=>PROG.secrets[x.id]).length+' of '+REG.ch1.secrets.length);
   add(nameOf('s')+' thrown',G.throws+' times');add('Seesaw launches',String(G.ch.launches));add('Falls',String(G.falls));
   $('endLede').textContent=nameOf('g')+' and '+nameOf('s')+' woke the fountain together. Far away, under the Vale, the first root stirs.';
   const boss=mode!=='online'||role==='host';$('bAgain').hidden=!boss;$('bEndMenu').hidden=!boss;$('endWait').hidden=boss;show('scrEnd');
@@ -2677,7 +2930,8 @@ function tick(now){
 document.addEventListener('visibilitychange',()=>{if(!AC)return;if(document.hidden)AC.suspend();else if(!muted)AC.resume();});
 
 // ================= boot =================
-async function boot(){
+const BOOTMS={};
+async function boot(){const tb=performance.now();
   loadProgress();
   try{buildTextures();buildMaterials();}catch(e){console.error(e);fail('Something went wrong while preparing the garden: '+e.message);return;}
   $('loadText').textContent='Waking the Giant and the Sprite…';
@@ -2687,21 +2941,22 @@ async function boot(){
   await Promise.all([chars,loadProps(),loadReal()]);
   $('loadText').textContent='Growing the Vale…';await new Promise(r=>setTimeout(r,30));
   try{
-    buildSky();if(REAL.ready)setupSky();
-    buildVale();
+    const tb0=performance.now();buildSky();if(REAL.ready)setupSky();
+    buildVale();const tb1=performance.now();
     curBuild='ch1';
     const R=beginRegion('ch1',{name:'Chapter 1: The Sunken Garden',short:'Sunken Garden',chapter:1,fog:[70,190],fogReal:[80,320],spawn:{g:CP[0].g,s:CP[0].s},
       hazard:b=>b.pos.x>POOL.x0&&b.pos.x<POOL.x1&&b.pos.z>POOL.z0&&b.pos.z<POOL.z1&&b.pos.y<POOL.y-.3});
     if(REAL.ready)ch1RealBegin();
-    buildWorld();buildInteractives();buildCh1Extras();if(REAL.ready)ch1RealFinish();endRegion(R);buildSeedInstances('ch1');curBuild='';
+    buildWorld();buildInteractives();buildCh1Extras();buildOrchard();if(REAL.ready)ch1RealFinish();endRegion(R);buildSeedInstances('ch1');curBuild='';BOOTMS.vale=Math.round(tb1-tb0);BOOTMS.ch1=Math.round(performance.now()-tb1);
     storyHooks();
     buildGolem();buildSprite();initAmbientParticles();
-    enterRegion('ch1');resetLevel();enterRegion('vale');
+    enterRegion('ch1');resetLevel();enterRegion('vale');resetCaves();
     const sp=startSpot();placeAt(golem,sp.g);placeAt(sprite,sp.s);
   }
   catch(e){console.error(e);fail('Something went wrong while building the Vale: '+e.message);return;}
   wireSettings();
   try{renderer.compile(scene,camera);}catch(e){}
+  BOOTMS.total=Math.round(performance.now()-tb);
   $('loading').hidden=true;G.phase='title';show('scrTitle');refreshTitleSave();
   $('nameIn').value=recall('bs_name');
   if(matchMedia('(pointer: coarse)').matches&&!matchMedia('(pointer: fine)').matches){$('netNote').textContent='This game needs a keyboard. On a phone or tablet it can only be watched.';}
@@ -2711,7 +2966,7 @@ async function boot(){
 window.__bs={get PROG(){return PROG;},REG,travel,travelToWaystone,seesaw,crack,stones,SEEDS,PETALS,WAYS,GATES,VALE,playScene,skipScene,storyNext,valeH,saveProgress,eraseProgress,openMap,closeOverlay,get overlay(){return overlayOpen;},
   G,golem,sprite,get block(){return block;},runes,gate,bridge,port,plates,levers,get crank(){return crank;},latch,stepSim,resetLevel,startLocal:()=>{mode='local';resetLevel();startPlay();},NOIN,W,fadeables,camera,
   get camYaw(){return camYaw;},rotateCam,set dbgDist(v){dbgDist=v;},advance:(sec)=>{let n=performance.now();for(let i=0;i<sec*60;i++){n+=1000/60;tick(n);}},get models(){return MODELS;},set bot(v){BOT=v;},get bot(){return BOT;},
-  get ch1(){return {CP,F,SEESAW,POOL,CELLAR,levers,crank,runes,plates,stones,crack,exitGate,W};},get colliders(){return colliders;},get curReg(){return curReg;},get greet(){return GREET;},travelReq:()=>G.travelReq};
+  get ch1(){return {CP,F,SEESAW,POOL,CELLAR,levers,crank,runes,plates,stones,crack,exitGate,W,ORCH,TOWER,PAV,stair,pav};},get colliders(){return colliders;},get curReg(){return curReg;},get greet(){return GREET;},get perch(){return PERCH;},get caves(){return {CAVES,VCAVE,VLEVERS};},get renderer(){return renderer;},BOOTMS,scene,travelReq:()=>G.travelReq};
 boot();
 
 })();

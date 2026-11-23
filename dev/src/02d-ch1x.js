@@ -18,7 +18,7 @@ function buildCh1Extras(){
   addWaystone('ch1_court','Courtyard',8.2,0,1.2,Math.PI);
 
   // ---------- east: terraced garden ----------
-  wall(11,41,4,5,3);wall(40,41,4,-24,4);wall(11,41,-23,-24,4.5);
+  wall(11,41,4,5,3);wall(40,41,4,-24,4);wall(11,26.8,-23,-24,4.5);wall(29.2,41,-23,-24,4.5);box(26.8,29.2,0,4.5,-23,-24,M.wall); // the aqueduct walk leaves over the gap
   // opening from the courtyard gets a stone arch frame
   box(10,11,3.4,4,-1,-6,M.wallTop,{collide:false,fade:false});
   // raised terrace along the east wall with two steps
@@ -36,12 +36,11 @@ function buildCh1Extras(){
   box(29,33,0,2.6,-10,-16,M.wall);box(28.94,33.06,2.6,2.72,-9.94,-16.06,M.wallTop,{fade:false});
   // the hidden balcony: only a ground-pound launch gets the Sprite this high
   box(25,31,0,4.8,-17,-23,M.wall);box(24.94,31.06,4.8,4.94,-16.94,-23,M.wallTop,{fade:false});
-  box(25,25.3,4.94,5.5,-17,-23,M.stone,{fade:false});box(30.7,31,4.94,5.5,-17,-23,M.stone,{fade:false});
+  box(25,25.3,4.94,5.5,-17,-20.6,M.stone,{fade:false});box(30.7,31,4.94,5.5,-17,-23,M.stone,{fade:false}); // the west rail stops short: the stair arrives at the back
   box(25,26.4,4.94,5.5,-16.95,-17.25,M.stone,{fade:false});box(29.6,31,4.94,5.5,-16.95,-17.25,M.stone,{fade:false});
-  // a dark doorway into the wall, a little shrine for the petal
-  box(26.8,29.2,4.94,7.4,-22.8,-23.02,M.holeDark,{collide:false,fade:false,cast:false});
+  // a doorway at the back of the balcony: the old aqueduct walk to the Hanging Orchard
   box(26.6,29.4,7.4,7.7,-22.7,-23.1,M.wallTop,{collide:false,fade:false});
-  addColumn(13.5,-21,3.4,.42,false);addColumn(21,-20.5,2.2,.42,true);addColumn(16,-3.5,1.4,.42,true);
+  addColumn(13.5,-18.6,3.4,.42,false);addColumn(20.5,-18.4,2.2,.42,true);addColumn(16,-3.5,1.4,.42,true);
   addRock(20,.15,2.6,.6,12.1,true);addRock(33.5,.15,-19.5,.5,13.3,false);
   // ---------- the cracked floor and the cellar beneath it ----------
   const C=CELLAR,Hh=C.hole;

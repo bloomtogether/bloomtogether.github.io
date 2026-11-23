@@ -53,6 +53,9 @@ function ch1GrassMask(){
   fill(POOL.x0-.4,POOL.x1+.4,POOL.z0-.4,POOL.z1+.4,0);
   fill(CELLAR.hole.x0-.3,CELLAR.hole.x1+.3,CELLAR.hole.z0-.3,CELLAR.hole.z1+.3,0);
   fill(-2.2,2.2,6,2,0);                     // the exit gate threshold
+  // the orchard plateau: grass on top, cleared under what stands on it
+  const O=ORCH;fill(O.x0+.4,O.x1-.4,O.z0+.4,O.z1-.4,1);
+  for(const c of colliders){if(!c.on||c.kind==='golem')continue;if(c.min.y>O.y-.3&&c.min.y<O.y+.3&&c.max.y>O.y+.05)fill(c.min.x-.2,c.max.x+.2,c.min.z-.2,c.max.z+.2,0);}
 }
 function ch1GrassAllowed(x,z){const C=CH1R;const i=Math.floor((x-C.x0)/C.cell),j=Math.floor((z-C.z0)/C.cell);
   if(i<0||j<0||i>=C.nx||j>=C.nz)return 0;return C.mask[j*C.nx+i]?.85:0;}
@@ -62,13 +65,13 @@ function ch1RealFinish(){
   ROOT.traverse(o=>{if(o.isMesh&&o.material===M.ground&&!o.geometry.attributes.color){const n=o.geometry.attributes.position.count;o.geometry.setAttribute('color',new THREE.Float32BufferAttribute(new Float32Array(n*3),3));}});
   // trees: the hand-placed ones plus a ring that hides the edge of the land
   const spots=CH1R.trees.slice();let seed=7;const rnd=()=>{seed=Math.imul(seed^(seed>>>15),2246822507)+0x6D2B79F5|0;return ((seed>>>0)%100000)/100000;};
-  const ok=(x,z)=>!((z<-24&&z>-36))&&!inPlayZone(x,z,4)&&!(Math.abs(x)<13&&z<8&&z>-86)&&spots.every(s=>Math.hypot(x-s[0],z-s[1])>8);
+  const ok=(x,z)=>!((z<-24&&z>-36))&&!inPlayZone(x,z,4)&&!inOrchard(x,z,6)&&!(Math.abs(x)<13&&z<8&&z>-86)&&spots.every(s=>Math.hypot(x-s[0],z-s[1])>8);
   for(let i=0;i<900&&spots.length<150;i++){
     const side=Math.floor(rnd()*4);let x,z;
     if(side<2){x=(side?1:-1)*lerp(46,86,rnd());z=lerp(-160,52,rnd());}else{x=lerp(-86,86,rnd());z=side===2?lerp(14,52,rnd()):lerp(-96,-160,rnd());}
     if(ok(x,z))spots.push([x,z,.42+rnd()*.22]);}
-  buildRealForest(spots,{h:()=>0,near:sp=>Math.abs(sp[0])<34&&sp[1]>-100});
+  buildRealForest(spots,{h:ch1H});
   // grass
   ch1GrassMask();
-  GRASS_CH1=newGrassField(ch1GrassAllowed,()=>0,()=>1);buildGrass(GRASS_CH1);
+  GRASS_CH1=newGrassField(ch1GrassAllowed,ch1H,()=>1);buildGrass(GRASS_CH1);
 }

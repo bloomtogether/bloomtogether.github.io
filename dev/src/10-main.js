@@ -61,7 +61,7 @@ function showEnd(){
   const dl=$('endStats');dl.textContent='';const m=Math.floor(G.time/60),s=Math.floor(G.time%60);
   const add=(a,b)=>{const dt=document.createElement('dt');dt.textContent=a;const dd=document.createElement('dd');dd.textContent=b;dl.append(dt,dd);};
   add('Time',m+' min '+s+' s');add('Golden seeds',seedsFoundIn('ch1')+' of '+seedsIn('ch1').length);
-  add('Memory petals',PETALS.filter(p=>p.reg==='ch1'&&PROG.petals[p.id]).length+' of 3');add('Secrets',REG.ch1.secrets.filter(x=>PROG.secrets[x.id]).length+' of 3');
+  const pc=PETALS.filter(p=>p.reg==='ch1');add('Memory petals',pc.filter(p=>PROG.petals[p.id]).length+' of '+pc.length);add('Secrets',REG.ch1.secrets.filter(x=>PROG.secrets[x.id]).length+' of '+REG.ch1.secrets.length);
   add(nameOf('s')+' thrown',G.throws+' times');add('Seesaw launches',String(G.ch.launches));add('Falls',String(G.falls));
   $('endLede').textContent=nameOf('g')+' and '+nameOf('s')+' woke the fountain together. Far away, under the Vale, the first root stirs.';
   const boss=mode!=='online'||role==='host';$('bAgain').hidden=!boss;$('bEndMenu').hidden=!boss;$('endWait').hidden=boss;show('scrEnd');
@@ -156,7 +156,8 @@ function tick(now){
 document.addEventListener('visibilitychange',()=>{if(!AC)return;if(document.hidden)AC.suspend();else if(!muted)AC.resume();});
 
 // ================= boot =================
-async function boot(){
+const BOOTMS={};
+async function boot(){const tb=performance.now();
   loadProgress();
   try{buildTextures();buildMaterials();}catch(e){console.error(e);fail('Something went wrong while preparing the garden: '+e.message);return;}
   $('loadText').textContent='Waking the Giant and the Sprite…';
@@ -166,21 +167,22 @@ async function boot(){
   await Promise.all([chars,loadProps(),loadReal()]);
   $('loadText').textContent='Growing the Vale…';await new Promise(r=>setTimeout(r,30));
   try{
-    buildSky();if(REAL.ready)setupSky();
-    buildVale();
+    const tb0=performance.now();buildSky();if(REAL.ready)setupSky();
+    buildVale();const tb1=performance.now();
     curBuild='ch1';
     const R=beginRegion('ch1',{name:'Chapter 1: The Sunken Garden',short:'Sunken Garden',chapter:1,fog:[70,190],fogReal:[80,320],spawn:{g:CP[0].g,s:CP[0].s},
       hazard:b=>b.pos.x>POOL.x0&&b.pos.x<POOL.x1&&b.pos.z>POOL.z0&&b.pos.z<POOL.z1&&b.pos.y<POOL.y-.3});
     if(REAL.ready)ch1RealBegin();
-    buildWorld();buildInteractives();buildCh1Extras();if(REAL.ready)ch1RealFinish();endRegion(R);buildSeedInstances('ch1');curBuild='';
+    buildWorld();buildInteractives();buildCh1Extras();buildOrchard();if(REAL.ready)ch1RealFinish();endRegion(R);buildSeedInstances('ch1');curBuild='';BOOTMS.vale=Math.round(tb1-tb0);BOOTMS.ch1=Math.round(performance.now()-tb1);
     storyHooks();
     buildGolem();buildSprite();initAmbientParticles();
-    enterRegion('ch1');resetLevel();enterRegion('vale');
+    enterRegion('ch1');resetLevel();enterRegion('vale');resetCaves();
     const sp=startSpot();placeAt(golem,sp.g);placeAt(sprite,sp.s);
   }
   catch(e){console.error(e);fail('Something went wrong while building the Vale: '+e.message);return;}
   wireSettings();
   try{renderer.compile(scene,camera);}catch(e){}
+  BOOTMS.total=Math.round(performance.now()-tb);
   $('loading').hidden=true;G.phase='title';show('scrTitle');refreshTitleSave();
   $('nameIn').value=recall('bs_name');
   if(matchMedia('(pointer: coarse)').matches&&!matchMedia('(pointer: fine)').matches){$('netNote').textContent='This game needs a keyboard. On a phone or tablet it can only be watched.';}
@@ -190,5 +192,5 @@ async function boot(){
 window.__bs={get PROG(){return PROG;},REG,travel,travelToWaystone,seesaw,crack,stones,SEEDS,PETALS,WAYS,GATES,VALE,playScene,skipScene,storyNext,valeH,saveProgress,eraseProgress,openMap,closeOverlay,get overlay(){return overlayOpen;},
   G,golem,sprite,get block(){return block;},runes,gate,bridge,port,plates,levers,get crank(){return crank;},latch,stepSim,resetLevel,startLocal:()=>{mode='local';resetLevel();startPlay();},NOIN,W,fadeables,camera,
   get camYaw(){return camYaw;},rotateCam,set dbgDist(v){dbgDist=v;},advance:(sec)=>{let n=performance.now();for(let i=0;i<sec*60;i++){n+=1000/60;tick(n);}},get models(){return MODELS;},set bot(v){BOT=v;},get bot(){return BOT;},
-  get ch1(){return {CP,F,SEESAW,POOL,CELLAR,levers,crank,runes,plates,stones,crack,exitGate,W};},get colliders(){return colliders;},get curReg(){return curReg;},get greet(){return GREET;},travelReq:()=>G.travelReq};
+  get ch1(){return {CP,F,SEESAW,POOL,CELLAR,levers,crank,runes,plates,stones,crack,exitGate,W,ORCH,TOWER,PAV,stair,pav};},get colliders(){return colliders;},get curReg(){return curReg;},get greet(){return GREET;},get perch(){return PERCH;},get caves(){return {CAVES,VCAVE,VLEVERS};},get renderer(){return renderer;},BOOTMS,scene,travelReq:()=>G.travelReq};
 boot();

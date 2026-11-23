@@ -1,4 +1,5 @@
-// Scripted playthrough of Chapter 1: The Sunken Garden.
+// Scripted playthrough of Chapter 1: The Sunken Garden (main route, side areas, the upper terrace and Hanging Orchard),
+// then the walk back to the Vale and both of the Vale's side caves.
 // Both characters walk real routes (grid pathfinding around the level's colliders) and solve every puzzle
 // with the same inputs a player has. Nothing is teleported; the only help is that a throw is aimed by
 // setting the Giant's facing before the throw.
@@ -47,8 +48,22 @@ export async function run(opts = {}) {
   }
 
   // ---------------- pathfinding on a 0.25 m grid ----------------
-  const X0 = -48, Z0 = -86, CELL = .25, NX = 400, NZ = 380;
+  // Chapter 1 uses a fine 0.25 m grid; the Vale is much bigger, so 0.5 m, and its ground is the terrain
+  let X0 = -48, Z0 = -86, CELL = .25, NX = 400, NZ = 380, terrainFloor = null;
+  // the river (when awake it is deep water); bridges cross it at x = 0, -78 and 84
+  const RIVER = [[-175, 64], [-120, 46], [-78, 57], [-36, 44], [0, 52], [42, 41], [84, 56], [128, 44], [175, 54]];
+  function dry(x, z) {
+    for (const bx of [0, -78, 84]) { let rz = 50; for (let i = 0; i < RIVER.length - 1; i++) if (bx >= RIVER[i][0] && bx <= RIVER[i + 1][0]) rz = RIVER[i][1] + (RIVER[i + 1][1] - RIVER[i][1]) * (bx - RIVER[i][0]) / (RIVER[i + 1][0] - RIVER[i][0]); if (Math.abs(x - bx) < 2 && Math.abs(z - rz) < 11) return true; }
+    for (let i = 0; i < RIVER.length - 1; i++) { const [ax, az] = RIVER[i], [bx, bz] = RIVER[i + 1], dx = bx - ax, dz = bz - az, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz))); if (Math.hypot(x - ax - dx * t, z - az - dz * t) < 7.6) return false; }
+    return true;
+  }
+  function setGrid() {
+    if (G.region === 'vale') { X0 = -130; Z0 = -130; CELL = .5; NX = 520; NZ = 520;
+      if (!terrainFloor) { terrainFloor = new Uint8Array(NX * NZ); for (let j = 0; j < NZ; j++) for (let i = 0; i < NX; i++) terrainFloor[j * NX + i] = dry(X0 + i * CELL, Z0 + j * CELL) ? 1 : 0; } }
+    else { X0 = -48; Z0 = -86; CELL = .25; NX = 400; NZ = 380; }
+  }
   function grid(b) {
+    setGrid();
     const y0 = b.pos.y, walk = new Uint8Array(NX * NZ), floor = new Uint8Array(NX * NZ), hw = b.hw + .02;
     const climb = Math.max(b.stepH, .35); // low curbs: the walker hops over them
     const mark = (arr, x0, x1, z0, z1, v) => {
@@ -58,6 +73,7 @@ export async function run(opts = {}) {
     };
     const cols = B.colliders.filter(c => c.on && c !== b.col && c.kind !== 'golem');
     for (const c of cols) if (c.max.y <= y0 + b.stepH + .01 && c.max.y >= y0 - 1.25) mark(floor, c.min.x - .05, c.max.x + .05, c.min.z - .05, c.max.z + .05, 1);
+    if (G.region === 'vale') for (let k = 0; k < walk.length; k++) floor[k] = floor[k] || terrainFloor[k];
     for (let k = 0; k < walk.length; k++) walk[k] = floor[k];
     for (const c of cols) if (c.max.y > y0 + climb + .01 && c.min.y < y0 + b.h) mark(walk, c.min.x - hw, c.max.x + hw, c.min.z - hw, c.max.z + hw, 0);
     return walk;
@@ -65,6 +81,7 @@ export async function run(opts = {}) {
   const cellOf = (x, z) => [Math.round((x - X0) / CELL), Math.round((z - Z0) / CELL)];
   function path(b, tx, tz) {
     const walk = grid(b), [si, sj] = cellOf(b.pos.x, b.pos.z);
+    if (si < 0 || sj < 0 || si >= NX || sj >= NZ) return null;
     let [ti, tj] = cellOf(tx, tz);
     if (!walk[tj * NX + ti]) { // target inside something: aim for the nearest open cell
       let best = null, bd = 1e9; for (let r = 1; r < 24 && !best; r++) for (let j = tj - r; j <= tj + r; j++) for (let i = ti - r; i <= ti + r; i++) {
@@ -258,9 +275,56 @@ export async function run(opts = {}) {
     let ph = 0; ctl.g = () => { if (ph === 0 && g.onGround) { ph = 1; return { jump: 1 }; } if (ph === 1 && g.vel.y < 1) { ph = 2; return { act: 1 }; } return {}; };
     await until(() => L.crack.broken, 4, 'the slab breaking'); ctl.g = null;
     await until(() => g.onGround && g.pos.y < -.5, 4, 'Giant landing in the cellar');
+    ctl.g = () => ({ mx: 1, mz: (cz - g.pos.z) * 2 }); await until(() => g.onGround && g.pos.y < -2.5, 4, 'Giant down on the cellar floor'); ctl.g = null;
+    await until(() => B.PROG.secrets.c1_cellar, 1, 'the cellar secret counting');
     // climb the rubble mound and step back up to the garden on the west side of the hole
     let tog = 0; ctl.g = () => ({ mx: -1, mz: (cz - g.pos.z) * 2, jump: g.onGround && g.pos.y < -.05 && (tog ^= 1) ? 1 : 0 });
     await until(() => g.onGround && g.pos.y > -.05 && g.pos.x < H.x0 - .7, 20, 'Giant climbing out of the cellar'); ctl.g = null;
+  });
+  await step('Upper terrace: a ground-pound launch lands the Sprite on the hidden balcony, and its lever raises the stair', async () => {
+    const S = L.SEESAW, lv = L.levers.find(l => l.id === 'stair');
+    await walkBoth(S.x - 4.4, S.z, S.x + 2.7, S.z, 120, .95);
+    await until(() => B.seesaw.tilt < -.95, 4, 'seesaw settled');
+    // in flight, the Sprite steers for the balcony and glides onto it
+    ctl.s = () => { if (s.onGround && G.launchN === n0) return { mz: (S.z - s.pos.z) * 3 };
+      const ax = 28 - s.pos.x, az = -20 - s.pos.z, l = Math.hypot(ax, az) || 1; return { mx: ax / l, mz: az / l, jump: s.vel.y < 0 ? 1 : 0 }; };
+    const n0 = G.launchN; let ph = 0;
+    ctl.g = () => { if (ph === 0) { if (g.onGround) { ph = 1; return { mx: 1, jump: 1 }; } return {}; }
+      if (ph === 1) { if (!g.onGround && g.vel.y < 0 && g.pos.x > S.x - 4) { ph = 2; return { act: 1 }; } return { mx: 1, jump: 1, mz: (S.z - g.pos.z) * 2 }; } return {}; };
+    await until(() => G.launchN > n0 && s.onGround, 8, 'launch and landing'); ctl.g = ctl.s = null;
+    if (!(s.pos.y > 4.8 && s.pos.z < -17)) throw new Error('Sprite did not land on the balcony (at ' + fmt(s.pos) + ')');
+    await walkTo('s', lv.pos.x, lv.pos.z, .9, 10); await press('s');
+    if (!L.stair.raised) throw new Error('stair lever did not work');
+    await until(() => L.stair.t > .99, 4, 'stair rising');
+  });
+  await step('Giant climbs the new stair to the balcony; both cross the aqueduct walk to the Hanging Orchard', async () => {
+    await walkTo('g', 12.4, -19.5, .5, 60);
+    ctl.g = () => ({ mx: (12.4 - g.pos.x) * 2, mz: (-21.9 - g.pos.z) * 2 }); await until(() => Math.hypot(g.pos.x - 12.4, g.pos.z + 21.9) < .3, 6, 'Giant at the foot of the stair');
+    ctl.g = () => ({ mx: 1, mz: (-21.9 - g.pos.z) * 2 }); await until(() => g.onGround && g.pos.y > 4.9 && g.pos.x > 25.4, 15, 'Giant climbing the stair'); ctl.g = null;
+    await walkBoth(28, -44, 30, -44.5, 60);
+    if (!B.PROG.ws.ch1_orchard) throw new Error('the orchard waystone did not wake');
+  });
+  await step('Orchard: the Giant lobs the Sprite onto the tower ledge; its lever opens the Sun Pavilion', async () => {
+    const T = L.TOWER, lv = L.levers.find(l => l.id === 'pavilion');
+    await walkTo('g', T.ledge.x0 - 1.5, -70, .3, 60);
+    await pickUpSprite(); g.yaw = Math.PI / 2;
+    ctl.g = () => ({ act: 1 }); for (let i = 0; i < 4; i++) frame(); ctl.g = null; // a tap: the short high lob
+    ctl.s = () => ({ mx: 1, jump: s.vel.y < 0 ? 1 : 0 });
+    await until(() => s.onGround, 6, 'Sprite landing after the lob'); ctl.s = null;
+    if (s.pos.y < L.ORCH.y + 3.5) throw new Error('lob fell short (Sprite at ' + fmt(s.pos) + ')');
+    await walkTo('s', lv.pos.x, lv.pos.z, .9, 10); await press('s');
+    if (!L.pav.open) throw new Error('pavilion lever did not work');
+    ctl.s = () => ({ mx: -1, jump: s.vel.y < 0 ? 1 : 0 }); await until(() => s.onGround && s.pos.y < L.ORCH.y + .1, 6, 'Sprite gliding down'); ctl.s = null;
+    await until(() => L.pav.t > .99, 3, 'pavilion gate opening');
+    await walkBoth(20, -71, 21, -72.5, 60);
+    if (!B.PROG.secrets.c1_pavilion) throw new Error('the pavilion secret did not count');
+  });
+  await step('Both walk back over the aqueduct and down the stair to the garden', async () => {
+    await walkBoth(26.2, -21.9, 27.5, -19, 90);
+    for (const [w, b] of [['g', g], ['s', s]]) {
+      ctl[w] = () => ({ mx: -1, mz: (-21.9 - b.pos.z) * 2 }); await until(() => b.onGround && b.pos.y < .05 && b.pos.x < 13, 15, (w === 'g' ? 'Giant' : 'Sprite') + ' down the stair'); ctl[w] = null;
+      await walkTo(w, w === 'g' ? 23 : 17, -19.9, .5, 15); // the stair's foot opens east, along the lever room
+    }
   });
   await step('West garden: both hop the stepping stones, the Giant throws the Sprite to the far island, and its lever raises the stone path', async () => {
     const lv = L.levers.find(l => l.id === 'stones'), path = [[-17.4, -55], [-19.6, -54.4], [-21.8, -55.2], [-24.2, -55]];
@@ -284,10 +348,35 @@ export async function run(opts = {}) {
     await until(() => G.region === 'vale', 6, 'travel to the Vale'); ctl.g = ctl.s = null;
     if (B.PROG.roots < 1) throw new Error('the first root did not wake');
   });
+  // ---------------- the Vale's side caves ----------------
+  const CV = B.caves, C0 = CV.CAVES[0], C1 = CV.CAVES[1];
+  await step('Vale: the Sprite slips under the grotto door and pulls its lever; both go deep into the Glow-worm Grotto', async () => {
+    const d = C0.dir, lv = CV.VLEVERS.find(l => l.id === 'grotto');
+    await walkBoth(C0.x - d * 2.5, C0.z + 1.6, C0.x - d * 2.5, C0.z - 1.6, 240);
+    await walkTo('s', lv.pos.x, lv.pos.z, .9, 30); await press('s');
+    if (!CV.VCAVE.grotto.open) throw new Error('the grotto lever did not lift the door');
+    await until(() => CV.VCAVE.grotto.t > .99, 3, 'door lifting');
+    await walkTo('g', C0.x + d * (C0.len - 2.4), C0.z - 1.6, .6, 30);
+    await until(() => B.PROG.secrets.v_grotto && B.PROG.petals.m4, 2, 'the grotto secret and petal');
+  });
+  await step('Vale: the Sprite leaps over the Echo Cave wall from the Giant\'s head; its lever raises steps for the Giant', async () => {
+    const d = C1.dir, lv = CV.VLEVERS.find(l => l.id === 'echo'), wallIn = C1.x + d * 1.8;
+    await walkBoth(C1.x - d * .5, C1.z, C1.x - d * 2.6, C1.z + 2, 300); await walkTo('g', C1.x - d * .5, C1.z, .35, 10); g.yaw = d > 0 ? Math.PI / 2 : -Math.PI / 2;
+    await pickUpSprite(); g.yaw = d > 0 ? Math.PI / 2 : -Math.PI / 2; frame();
+    ctl.s = () => ({ mx: d, mz: (C1.z - s.pos.z) * 2, jump: 1 });
+    await until(() => s.onGround && (s.pos.x - wallIn) * d > .3, 6, 'Sprite over the wall'); ctl.s = null;
+    await walkTo('s', lv.pos.x, lv.pos.z, .9, 20); await press('s');
+    if (!CV.VCAVE.echo.raised) throw new Error('the echo lever did not raise the steps');
+    await until(() => CV.VCAVE.echo.t > .99, 4, 'steps rising');
+    ctl.g = () => ({ mx: d, mz: (C1.z - g.pos.z) * 2 }); await until(() => g.onGround && (g.pos.x - (C1.x + d * 9)) * d > 0, 15, 'Giant climbing over on the steps'); ctl.g = null;
+    await walkTo('g', C1.x + d * (C1.len - 2.4), C1.z + 1.6, .6, 20);
+    await until(() => B.PROG.secrets.v_echo && B.PROG.petals.m5, 2, 'the echo cave secret and petal');
+  });
   const time = +simT.toFixed(1), ok = steps.every(x => x.ok);
   log(ok ? 'PASSED' : 'FAILED', 'in', time, 's of game time; falls', G.falls - G0.falls);
   const sum = { seeds: B.SEEDS.filter(x => x.reg === 'ch1' && B.PROG.seeds[x.id]).length + '/' + B.SEEDS.filter(x => x.reg === 'ch1').length,
-    petals: B.PETALS.filter(x => x.reg === 'ch1' && B.PROG.petals[x.id]).length + '/3', secrets: B.REG.ch1.secrets.filter(x => B.PROG.secrets[x.id]).length + '/3' };
+    petals: B.PETALS.filter(x => x.reg === 'ch1' && B.PROG.petals[x.id]).length + '/' + B.PETALS.filter(x => x.reg === 'ch1').length,
+    secrets: B.REG.ch1.secrets.filter(x => B.PROG.secrets[x.id]).map(x => x.name).join(', ') + ' (' + B.REG.ch1.secrets.filter(x => B.PROG.secrets[x.id]).length + '/' + B.REG.ch1.secrets.length + ')' };
   log('collected along the way:', JSON.stringify(sum), 'cards/scenes:', seen.join(', '));
   return { ok, steps, time, falls: G.falls - G0.falls, collected: sum, shown: seen };
 }

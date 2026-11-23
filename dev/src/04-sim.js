@@ -61,7 +61,7 @@ function resetLevel(){
   if(PROG.ch1.done){ // the garden remembers: doors open, fountain running, runes set
     gate.open=bridge.open=port.open=true;gate.t=bridge.t=port.t=1;latch.t=1.1;levers[0].pulled=levers[1].pulled=true;levers[0].t=levers[1].t=1;crank.used=true;crank.t=1;
     runes.forEach(r=>r.state='placed');G.placed=3;G.fountainOn=true;}
-  applyDoorColliders();
+  applyDoorColliders();resetOrchard();
   placeAt(golem,CP[0].g);placeAt(sprite,CP[0].s);golem.yaw=sprite.yaw=Math.PI;
   W.basinWater.visible=false;W.jet.visible=false;W.fLight.intensity=0;W.sockets.forEach(s=>s.visible=false);
   hintsShown.clear();camSnap=true;
@@ -75,7 +75,7 @@ function travel(reg,g,s,yaw){
   golem.holding=false;golem.charging=false;golem.pound=false;sprite.held=false;
   if(g)placeAt(golem,g);if(s)placeAt(sprite,s);if(yaw!=null)golem.yaw=sprite.yaw=yaw;
   golem.safe=null;sprite.safe=null;syncGolemCol();camSnap=true;camYawT=Math.round(camYawT/(Math.PI*2))*Math.PI*2;
-  if(reg==='vale')VALE.wake=(PROG.roots>=1&&!PROG.seen.root1)?0:valeWakeTarget();
+  if(reg==='vale'){VALE.wake=(PROG.roots>=1&&!PROG.seen.root1)?0:valeWakeTarget();resetCaves();}
   if(reg==='vale'&&!PROG.seen.prologue)playScene('prologue');
   else if(reg==='vale'&&PROG.roots>=1&&!PROG.seen.root1)playScene('root1');
   else if(reg==='ch1'&&!PROG.seen.ch1_intro)playScene('ch1_intro');
@@ -113,10 +113,11 @@ function spriteTarget(){
   const s=sprite;let best=null,bd=1.2;
   const consider=(obj,p,label)=>{const d=dxz(s.pos,p);if(d<bd&&Math.abs(p.y-s.pos.y)<1.0){bd=d;best={obj,label};}};
   if(inCh1()){
-    for(const l of levers)if(!l.pulled)consider(l,l.pos,l.id==='stones'?'Pull the lever (raise the stones)':'Pull the lever');
+    for(const l of levers)if(!l.pulled)consider(l,l.pos,l.id==='stones'?'Pull the lever (raise the stones)':l.id==='stair'?'Pull the lever (raise the stair)':l.id==='pavilion'?'Pull the lever (open the pavilion)':'Pull the lever');
     if(!crank.used)consider(crank,crank.pos,'Turn the crank');
     const r1=runes[1];if(r1.state==='perched')consider(r1,r1.pos,'Nudge the rune stone off');
   }
+  if(G.region==='vale')for(const l of VLEVERS)if(!l.pulled)consider(l,l.pos,l.id==='grotto'?'Pull the lever (lift the stone door)':'Pull the lever (raise the steps)');
   if(!best){const w=nearWaystone(s,2.4);if(w)best={obj:w,label:'Travel from the waystone'};}
   if(!best&&G.region==='vale'&&plotNear(s)&&seedsToPlant()>=5)best={obj:'plot',label:'Plant 5 golden seeds'};
   return best;
@@ -125,9 +126,11 @@ function spriteAction(){
   const t=spriteTarget();if(!t)return;G.useN++;
   if(t.obj==='plot'){plantSeeds();return;}
   if(WAYS.includes(t.obj)){G.travelReq++;return;}
+  if(t.obj.vale){pullValeLever(t.obj);return;}
   if(t.obj===crank){crank.used=true;bridge.open=true;}
   else if(t.obj.kind==='rune'){const r=t.obj;r.state='free';r.pos.y+=.05;r.vel.set(-3.8,3.2,2.0);r.onGround=false;}
-  else{t.obj.pulled=true;if(t.obj.id==='gate')gate.open=true;else if(t.obj.id==='stones')stones.raised=true;else{const r=runes[2];if(r.state==='vault'){r.state='rolling';r.t=0;}}}
+  else{t.obj.pulled=true;if(t.obj.id==='gate')gate.open=true;else if(t.obj.id==='stones')stones.raised=true;
+    else if(t.obj.id==='stair'){stair.raised=true;PROG.ch1.stair=1;saveSoon();}else if(t.obj.id==='pavilion'){pav.open=true;PROG.ch1.pav=1;saveSoon();}else{const r=runes[2];if(r.state==='vault'){r.state='rolling';r.t=0;}}}
 }
 
 // ---- per-step simulation ----
@@ -168,7 +171,8 @@ function stepSim(dt,IG,IS){
       else G.launchN+=0;}
     if(seesaw.tiltT>0){if(onSeesaw(g,-1))seesaw.hold=0;else{seesaw.hold+=dt;if(seesaw.hold>.7)seesaw.tiltT=-1;}}
     seesaw.tilt=approach(seesaw.tilt,seesaw.tiltT,dt*(seesaw.tiltT>seesaw.tilt?9:1.4));syncSeesaw();
-    stones.t=approach(stones.t,stones.raised?1:0,dt/2.2);stones.list.forEach(st=>st.col.on=stones.t>.96);
+    stones.t=approach(stones.t,stones.raised?1:0,dt/2.2);stones.list.forEach(st=>{const on=stones.t>.96;if(on&&!st.col.on)liftOnto(st.col);st.col.on=on;});
+    stepOrchard(dt);
     // ---- block ----
     block.vel.y-=GRAV*dt;block.vel.x=block.vel.z=0;const l=listFor(block);moveBody(block,dt,l);syncBlock();if(block.pos.y<-4){block.pos.copy(block.home);block.vel.set(0,0,0);syncBlock();}
   }
@@ -221,6 +225,7 @@ function stepSim(dt,IG,IS){
       if(b===g)syncGolemCol();
     }
   }
+  if(G.region==='vale')stepCaves(dt);
   worldChecks();
   // ---- ending ----
   if(ch1&&!G.ending&&!G.fountainOn&&G.placed>=3&&!s.held&&dxz(s.pos,W.spout)<.95&&s.pos.y>3.4&&s.pos.y<5){G.ending=true;G.endT=0;G.fountainOn=true;chapterComplete();}

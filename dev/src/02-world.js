@@ -68,7 +68,7 @@ function holeMarker(x0,x1,z0,z1,faces,ix,iz){
 }
 
 // chapter 1 play areas outside the original strip (decor scatter keeps out of them)
-function inPlayZone(x,z,m){return (x>11-m&&x<41+m&&z<5+m&&z>-24-m)||(x>-41-m&&x<-11+m&&z<-43.5+m&&z>-66.5-m);}
+function inPlayZone(x,z,m){return (x>11-m&&x<41+m&&z<5+m&&z>-24-m)||(x>-41-m&&x<-11+m&&z<-43.5+m&&z>-66.5-m)||(x>ORCH.x0-1-m&&x<ORCH.x1+m&&z>ORCH.z0-m&&z<-23+m);}
 const beacons=[]; // bouncing arrows over the next thing to use
 function makeBeacon(){const s=new THREE.Sprite(new THREE.SpriteMaterial({map:TEX.arrow,transparent:true,depthWrite:false}));s.scale.set(.5,.5,1);s.visible=false;ROOT.add(s);beacons.push(s);return s;}
 
