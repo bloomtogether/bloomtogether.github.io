@@ -5,3 +5,8 @@ Textures are softened, recoloured 512px versions of Poly Haven textures (CC0, ht
 - Bark Brown 02, by Rob Tuytel        https://polyhaven.com/a/bark_brown_02
 - Sandstone Blocks 08, by Rob Tuytel  https://polyhaven.com/a/sandstone_blocks_08
 - Wood Planks, by Amal Kumar          https://polyhaven.com/a/wood_planks
+
+Big & Small characters (giant, sprite)
+Modelled, rigged and animated in Blender for this game. Editable source: dev/blender/characters.blend
+- Giant: Poly Haven Rock 01 and Concrete Moss, by Rob Tuytel (CC0), baked into one texture set.
+- Sprite: petal and wing textures painted in code.

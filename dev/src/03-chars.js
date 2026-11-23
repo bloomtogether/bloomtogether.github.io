@@ -4,7 +4,6 @@ const sprite={kind:'sprite',pos:new V3(),vel:new V3(),hw:.14,h:.4,stepH:.14,yaw:
 golem.col={min:new V3(),max:new V3(),kind:'golem',on:true};colliders.push(golem.col);
 function syncGolemCol(){const g=golem;golem.col.min.set(g.pos.x-.52,g.pos.y,g.pos.z-.52);golem.col.max.set(g.pos.x+.52,g.pos.y+g.h,g.pos.z+.52);golem.col.on=!sprite.held;}
 
-const HIDE_PARTS=/Axe|Shield|Mug|Knife|Crossbow|Throwable/;
 let MODELS=null; // {giant: gltf, sprite: gltf} or null when loading failed
 
 // A simple animation player with cross-fades and one-shot clips
@@ -37,12 +36,12 @@ function addXray(root,color){
   }
 }
 function findBone(root,name){let b=null;root.traverse(o=>{if(!b&&o.isBone&&o.name===name)b=o;});return b;}
-// clean up a KayKit scene: drop weapons, set shadows, scale to a target height (feet at 0)
-function prepModel(gltf,targetH,tint){
-  const root=gltf.scene;const drop=[];
-  root.traverse(o=>{if(o.isMesh){if(HIDE_PARTS.test(o.name))drop.push(o);else{o.castShadow=true;o.receiveShadow=false;o.frustumCulled=false;
-    if(tint){o.material=o.material.clone();o.material.color.set(tint.color);o.material.emissive=new THREE.Color(tint.emissive);o.material.emissiveIntensity=tint.ei;}}}});
-  drop.forEach(o=>o.parent.remove(o));
+// prepare a character scene from Blender: shadows, PBR tweaks, scale to a target height (feet at 0)
+function prepModel(gltf,targetH){
+  const root=gltf.scene;
+  root.traverse(o=>{if(!o.isMesh)return;o.frustumCulled=false;const m=o.material;
+    if(m.transparent){m.depthWrite=false;m.side=THREE.DoubleSide;o.castShadow=false;o.renderOrder=4;}else{o.castShadow=true;o.receiveShadow=false;}
+    if(m.map)m.map.anisotropy=ANISO;if('envMapIntensity' in m)m.envMapIntensity=.8;});
   const bb=new THREE.Box3().setFromObject(root),h=bb.max.y-bb.min.y,s=targetH/h;
   root.scale.setScalar(s);root.position.y=-bb.min.y*s;
   const holder=new THREE.Group();holder.add(root);return {holder,root,scale:s};
@@ -51,7 +50,9 @@ function prepModel(gltf,targetH,tint){
 function buildGolem(){
   const R=new THREE.Group();scene.add(R);golem.root=R;
   if(MODELS){
-    const m=prepModel(MODELS.giant,2.45,null);R.add(m.holder);golem.model=m.root;
+    const m=prepModel(MODELS.giant,2.45);R.add(m.holder);golem.model=m.root;
+    m.root.traverse(o=>{if(o.isMesh&&o.material.name==='GiantBody'){const k=o.material;k.color.setScalar(.8);if(k.normalScale)k.normalScale.multiplyScalar(1.8);k.roughness=.88;k.metalness=0;}
+      if(o.isMesh&&o.material.name==='GiantEye'){o.material.emissive.set('#ff9a2e');o.material.emissiveIntensity=1.6;o.material.color.set('#ffb054');}});
     golem.A=makeAnimator(m.root,MODELS.giant.animations);golem.A.play('Idle',0);
     golem.armL=findBone(m.root,'upperarml');golem.armR=findBone(m.root,'upperarmr');golem.chest=findBone(m.root,'chest');
     addXray(m.root,'#f2873a');
@@ -67,25 +68,33 @@ function buildGolem(){
 }
 function buildSprite(){
   const R=new THREE.Group();scene.add(R);sprite.root=R;
-  let attach=R,wingY=.26;
+  sprite.wingBones=null;sprite.wings=null;
   if(MODELS){
-    const m=prepModel(MODELS.sprite,.72,{color:'#c9fff0',emissive:'#1fae8c',ei:.55});R.add(m.holder);sprite.model=m.root;
+    const m=prepModel(MODELS.sprite,.66);R.add(m.holder);sprite.model=m.root;
     sprite.A=makeAnimator(m.root,MODELS.sprite.animations);sprite.A.play('Idle',0);
-    const chest=findBone(m.root,'chest');if(chest){attach=chest;wingY=0;}
-    sprite.wingScale=chest?1/m.scale:1;
+    m.root.updateMatrixWorld(true);
+    // wings flap around the body's vertical axis, worked out in each wing bone's own space
+    const wl=findBone(m.root,'wingl'),wr=findBone(m.root,'wingr');
+    if(wl&&wr)sprite.wingBones=[wl,wr].map((b,i)=>{const q=new THREE.Quaternion();b.getWorldQuaternion(q);
+      return {b,rest:b.quaternion.clone(),axis:new V3(0,1,0).applyQuaternion(q.invert()).normalize(),sign:i?-1:1};});
     addXray(m.root,'#22bf9c');
   }else{
     const mat=new THREE.MeshLambertMaterial({color:'#bff7e6',emissive:'#22bf9c',emissiveIntensity:.6});
     const body=new THREE.Mesh(new THREE.SphereGeometry(.12,14,10),mat);body.position.y=.18;body.scale.y=1.3;R.add(body);
     const head=new THREE.Mesh(new THREE.SphereGeometry(.1,14,10),mat);head.position.y=.38;R.add(head);
-    sprite.wingScale=1;addXray(R,'#22bf9c');
+    addXray(R,'#22bf9c');
+    const wm=new THREE.MeshBasicMaterial({map:TEX.wing,transparent:true,depthWrite:false,side:THREE.DoubleSide,opacity:.9});
+    sprite.wings=[-1,1].map(s=>{const p=new THREE.Group();p.position.set(s*.02,.26,-.06);R.add(p);const w=new THREE.Mesh(new THREE.PlaneGeometry(.3,.21),wm);w.position.x=s*.15;w.scale.x=s;p.add(w);return p;});
   }
-  const wm=new THREE.MeshBasicMaterial({map:TEX.wing,transparent:true,depthWrite:false,side:THREE.DoubleSide,opacity:.9});
-  const ws=sprite.wingScale;
-  sprite.wings=[-1,1].map(s=>{const p=new THREE.Group();p.position.set(s*.02*ws,wingY*ws,-.06*ws);attach.add(p);const w=new THREE.Mesh(new THREE.PlaneGeometry(.3*ws,.21*ws),wm);w.position.x=s*.15*ws;w.scale.x=s;p.add(w);return p;});
   const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:TEX.glow,color:'#7dffd9',transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:.5}));halo.scale.set(1.15,1.15,1.15);halo.position.y=.32;R.add(halo);sprite.halo=halo;
   sprite.light=new THREE.PointLight('#9fffe0',1.1,5,2);sprite.light.position.y=.35;R.add(sprite.light);
   sprite.ring=groundRing('#22bf9c',.75);
+}
+const _wq=new THREE.Quaternion();
+function flapWings(flap){
+  const s=sprite;
+  if(s.wingBones){for(const w of s.wingBones){_wq.setFromAxisAngle(w.axis,w.sign*(flap*.75-.15));w.b.quaternion.copy(w.rest).multiply(_wq);}}
+  else if(s.wings){s.wings[0].rotation.y=-flap;s.wings[1].rotation.y=flap;}
 }
 // colored ring on the ground under a character so you always know who is where
 function groundRing(color,size){

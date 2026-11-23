@@ -4,7 +4,7 @@
 cd "$(dirname "$0")"
 OUT=../game.js
 {
-  echo "// Big & Small. Built from dev/src/*.js by dev/build.sh. Three.js r149 (ES modules), KayKit characters (CC0, Kay Lousberg), props modelled in Blender with Poly Haven textures (CC0)."
+  echo "// Big & Small. Built from dev/src/*.js by dev/build.sh. Three.js r149 (ES modules), characters and props modelled in Blender with Poly Haven textures (CC0)."
   echo "import * as THREE from 'three';"
   echo "import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';"
   echo "import {DRACOLoader} from 'three/addons/loaders/DRACOLoader.js';"

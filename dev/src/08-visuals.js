@@ -172,7 +172,7 @@ function updateSpriteVis(dt,t){
     s.A.update(dt);
   }
   const flap=s.gliding?Math.sin(t*30)*.45+.9:(s.onGround?Math.sin(t*5)*.1+.3:Math.sin(t*20)*.5+.6);
-  s.wings[0].rotation.y=-flap;s.wings[1].rotation.y=flap;
+  flapWings(flap);
   sr.position.y+=s.onGround?0:.02*Math.sin(t*4);
   s.halo.material.opacity=.4+Math.sin(t*3)*.1;
   if(Math.random()<dt*(PROG.settings.reduceFlash?.4:1)*(s.onGround?(ss>.5?10:3):(s.gliding?40:22)))emit(s.pos.x+(Math.random()-.5)*.12,s.pos.y+.22,s.pos.z+(Math.random()-.5)*.12,(Math.random()-.5)*.2,.15+Math.random()*.2,(Math.random()-.5)*.2,.55,1,.85,.06,.9,-.1,.6);

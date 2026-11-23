@@ -160,8 +160,8 @@ async function boot(){
   loadProgress();
   try{buildTextures();buildMaterials();}catch(e){console.error(e);fail('Something went wrong while preparing the garden: '+e.message);return;}
   $('loadText').textContent='Waking the Giant and the Sprite…';
-  const L=new GLTFLoader();
-  const chars=Promise.all([L.loadAsync('assets/Barbarian.glb'),L.loadAsync('assets/Rogue_Hooded.glb')]).then(([a,b])=>{MODELS={giant:a,sprite:b};}).catch(e=>{console.warn('Character models could not load, using simple shapes.',e);MODELS=null;});
+  const L=new GLTFLoader();L.setDRACOLoader(DRACO);
+  const chars=Promise.all([L.loadAsync('assets/models/giant.glb'),L.loadAsync('assets/models/sprite.glb')]).then(([a,b])=>{MODELS={giant:a,sprite:b};}).catch(e=>{console.warn('Character models could not load, using simple shapes.',e);MODELS=null;});
   $('loadText').textContent='Fetching the sky, trees and textures…';
   await Promise.all([chars,loadProps(),loadReal()]);
   $('loadText').textContent='Growing the Vale…';await new Promise(r=>setTimeout(r,30));

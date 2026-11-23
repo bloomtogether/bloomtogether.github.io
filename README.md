@@ -16,13 +16,13 @@ A two-player co-op puzzle adventure in the browser. A huge Giant and a tiny Spri
 
 - Game source lives in `dev/src/` as numbered parts. Run `bash dev/build.sh` to join them into `game.js` (needs Node for the syntax check).
 - Plans and design docs are in `dev/plans/`. `story-and-chapters-plan.md` is the current roadmap (Book 1: The Seven Roots, the Vale hub, eight chapters).
-- Characters are loaded from `assets/` (KayKit, CC0). Props (Heart Tree, region gate, waystone, seesaw, petal, seed, bridge) are in `assets/models/`, modelled in Blender; the editable source is `dev/blender/phase1-props.blend`.
+- Characters (`assets/models/giant.glb`, `sprite.glb`) are modelled, rigged and animated in Blender; the editable source is `dev/blender/characters.blend`. Props (Heart Tree, region gate, waystone, seesaw, petal, seed, bridge) are in `assets/models/`, modelled in Blender; the editable source is `dev/blender/phase1-props.blend`.
 - Source parts: `02b-regions` (save, regions, props, collectibles, waystones), `02c-vale` (the hub), `02d-ch1x` (Chapter 1 additions), `06b-music`, `07b-story` (scenes, dialogue, memories, journal, map, settings).
 - `window.__bs` exposes a small debug handle for scripted playthroughs (for example `__bs.startLocal()`, `__bs.travel(...)`, `__bs.stepSim(...)`).
 
 ## Credits
 
-- Characters: [KayKit Adventurers](https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0) by Kay Lousberg, CC0 (see `assets/KAYKIT-LICENSE.txt`).
+- Characters: modelled in Blender for this game. The Giant's riverstone uses [Poly Haven](https://polyhaven.com) Rock 01 and Concrete Moss by Rob Tuytel (CC0); the Sprite's petals and wings are painted in code.
 - 3D engine: [Three.js](https://threejs.org) r149. Online: [PeerJS](https://peerjs.com).
 - Prop textures: softened from [Poly Haven](https://polyhaven.com) (CC0): Bark Brown 02 and Sandstone Blocks 08 by Rob Tuytel, Wood Planks by Amal Kumar.
 - Everything else (levels, terrain, sounds, music, UI) is generated in code.
