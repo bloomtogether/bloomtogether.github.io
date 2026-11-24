@@ -1484,8 +1484,11 @@ function buildCaves(){
     if(c.id==='grotto'){ // glow-worms on the ceiling
       const g=new THREE.InstancedMesh(new THREE.SphereGeometry(.045,6,4),new THREE.MeshBasicMaterial({color:'#b8ffe9'}),90);const m4=new THREE.Matrix4();
       for(let i=0;i<90;i++){m4.makeTranslation(lerp(m+d*1.5,e,hash2(i,1,93)),f+5.16-hash2(i,4,93)*.1,lerp(z0+.3,z1-.3,hash2(i,2,93)));g.setMatrixAt(i,m4);}ROOT.add(g);
-    }else{ // pale crystals along the walls
-      for(let i=0;i<9;i++){const cm=new THREE.Mesh(new THREE.OctahedronGeometry(.25+hash2(i,1,94)*.25),M.gem);const side=i%2?z0+.25:z1-.25;cm.position.set(lerp(m+d*3,e-d*1,hash2(i,2,94)),f+.4+hash2(i,3,94)*2.6,side);cm.scale.y=1.7;cm.rotation.z=(hash2(i,5,94)-.5)*.8;ROOT.add(cm);}}
+    }else{ // three small clusters of pale quartz growing from the floor at the foot of the walls
+      const qm=new THREE.MeshStandardMaterial({color:'#d8ecf2',emissive:'#7fb8c8',emissiveIntensity:.25,roughness:.25,metalness:0,transparent:true,opacity:.88});
+      [[.4,1],[.65,-1],[.92,1]].forEach(([t,side],k)=>{const cx=lerp(m+d*3,e,t),cz=side<0?z0+.5:z1-.5;
+        for(let j=0;j<4;j++){const h=.35+hash2(k,j,94)*.45,cm=new THREE.Mesh(new THREE.ConeGeometry(.09+hash2(k,j,95)*.06,h,5),qm);
+          cm.position.set(cx+(hash2(k,j,96)-.5)*.6,f+h/2-.04,cz+(hash2(k,j,97)-.5)*.4);cm.rotation.set((hash2(k,j,98)-.5)*.7,hash2(k,j,99)*3,(hash2(k,j,93)-.5)*.7);ROOT.add(cm);}});}
     const lab=labelSprite(c.name,'Side cave','#8a6448');lab.scale.set(3.6,1.12,1);lab.position.set(m-d*1.5,f+7.6,c.z);ROOT.add(lab);
   }
   // ---------- Glow-worm Grotto: the door with a gap at the bottom ----------
@@ -2243,9 +2246,12 @@ function updateHUD(dt){
   if(toastT>0){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;}
   if(hintT>0){hintT-=dt;if(hintT<=0)$('hint').style.opacity=0;}
   const mineG=mode==='local'||myRole==='g',mineS=mode==='local'||myRole==='s';
+  // the Giant at a lever: only the Sprite's small hands can pull one
+  if(mineG){for(const l of (G.region==='vale'?VLEVERS:inCh1()?levers:[]))if(!l.pulled&&dxz(golem.pos,l.pos)<2.4&&Math.abs(golem.pos.y-l.pos.y)<1.6&&dxz(sprite.pos,l.pos)>1.6){hint('glever','Only the Sprite can pull levers. Bring the Sprite here and press '+actKey('s')+'.');break;}}
   if(G.region==='vale'){
+    {const E=CAVES[1];if(mineS&&!VCAVE.echo.raised&&(sprite.pos.x-E.x)*E.dir>2.2&&inCave(sprite.pos.x,sprite.pos.z,0)===E)hint('echolever','Sprite: pull the lever at the back of the cave ('+actKey('s')+'). It raises steps for the Giant.');}
     if(mineS&&!VCAVE.grotto.open&&inCave(sprite.pos.x,sprite.pos.z,4)===CAVES[0])hint('grotto','Sprite: slip under the stone door, then pull the lever inside to lift it for the Giant.');
-    if(!VCAVE.echo.raised&&(inCave(golem.pos.x,golem.pos.z,4)===CAVES[1]))hint('echo','Giant: lift the Sprite. Sprite: jump from the Giant\'s head over the wall.');
+    if(!VCAVE.echo.raised&&(inCave(golem.pos.x,golem.pos.z,4)===CAVES[1])&&(sprite.pos.x-CAVES[1].x)*CAVES[1].dir<2.2)hint('echo','Giant: lift the Sprite. Sprite: jump from the Giant\'s head over the wall.');
     if(mineG||mineS){if(plotNear(golem)||plotNear(sprite))hint('plot','Seed Garden: every 5 golden seeds you plant here grow into flowers. Your garden shows your progress.');}
     return;}
   if(dxz(golem.pos,{x:SEESAW.x,z:SEESAW.z})<6.5||dxz(sprite.pos,{x:SEESAW.x,z:SEESAW.z})<6.5)hint('seesaw','Seesaw: the Sprite stands in the mint cup. The Giant jumps onto the orange end, and the Sprite flies.');

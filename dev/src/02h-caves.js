@@ -30,8 +30,11 @@ function buildCaves(){
     if(c.id==='grotto'){ // glow-worms on the ceiling
       const g=new THREE.InstancedMesh(new THREE.SphereGeometry(.045,6,4),new THREE.MeshBasicMaterial({color:'#b8ffe9'}),90);const m4=new THREE.Matrix4();
       for(let i=0;i<90;i++){m4.makeTranslation(lerp(m+d*1.5,e,hash2(i,1,93)),f+5.16-hash2(i,4,93)*.1,lerp(z0+.3,z1-.3,hash2(i,2,93)));g.setMatrixAt(i,m4);}ROOT.add(g);
-    }else{ // pale crystals along the walls
-      for(let i=0;i<9;i++){const cm=new THREE.Mesh(new THREE.OctahedronGeometry(.25+hash2(i,1,94)*.25),M.gem);const side=i%2?z0+.25:z1-.25;cm.position.set(lerp(m+d*3,e-d*1,hash2(i,2,94)),f+.4+hash2(i,3,94)*2.6,side);cm.scale.y=1.7;cm.rotation.z=(hash2(i,5,94)-.5)*.8;ROOT.add(cm);}}
+    }else{ // three small clusters of pale quartz growing from the floor at the foot of the walls
+      const qm=new THREE.MeshStandardMaterial({color:'#d8ecf2',emissive:'#7fb8c8',emissiveIntensity:.25,roughness:.25,metalness:0,transparent:true,opacity:.88});
+      [[.4,1],[.65,-1],[.92,1]].forEach(([t,side],k)=>{const cx=lerp(m+d*3,e,t),cz=side<0?z0+.5:z1-.5;
+        for(let j=0;j<4;j++){const h=.35+hash2(k,j,94)*.45,cm=new THREE.Mesh(new THREE.ConeGeometry(.09+hash2(k,j,95)*.06,h,5),qm);
+          cm.position.set(cx+(hash2(k,j,96)-.5)*.6,f+h/2-.04,cz+(hash2(k,j,97)-.5)*.4);cm.rotation.set((hash2(k,j,98)-.5)*.7,hash2(k,j,99)*3,(hash2(k,j,93)-.5)*.7);ROOT.add(cm);}});}
     const lab=labelSprite(c.name,'Side cave','#8a6448');lab.scale.set(3.6,1.12,1);lab.position.set(m-d*1.5,f+7.6,c.z);ROOT.add(lab);
   }
   // ---------- Glow-worm Grotto: the door with a gap at the bottom ----------

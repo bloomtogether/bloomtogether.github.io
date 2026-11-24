@@ -121,9 +121,12 @@ function updateHUD(dt){
   if(toastT>0){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;}
   if(hintT>0){hintT-=dt;if(hintT<=0)$('hint').style.opacity=0;}
   const mineG=mode==='local'||myRole==='g',mineS=mode==='local'||myRole==='s';
+  // the Giant at a lever: only the Sprite's small hands can pull one
+  if(mineG){for(const l of (G.region==='vale'?VLEVERS:inCh1()?levers:[]))if(!l.pulled&&dxz(golem.pos,l.pos)<2.4&&Math.abs(golem.pos.y-l.pos.y)<1.6&&dxz(sprite.pos,l.pos)>1.6){hint('glever','Only the Sprite can pull levers. Bring the Sprite here and press '+actKey('s')+'.');break;}}
   if(G.region==='vale'){
+    {const E=CAVES[1];if(mineS&&!VCAVE.echo.raised&&(sprite.pos.x-E.x)*E.dir>2.2&&inCave(sprite.pos.x,sprite.pos.z,0)===E)hint('echolever','Sprite: pull the lever at the back of the cave ('+actKey('s')+'). It raises steps for the Giant.');}
     if(mineS&&!VCAVE.grotto.open&&inCave(sprite.pos.x,sprite.pos.z,4)===CAVES[0])hint('grotto','Sprite: slip under the stone door, then pull the lever inside to lift it for the Giant.');
-    if(!VCAVE.echo.raised&&(inCave(golem.pos.x,golem.pos.z,4)===CAVES[1]))hint('echo','Giant: lift the Sprite. Sprite: jump from the Giant\'s head over the wall.');
+    if(!VCAVE.echo.raised&&(inCave(golem.pos.x,golem.pos.z,4)===CAVES[1])&&(sprite.pos.x-CAVES[1].x)*CAVES[1].dir<2.2)hint('echo','Giant: lift the Sprite. Sprite: jump from the Giant\'s head over the wall.');
     if(mineG||mineS){if(plotNear(golem)||plotNear(sprite))hint('plot','Seed Garden: every 5 golden seeds you plant here grow into flowers. Your garden shows your progress.');}
     return;}
   if(dxz(golem.pos,{x:SEESAW.x,z:SEESAW.z})<6.5||dxz(sprite.pos,{x:SEESAW.x,z:SEESAW.z})<6.5)hint('seesaw','Seesaw: the Sprite stands in the mint cup. The Giant jumps onto the orange end, and the Sprite flies.');
