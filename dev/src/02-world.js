@@ -130,7 +130,7 @@ function buildWorld(){
   box(5.6,7.2,0,3.8,-38,-39.6,M.wall); // rune column
   box(5.54,7.26,3.8,3.92,-37.94,-39.66,M.wallTop,{collide:false,fade:false});
   addColumn(-6,-37,2.8,.42,true);addRock(-8,.2,-41.5,.8,7.7,true);addRock(-3.5,.15,-42.5,.5,8.8,false);addUrn(9,-42.6,1.0);
-  addTree(-16,-38,1.4,7);addTree(18,-40,1.5,8);addCypress(15,-46,1.3,9);addCypress(-44,-48,1.2,10);addTree(-20,-20,1.3,11);addTree(21,-27.5,1.2,12);
+  addTree(-16,-38,1.4,7);addCypress(-44,-48,1.2,10);addTree(-20,-20,1.3,11);addTree(21,-27.5,1.2,12);
   // ---------- AREA 3: waterworks ----------
   floorSlab(-11,11,-44,-62.6,M.pave,false);
   wall(-11,-10,-44,-52.5,4);wall(-11,-10,-56.5,-62,4);wall(10,11,-44,-62,4);
@@ -154,7 +154,7 @@ function buildWorld(){
   wall(-11,-10,-62.6,-82,5.5);wall(10,11,-62.6,-82,5.5);wall(-11,11,-82,-83,5.5);
   for(const z of [-66,-72,-78]){addColumn(-8.3,z,5.2,.45,false);addColumn(8.3,z,5.2,.45,false);}
   buildFountain();
-  addCypress(-15,-70,1.4,13);addCypress(15,-74,1.4,14);addTree(-17,-86,1.6,15);addTree(17,-88,1.6,16);addTree(0,-92,1.7,17);addCypress(-6,-90,1.5,18);addCypress(7,-91,1.5,19);
+  addCypress(-15,-70,1.4,13);addTree(-17,-86,1.6,15);addTree(17,-88,1.6,16);addTree(0,-92,1.7,17);addCypress(-6,-90,1.5,18);addCypress(7,-91,1.5,19);
   for(let i=0;i<22;i++){const side=i%2?1:-1,x=side*(24+hash2(i,1,99)*40),z=10-hash2(i,2,99)*110;if((z<-25&&z>-35)||inPlayZone(x,z,3))continue;(i%3?addTree:addCypress)(x,z,1.1+hash2(i,3,99)*.6,40+i);}
   for(let i=0;i<30;i++){const side=i%2?1:-1,x=side*(13+hash2(i,5,98)*12),z=8-hash2(i,6,98)*100;if((z<-25&&z>-35)||inPlayZone(x,z,1))continue;addBush(x,z,.8+hash2(i,7,98)*.8,i);}
   if(!CH1R.on)buildTufts();

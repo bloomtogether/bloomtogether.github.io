@@ -64,7 +64,8 @@ const DLG={
   c10:{who:'s',text:"{g}! There's a lever up here, and the stones along the wall look loose."},
   c11:{who:'g',text:'An old water walk. It still holds. Look how far you can see, {s}.'},
   c12:{who:'s',text:'That ledge on the tower is too high for me. Toss me up, {g}?'},
-  c13:{who:'g',text:'Someone sat here every morning, watching the sun come up. I think it was us.'},
+  c13:{who:'g',text:'Someone stood on that sun every morning, side by side. I think it was us. Come stand with me, {s}.'},
+  c14:{who:'s',text:'Hold still, {g}… there. A crown of sun-flowers. It suits you.'},
 };
 const fill=t=>t.replace(/\{g\}/g,nameOf('g')).replace(/\{s\}/g,nameOf('s'));
 let dlgPending=null;
@@ -239,7 +240,7 @@ function storyHooks(){
     {id:'c1_balcony',name:'The hidden balcony',test:b=>b.pos.x>25&&b.pos.x<31&&b.pos.z<-17&&b.pos.z>-23&&b.pos.y>4.5},
     {id:'c1_cellar',name:'The secret cellar',test:b=>b.pos.x>C.x0&&b.pos.x<C.x1&&b.pos.z>C.z0&&b.pos.z<C.z1&&b.pos.y<-1.5},
     {id:'c1_island',name:'The flooded island',test:b=>Math.hypot(b.pos.x+34,b.pos.z+55)<2.4&&b.pos.y>0},
-    {id:'c1_pavilion',name:'The sun pavilion',test:b=>b.pos.x>PAV.x0+.4&&b.pos.x<PAV.x1-.4&&b.pos.z>PAV.z0+.4&&b.pos.z<PAV.z1-.4&&b.pos.y>ORCH.y-.3}];
+    {id:'c1_pavilion',name:'The sun crown',test:()=>pav.lit}];
   REG.ch1.talk=[
     {id:'c1',x:0,z:-2,r:5},{id:'c2',x:SEESAW.x,z:SEESAW.z,r:6.5},{id:'c3',x:SEESAW.x,z:SEESAW.z,r:9,cond:()=>G.ch.launches>=1&&!PROG.secrets.c1_balcony},
     {id:'c4',x:34.8,z:-1.2,r:3.2,cond:()=>!crack.broken},{id:'c5',x:-13.5,z:-54.5,r:4},{id:'c6',x:0,z:-25,r:4.5,cond:()=>!bridge.open},

@@ -310,7 +310,7 @@ function buildWorld(){
   box(5.6,7.2,0,3.8,-38,-39.6,M.wall); // rune column
   box(5.54,7.26,3.8,3.92,-37.94,-39.66,M.wallTop,{collide:false,fade:false});
   addColumn(-6,-37,2.8,.42,true);addRock(-8,.2,-41.5,.8,7.7,true);addRock(-3.5,.15,-42.5,.5,8.8,false);addUrn(9,-42.6,1.0);
-  addTree(-16,-38,1.4,7);addTree(18,-40,1.5,8);addCypress(15,-46,1.3,9);addCypress(-44,-48,1.2,10);addTree(-20,-20,1.3,11);addTree(21,-27.5,1.2,12);
+  addTree(-16,-38,1.4,7);addCypress(-44,-48,1.2,10);addTree(-20,-20,1.3,11);addTree(21,-27.5,1.2,12);
   // ---------- AREA 3: waterworks ----------
   floorSlab(-11,11,-44,-62.6,M.pave,false);
   wall(-11,-10,-44,-52.5,4);wall(-11,-10,-56.5,-62,4);wall(10,11,-44,-62,4);
@@ -334,7 +334,7 @@ function buildWorld(){
   wall(-11,-10,-62.6,-82,5.5);wall(10,11,-62.6,-82,5.5);wall(-11,11,-82,-83,5.5);
   for(const z of [-66,-72,-78]){addColumn(-8.3,z,5.2,.45,false);addColumn(8.3,z,5.2,.45,false);}
   buildFountain();
-  addCypress(-15,-70,1.4,13);addCypress(15,-74,1.4,14);addTree(-17,-86,1.6,15);addTree(17,-88,1.6,16);addTree(0,-92,1.7,17);addCypress(-6,-90,1.5,18);addCypress(7,-91,1.5,19);
+  addCypress(-15,-70,1.4,13);addTree(-17,-86,1.6,15);addTree(17,-88,1.6,16);addTree(0,-92,1.7,17);addCypress(-6,-90,1.5,18);addCypress(7,-91,1.5,19);
   for(let i=0;i<22;i++){const side=i%2?1:-1,x=side*(24+hash2(i,1,99)*40),z=10-hash2(i,2,99)*110;if((z<-25&&z>-35)||inPlayZone(x,z,3))continue;(i%3?addTree:addCypress)(x,z,1.1+hash2(i,3,99)*.6,40+i);}
   for(let i=0;i<30;i++){const side=i%2?1:-1,x=side*(13+hash2(i,5,98)*12),z=8-hash2(i,6,98)*100;if((z<-25&&z>-35)||inPlayZone(x,z,1))continue;addBush(x,z,.8+hash2(i,7,98)*.8,i);}
   if(!CH1R.on)buildTufts();
@@ -1076,6 +1076,15 @@ function leafify(src){
  if(diffuseColor.a<alphaTest)discard;`);};
   m.alphaTest=.45;m.side=THREE.DoubleSide;m.transparent=false;REAL.leafMats.push(m);
   const dm=new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking,map:m.map,alphaTest:.45});return {mat:m,depth:dm};}
+// a copy of a tree material that fades by a per-instance amount (screen-door dither), for trees that stand
+// between the camera and a player
+function withFade(mat){const m=mat.clone();const prev=mat.onBeforeCompile;
+  m.onBeforeCompile=(sh,r)=>{
+    sh.vertexShader='attribute float aFade;\nvarying float vFade;\n'+sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvFade=aFade;');
+    sh.fragmentShader='varying float vFade;\n'+sh.fragmentShader.replace('#include <alphatest_fragment>',
+      'if(vFade>.001){float fd=fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715))));if(fd<vFade)discard;}\n#include <alphatest_fragment>');
+    if(prev)prev(sh,r);};
+  m.customProgramCacheKey=()=>'treefade-'+(mat.name||'wood');if(REAL.leafMats.includes(mat))REAL.leafMats.push(m);return m;}
 function buildRealForest(spots,opt){
   if(!REAL.treeSrc)return;
   opt=opt||{};const hAt=opt.h||valeH;
@@ -1086,6 +1095,7 @@ function buildRealForest(spots,opt){
   const wood=parts.find(x=>!/Leaves/.test(x.name)),leaves=parts.find(x=>/Leaves/.test(x.name));
   const lf=leafify(leaves.mat);leaves.mat=lf.mat;const depth=lf.depth;if(!opt.h)VALE.foliageMat=lf.mat;
   wood.mat=new THREE.MeshLambertMaterial({map:wood.mat.map,color:wood.mat.color.clone()});
+  const woodFade=withFade(wood.mat),leafFade=withFade(leaves.mat);
   // a light trunk for distant trees: the canopy hides the branches anyway
   const stub=new THREE.CylinderGeometry(.55,1.0,9,7,1,true);stub.translate(0,4.5,0);
   if(!leaves.sparse)leaves.sparse=sparseLeaves(leaves.geo,.5,1.3);
@@ -1095,15 +1105,16 @@ function buildRealForest(spots,opt){
   const sect=new Map();
   spots.forEach((sp,j)=>{const k=Math.floor((Math.atan2(sp[1],sp[0])+Math.PI)/(Math.PI*2)*12)+(Math.hypot(sp[0],sp[1])>60?12:0);if(!sect.has(k))sect.set(k,[]);sect.get(k).push(j);});
   const shared=(src)=>{const g=new THREE.BufferGeometry();g.index=src.index;for(const k in src.attributes)g.setAttribute(k,src.attributes[k]);return g;};
-  const F={root:ROOT,groups:[],near:opt.lodNear||42,mid:opt.lodMid||100,far:opt.lodFar||330,t:0,cam:new V3(1e9,0,0)};
+  const F={root:ROOT,groups:[],woodMat:wood.mat,leafMat:leaves.mat,woodFade,leafFade,near:opt.lodNear||42,mid:opt.lodMid||100,far:opt.lodFar||330,t:0,cam:new V3(1e9,0,0)};
   for(const idx of sect.values()){
     const box3=new THREE.Box3();for(const j of idx){const [x,z,sc]=spots[j];const y=hAt(x,z);box3.expandByPoint(new V3(x-14*sc,y-1,z-14*sc));box3.expandByPoint(new V3(x+14*sc,y+22*sc,z+14*sc));}
     const sphere=box3.getBoundingSphere(new THREE.Sphere());
     const mk=(geo,mat,leafy,full)=>{const g=shared(geo);g.boundingSphere=sphere.clone();g.boundingBox=box3.clone();
+      if(full)g.setAttribute('aFade',new THREE.InstancedBufferAttribute(new Float32Array(idx.length),1));
       const im=new THREE.InstancedMesh(g,mat,idx.length);im.count=0;im.castShadow=full&&!leafy;im.receiveShadow=full;if(leafy)im.customDepthMaterial=depth;
       if(leafy){im.setColorAt(0,col.set('#fff'));}ROOT.add(im);REAL.forest.push(im);return im;};
     const trees=idx.map(j=>{const [x,z,sc]=spots[j];const y=hAt(x,z)-.15;p.set(x,y,z);q.setFromAxisAngle(_yAx,(j*2.399)%6.283);s.set(sc,sc*(.9+((j*7)%5)*.05),sc);
-      return {x,z,m:new THREE.Matrix4().compose(p,q,s),c:new THREE.Color().setHSL(.2+((j*13)%9)*.008,.2,.86+((j*5)%7)*.02)};});
+      return {x,z,y,s:sc,f:0,slot:-1,m:new THREE.Matrix4().compose(p,q,s),c:new THREE.Color().setHSL(.2+((j*13)%9)*.008,.2,.86+((j*5)%7)*.02)};});
     F.groups.push({trees,fullWood:mk(wood.geo,wood.mat,false,true),fullLeaf:mk(leaves.geo,leaves.mat,true,true),lightWood:mk(stub,wood.mat,false,false),lightLeaf:mk(leaves.sparse,leaves.mat,true,false),farLeaf:mk(leaves.sparser,leaves.mat,true,false)});
   }
   REAL.forestSets=REAL.forestSets||[];REAL.forestSets.push(F);updateForestLOD(F,true);
@@ -1113,13 +1124,30 @@ function updateForestLOD(F,force){
   const c=camera.position;if(!force&&Math.hypot(c.x-F.cam.x,c.z-F.cam.z)<3)return;F.cam.copy(c);
   const n2=F.near*F.near,m2=F.mid*F.mid,f2=F.far*F.far;
   for(const G of F.groups){let a=0,b=0,e=0;
-    for(const t of G.trees){const d2=(t.x-c.x)**2+(t.z-c.z)**2;if(d2>f2)continue;
-      if(d2<n2){G.fullWood.setMatrixAt(a,t.m);G.fullLeaf.setMatrixAt(a,t.m);G.fullLeaf.setColorAt(a,t.c);a++;}
-      else{G.lightWood.setMatrixAt(b,t.m);b++;const L=d2<m2?G.lightLeaf:G.farLeaf,k=d2<m2?b-1-e:e;if(d2<m2)L.setMatrixAt(k,t.m),L.setColorAt(k,t.c);else{L.setMatrixAt(e,t.m);L.setColorAt(e,t.c);e++;}}}
+    const fa=G.fullLeaf.geometry.attributes.aFade.array,fw=G.fullWood.geometry.attributes.aFade.array;
+    for(const t of G.trees){t.slot=-1;const d2=(t.x-c.x)**2+(t.z-c.z)**2;if(d2>f2){t.f=0;continue;}
+      if(d2<n2){G.fullWood.setMatrixAt(a,t.m);G.fullLeaf.setMatrixAt(a,t.m);G.fullLeaf.setColorAt(a,t.c);fa[a]=fw[a]=t.f*.88;t.slot=a;a++;}
+      else{t.f=0;G.lightWood.setMatrixAt(b,t.m);b++;const L=d2<m2?G.lightLeaf:G.farLeaf,k=d2<m2?b-1-e:e;if(d2<m2)L.setMatrixAt(k,t.m),L.setColorAt(k,t.c);else{L.setMatrixAt(e,t.m);L.setColorAt(e,t.c);e++;}}}
     G.fullWood.count=G.fullLeaf.count=a;G.lightWood.count=b;G.lightLeaf.count=b-e;G.farLeaf.count=e;
-    for(const im of [G.fullWood,G.fullLeaf,G.lightWood,G.lightLeaf,G.farLeaf]){im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;}}
+    for(const im of [G.fullWood,G.fullLeaf,G.lightWood,G.lightLeaf,G.farLeaf]){im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;}
+    G.fullLeaf.geometry.attributes.aFade.needsUpdate=G.fullWood.geometry.attributes.aFade.needsUpdate=true;}
 }
-function updateForests(){if(!REAL.forestSets||!curReg)return;for(const F of REAL.forestSets)if(F.root===curReg.group)updateForestLOD(F);}
+// how much a tree's crown (an ellipsoid round its branches and leaves) blocks the line from the camera to a player
+function treeBlocks(c,p,t){const R=12.5*t.s,H=10*t.s,cy=t.y+10.5*t.s;
+  const ax=(c.x-t.x)/R,ay=(c.y-cy)/H,az=(c.z-t.z)/R,dx=(p.x-t.x)/R-ax,dy=(p.y+1-cy)/H-ay,dz=(p.z-t.z)/R-az;
+  const L=dx*dx+dy*dy+dz*dz,k=L>0?clamp(-(ax*dx+ay*dy+az*dz)/L,0,1):0;
+  const qx=ax+dx*k,qy=ay+dy*k,qz=az+dz*k;return smooth(1.12,.82,Math.sqrt(qx*qx+qy*qy+qz*qz));}
+// trees near the camera that hide either player (or that the camera is inside) fade out, and back when clear
+function updateTreeFade(F,dt){const c=camera.position,play=G.phase==='play'||G.phase==='end';
+  for(const G0 of F.groups){const A=G0.fullLeaf.geometry.attributes.aFade,W=G0.fullWood.geometry.attributes.aFade;let ch=false;
+    let any=false;
+    for(const t of G0.trees){if(t.slot<0)continue;
+      const want=play?Math.max(treeBlocks(c,golem.pos,t),treeBlocks(c,sprite.pos,t)):0;
+      const f=approach(t.f,want,dt*(want>t.f?3:1.6));if(f!==t.f){t.f=f;A.array[t.slot]=W.array[t.slot]=f*.88;ch=true;}if(f>0)any=true;}
+    if(ch)A.needsUpdate=W.needsUpdate=true;
+    // the fading shaders cost a little (no early depth test), so a group uses them only while one of its trees fades
+    G0.fullWood.material=any?F.woodFade:F.woodMat;G0.fullLeaf.material=any?F.leafFade:F.leafMat;}}
+function updateForests(dt){if(!REAL.forestSets||!curReg)return;for(const F of REAL.forestSets)if(F.root===curReg.group){updateForestLOD(F);updateTreeFade(F,dt||1/60);}}
 function buildRealHeartTree(th){
   if(!REAL.heartSrc)return null;
   const t=REAL.heartSrc;t.scale.setScalar(2.3);t.position.set(0,th-.3,0);
@@ -1136,7 +1164,7 @@ function realifyProp(root){root.traverse(o=>{if(!o.isMesh)return;const n=o.mater
   if(n==='Stone'||n==='Trim')o.material=n==='Trim'?(stoneReal.trim||(stoneReal.trim=pbr('masonry',1,{color:new THREE.Color('#a89a88')}))):stoneReal();
   else if(n==='Wood')o.material=new THREE.MeshStandardMaterial({map:o.material.map,color:'#8a7a68',roughness:.85});});}
 function updateReal(dt,t){
-  updateForests();
+  updateForests(dt);
   if(G.region==='ch1'){updateGrass(GRASS_CH1,t);return;}
   if(G.region!=='vale')return;
   updateGrass(GRASS,t);
@@ -1242,6 +1270,8 @@ function ch1GrassMask(){
   // the orchard plateau: grass on top, cleared under what stands on it
   const O=ORCH;fill(O.x0+.4,O.x1-.4,O.z0+.4,O.z1-.4,1);
   for(const c of colliders){if(!c.on||c.kind==='golem')continue;if(c.min.y>O.y-.3&&c.min.y<O.y+.3&&c.max.y>O.y+.05)fill(c.min.x-.2,c.max.x+.2,c.min.z-.2,c.max.z+.2,0);}
+  // the golden sun in the pavilion floor and its rays
+  for(let j=0;j<C.nz;j++)for(let i=0;i<C.nx;i++){const x=C.x0+(i+.5)*C.cell,z=C.z0+(j+.5)*C.cell;if(Math.hypot(x-pav.cx,z-pav.cz)<2.7)mk[j*C.nx+i]=0;}
 }
 function ch1GrassAllowed(x,z){const C=CH1R;const i=Math.floor((x-C.x0)/C.cell),j=Math.floor((z-C.z0)/C.cell);
   if(i<0||j<0||i>=C.nx||j>=C.nz)return 0;return C.mask[j*C.nx+i]?.85:0;}
@@ -1266,12 +1296,15 @@ function ch1RealFinish(){
 // A raised orchard north of the ravine, east of the main garden. The way up: the Sprite reaches the hidden
 // balcony with a ground-pound seesaw launch and pulls a lever that raises a stone stair for the Giant; from the
 // balcony an old aqueduct walk crosses the ravine to the orchard. Up there: a belvedere tower (a landmark you can
-// see from the whole garden), a waystone, and an optional throw puzzle that opens the Sun Pavilion (a secret).
+// see from the whole garden), a waystone, and an optional throw puzzle that opens the Sun Pavilion. Inside the
+// pavilion, both standing on the sun together call down the morning light and the Giant is crowned with sun-flowers
+// (the secret, and a crown the Giant keeps wearing everywhere).
 const ORCH={x0:12,x1:44,z0:-80,z1:-36,y:4.94};
 const TOWER={x0:34,x1:40,z0:-73,z1:-67,h:10.5,ledge:{x0:32.5,x1:34,z0:-71.6,z1:-68.4,y:3.9}};
 const PAV={x0:15,x1:25,z0:-77,z1:-67,h:2.3,door:{x0:18.8,x1:21.2}};
 const stair={raised:false,t:0,steps:[]};
-const pav={open:false,t:0,door:null};
+const pav={open:false,t:0,door:null,lit:false,hold:0,glow:0,cx:20,cz:-72};
+const ORCH_TREES=[];
 function inOrchard(x,z,m){m=m||0;return x>ORCH.x0-m&&x<ORCH.x1+m&&z>ORCH.z0-m&&z<ORCH.z1+m;}
 // ground height in Chapter 1 for grass and trees: the orchard plateau, else the garden floor
 function ch1H(x,z){return inOrchard(x,z)?ORCH.y:0;}
@@ -1319,15 +1352,27 @@ function buildOrchard(){
   pw(P.x0,P.x0+.4,P.z0,P.z1);pw(P.x1-.4,P.x1,P.z0,P.z1);pw(P.x0,P.x1,P.z0,P.z0+.4);
   pw(P.x0,D.x0,P.z1-.4,P.z1);pw(D.x1,P.x1,P.z1-.4,P.z1);
   pav.door=box(D.x0,D.x1,Y,Y+P.h,P.z1-.35,P.z1-.05,M.wood,{fade:false,kind:'door',surface:'wood'});
-  const sun=new THREE.Mesh(new THREE.CircleGeometry(1.4,24),new THREE.MeshLambertMaterial({color:'#f2c14e',emissive:'#f2a43a',emissiveIntensity:.35}));
-  sun.rotation.x=-Math.PI/2;sun.position.set((P.x0+P.x1)/2,Y+.02,(P.z0+P.z1)/2);ROOT.add(sun);
+  // the sun: a gold disc set in the floor with rays; a shaft of light comes down when both stand on it
+  const cx=pav.cx,cz=pav.cz;
+  const sun=new THREE.Mesh(new THREE.CircleGeometry(1.5,32),new THREE.MeshStandardMaterial({color:'#e9b949',emissive:'#f2a43a',emissiveIntensity:.25,roughness:.35,metalness:.6}));
+  sun.rotation.x=-Math.PI/2;sun.position.set(cx,Y+.03,cz);ROOT.add(sun);pav.sun=sun;
+  for(let i=0;i<12;i++){const a=i/12*Math.PI*2,r=new THREE.Mesh(new THREE.PlaneGeometry(.22,i%2?.9:1.5),sun.material);r.rotation.x=-Math.PI/2;r.rotation.z=-a;
+    const d=1.5+(i%2?.5:.8);r.position.set(cx+Math.sin(a)*d,Y+.025,cz+Math.cos(a)*d);ROOT.add(r);}
+  const cv=document.createElement('canvas');cv.width=4;cv.height=64;const cx2=cv.getContext('2d'),gr=cx2.createLinearGradient(0,0,0,64);
+  gr.addColorStop(0,'#000');gr.addColorStop(.55,'#8c8c8c');gr.addColorStop(1,'#fff');cx2.fillStyle=gr;cx2.fillRect(0,0,4,64);
+  const shaft=new THREE.Mesh(new THREE.CylinderGeometry(1.25,1.55,16,32,1,true),new THREE.MeshBasicMaterial({color:'#ffe2a0',alphaMap:new THREE.CanvasTexture(cv),transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));
+  shaft.position.set(cx,Y+8,cz);shaft.visible=false;ROOT.add(shaft);pav.shaft=shaft;
+  // an old carved tablet on the back wall hints at what to do
+  const tab=labelSprite('Two who stand in the sun','are crowned by the morning','#8a6448');tab.scale.set(3.8,1.18,1);tab.position.set(cx,Y+1.7,P.z0+.6);ROOT.add(tab);pav.tablet=tab;
   for(const [x,z] of [[P.x0+1.2,P.z0+1.2],[P.x1-1.2,P.z0+1.2]])addUrnAt(x,Y,z,1.1);
 
   // ---------- orchard trees, a bench, the waystone ----------
   // two orchard blocks either side of a clear walk from the aqueduct to the tower; small trees in rows
   const rows=[];for(const x0 of [15,34])for(let i=0;i<2;i++)for(let j=0;j<3;j++){const x=x0+i*6+(j%2)*1.5,z=-44-j*7.5;rows.push([x,z]);}
-  for(const [x,z] of rows)orchardTree(x,z,.2+hash2(x|0,z|0,71)*.07);
-  for(const [x,z] of [[42,-77],[14.5,-62],[42,-62]])orchardTree(x,z,.26+hash2(x|0,z|0,72)*.06);
+  // small fruit trees (about 3 m) so the camera sees over them
+  for(const [x,z] of rows)orchardTree(x,z,.14+hash2(x|0,z|0,71)*.025);
+  for(const [x,z] of [[42,-77],[14.5,-62],[42,-62]])orchardTree(x,z,.18+hash2(x|0,z|0,72)*.03);
+  orchardFruit();
   box(36,39,Y,Y+.45,-45.2,-46,M.wood,{fade:false,surface:'wood'});
   addWaystone('ch1_orchard','Hanging Orchard',30.5,Y,-41.5,0);
 
@@ -1336,10 +1381,17 @@ function buildOrchard(){
     .forEach(([x,y,z],i)=>addSeed('c1o'+i,x,y,z));
 }
 // a tree on the plateau (realistic Jacaranda when the real assets loaded, else a simple tree raised to the plateau)
-function orchardTree(x,z,s){
+function orchardTree(x,z,s){ORCH_TREES.push([x,z,s]);
   if(CH1R.on){CH1R.trees.push([x,z,s]);return;}
   const g=new THREE.Group();g.position.y=ORCH.y;ROOT.add(g);const R0=ROOT;ROOT=g;addTree(x,z,s*2.6,(x*7+z)|0);ROOT=R0;
 }
+// apricots hanging in the orchard trees' crowns
+function orchardFruit(){
+  const n=ORCH_TREES.length*14,im=new THREE.InstancedMesh(new THREE.SphereGeometry(.07,8,6),new THREE.MeshStandardMaterial({color:'#e8862e',roughness:.55,emissive:'#5a2208',emissiveIntensity:.25}),n);
+  const m4=new THREE.Matrix4(),col=new THREE.Color();let k=0;
+  ORCH_TREES.forEach(([x,z,s],i)=>{for(let j=0;j<14;j++){const a=hash2(i,j,73)*6.283,r=(.35+hash2(i,j,74)*.5)*11*s,h=(CH1R.on?7+hash2(i,j,75)*7:3.2+hash2(i,j,75)*1.6)*s*(CH1R.on?1:2.6);
+    m4.makeTranslation(x+Math.cos(a)*r,ORCH.y+h,z+Math.sin(a)*r);im.setMatrixAt(k,m4);im.setColorAt(k,col.setHSL(.06+hash2(i,j,76)*.04,.8,.5+hash2(i,j,77)*.1));k++;}});
+  im.castShadow=true;ROOT.add(im);}
 function addUrnAt(x,y,z,s){const g=new THREE.Group();g.position.y=y;ROOT.add(g);const R0=ROOT;ROOT=g;addUrn(x,z,s);ROOT=R0;
   // addUrn's collider was made at floor level: lift it with the group
   const c=colliders[colliders.length-1];c.min.y+=y;c.max.y+=y;}
@@ -1350,13 +1402,47 @@ function liftOnto(c){for(const b of [golem,sprite]){if(b.held)continue;if(ov(b,c
 function stepOrchard(dt){
   stair.t=approach(stair.t,stair.raised?1:0,dt/2.6);for(const c of stair.steps){const on=stair.t>.96;if(on&&!c.on)liftOnto(c);c.on=on;}
   pav.t=approach(pav.t,pav.open?1:0,dt/1.8);if(pav.door)pav.door.on=pav.t<.5;
+  // both on the sun together for a moment: the light comes down and the Giant is crowned
+  if(pav.open&&!pav.lit&&dt>0){const on=b=>Math.hypot(b.pos.x-pav.cx,b.pos.z-pav.cz)<1.9&&b.pos.y>ORCH.y-.4&&b.pos.y<ORCH.y+3;
+    pav.hold=on(golem)&&on(sprite)?pav.hold+dt:Math.max(0,pav.hold-dt*2);
+    if(pav.hold>1.2){pav.lit=true;PROG.ch1.crown=1;saveSoon();if(!talked.c14){talked.c14=1;G.dlg='c14';G.dlgN++;}}}
 }
 function updateOrchardVis(){
   const k=smooth(0,1,stair.t);for(let i=0;i<stair.steps.length;i++){const c=stair.steps[i],kk=smooth(i/stair.steps.length*.5,.5+i/stair.steps.length*.5,k);c.mesh.position.y=c.top/2-(c.top+.05)*(1-kk);}
   if(pav.door&&pav.door.mesh)pav.door.mesh.position.y=ORCH.y+PAV.h/2-PAV.h*smooth(0,1,pav.t);
+  if(pav.sun){const dt=1/60,was=pav.glow;pav.glow=approach(pav.glow,pav.lit?1:0,dt/1.4);
+    const pulse=PROG.settings.reduceFlash?0:.08*Math.sin(performance.now()/500);
+    pav.sun.material.emissiveIntensity=.25+(pav.open?.15*smooth(0,1.2,pav.hold)+pulse*(pav.lit?0:1)*(pav.open?1:0):0)+pav.glow*.9;
+    pav.shaft.visible=pav.glow>0||pav.hold>0;pav.shaft.material.opacity=Math.max(pav.glow*.2,smooth(0,1.2,pav.hold)*.14);
+    if(was<.02&&pav.glow>=.02)sparkle({x:pav.cx,y:ORCH.y+.2,z:pav.cz},40);
+    if(pav.glow>.3&&Math.random()<.25)sparkle({x:pav.cx+(Math.random()-.5)*2,y:ORCH.y+.2,z:pav.cz+(Math.random()-.5)*2},1);}
+}
+// ---- the sun-flower crown: once earned, the Giant wears it everywhere (online too: it follows pav.lit) ----
+const CROWN={m:null,head:null,rel:null,_q:new THREE.Quaternion(),_p:new V3(),_o:new V3()};
+function makeCrown(){
+  let head=null;golem.root.traverse(o=>{if(o.isBone&&o.name==='head')head=o;});if(!head)return;
+  const g=new THREE.Group();
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(.34,.05,8,28),new THREE.MeshStandardMaterial({color:'#4f6b2a',roughness:.8}));ring.rotation.x=Math.PI/2;g.add(ring);
+  const leaf=new THREE.MeshStandardMaterial({color:'#6f8f36',roughness:.7,side:THREE.DoubleSide}),pet=new THREE.MeshStandardMaterial({color:'#f6c33b',emissive:'#a8620a',emissiveIntensity:.35,roughness:.5}),mid=new THREE.MeshStandardMaterial({color:'#7a3f12',roughness:.8});
+  for(let i=0;i<9;i++){const a=i/9*Math.PI*2,f=new THREE.Group();f.position.set(Math.cos(a)*.34,.04,Math.sin(a)*.34);f.rotation.y=-a;f.rotation.z=.5;
+    for(let j=0;j<6;j++){const p=new THREE.Mesh(new THREE.SphereGeometry(.055,6,4),pet);const b=j/6*Math.PI*2;p.scale.set(1,.35,.6);p.position.set(0,Math.cos(b)*.07,Math.sin(b)*.07);p.rotation.x=b;f.add(p);}
+    const c=new THREE.Mesh(new THREE.SphereGeometry(.04,6,4),mid);c.position.x=.02;f.add(c);
+    const l=new THREE.Mesh(new THREE.PlaneGeometry(.09,.18),leaf);l.position.set(0,-.02,.1);l.rotation.set(.3,.9,0);f.add(l);g.add(f);}
+  g.traverse(o=>{if(o.isMesh)o.castShadow=true;});g.visible=false;scene.add(g);
+  // the head's resting turn relative to the body, so the crown sits level and turns with the head
+  golem.root.updateMatrixWorld(true);const hq=head.getWorldQuaternion(new THREE.Quaternion()),rq=golem.root.getWorldQuaternion(new THREE.Quaternion());
+  CROWN.rel=rq.invert().multiply(hq).invert();CROWN.m=g;CROWN.head=head;
+}
+function updateCrown(){
+  if(!CROWN.m){if(!golem.model||CROWN.none)return;makeCrown();if(!CROWN.m){CROWN.none=true;return;}}
+  const C=CROWN,show=pav.lit&&golem.root.visible&&G.phase!=='title';C.m.visible=show;if(!show)return;
+  C.head.getWorldPosition(C._p);C.head.getWorldQuaternion(C._q).multiply(C.rel);
+  C.m.quaternion.copy(C._q);C.m.position.copy(C._p).add(C._o.set(0,.42,-.02).applyQuaternion(C._q));
+  const s=smooth(0,1,pav.glow||1);C.m.scale.setScalar(.6+.4*s);
 }
 function resetOrchard(){
   stair.raised=!!PROG.ch1.stair;stair.t=stair.raised?1:0;pav.open=!!PROG.ch1.pav;pav.t=pav.open?1:0;
+  pav.lit=!!PROG.ch1.crown;pav.glow=+pav.lit;pav.hold=0;
   for(const l of levers){if(l.id==='stair'){l.pulled=stair.raised;l.t=+stair.raised;}if(l.id==='pavilion'){l.pulled=pav.open;l.t=+pav.open;}}
   stepOrchard(0);updateOrchardVis();
 }
@@ -1400,23 +1486,23 @@ function buildCaves(){
   // ---------- Glow-worm Grotto: the door with a gap at the bottom ----------
   {const c=CAVES[0],G0=VCAVE.grotto,f=c.f,d=c.dir,x0=c.x+d*.6,x1=c.x+d*1.2,z0=c.z-c.w/2,z1=c.z+c.w/2;
     G0.door=box(x0,x1,f+.55,f+5.2,z0,z1,null,{kind:'door'});
-    G0.slab=new THREE.Mesh(new THREE.BoxGeometry(Math.abs(x1-x0),4.65,c.w),REAL.ready?stoneReal():M.stone);G0.slab.position.set((x0+x1)/2,f+.55+2.325,c.z);G0.slab.castShadow=true;G0.slab.receiveShadow=true;ROOT.add(G0.slab);
+    G0.slab=new THREE.Mesh(new THREE.BoxGeometry(Math.abs(x1-x0),4.65,c.w),REAL.ready?caveStone():M.stone);G0.slab.position.set((x0+x1)/2,f+.55+2.325,c.z);G0.slab.castShadow=true;G0.slab.receiveShadow=true;ROOT.add(G0.slab);
     const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:TEX.glow,color:'#5ff3cf',transparent:true,depthWrite:false,opacity:.55}));glow.scale.set(c.w*.8,.7,1);glow.position.set((x0+x1)/2-d*.3,f+.3,c.z);ROOT.add(glow);G0.glow=glow;
     VLEVERS.push(makeValeLever(c.x+d*(c.len-1.6),c.z+2.2,f,'grotto'));
     addPetal('m4',c.x+d*(c.len-2.4),f,c.z-1.6);
     [[3.5,-2.5],[6.5,2.6],[9.5,-2.4],[12.5,1.2]].forEach(([a,b],i)=>addSeed('vc'+i,c.x+d*a,f,c.z+b));}
   // ---------- Echo Cave: the wall across the mouth and the steps a lever raises ----------
   {const c=CAVES[1],E=VCAVE.echo,f=c.f,d=c.dir,z0=c.z-c.w/2,z1=c.z+c.w/2,wx0=c.x+d*.6,wx1=c.x+d*1.8;
-    box(wx0,wx1,f,f+2.6,z0,z1,REAL.ready?stoneReal():M.wall,{fade:false,surface:'stone'});
+    box(wx0,wx1,f,f+2.6,z0,z1,REAL.ready?caveStone():M.wall,{fade:false,surface:'stone'});
     for(const side of [-1,1])for(let i=0;i<6;i++){ // outside (side -1) and inside (side 1), each climbing to the wall top
       const top=f+.44*(i+1),xa=side<0?wx0-d*(6.6-i*1.1):wx1+d*(6.6-i*1.1),xb=side<0?xa+d*1.1:xa-d*1.1;
-      const s=box(xa,xb,f-.5,top,c.z-1.2,c.z+1.2,REAL.ready?stoneReal():M.stone,{fade:false,surface:'stone'});s.on=false;s.top=top-f;s.base=f;E.steps.push(s);}
+      const s=box(xa,xb,f-.5,top,c.z-1.2,c.z+1.2,REAL.ready?caveStone():M.stone,{fade:false,surface:'stone'});s.on=false;s.top=top-f;s.base=f;E.steps.push(s);}
     VLEVERS.push(makeValeLever(c.x+d*(c.len-1.6),c.z-2.2,f,'echo'));
     addPetal('m5',c.x+d*(c.len-2.4),f,c.z+1.6);
     [[4,2.6],[7,-2.6],[10,2.4],[13,-1]].forEach(([a,b],i)=>addSeed('vc'+(4+i),c.x+d*a,f,c.z+b));}
 }
 function makeValeLever(x,z,y,id){const l=makeLever(x,z,0,id,y);l.vale=true;return l;}
-function stoneReal(){return typeof stoneMat==='function'&&REAL.ready?stoneMat('caveStone','#e6dccb'):M.stone;}
+let _caveStone=null;function caveStone(){return REAL.ready?(_caveStone||(_caveStone=stoneMat('caveStone','#e6dccb'))):M.stone;}
 // ---- the Sprite pulls a cave lever ----
 function pullValeLever(l){l.pulled=true;PROG.vale=PROG.vale||{};
   if(l.id==='grotto'){VCAVE.grotto.open=true;PROG.vale.grotto=1;}else if(l.id==='echo'){VCAVE.echo.raised=true;PROG.vale.echo=1;}saveSoon();}
@@ -2171,6 +2257,8 @@ function updateHUD(dt){
   if(mineS&&sprite.airT>.45&&!sprite.held&&G.region==='ch1')hint('glide','Sprite: hold jump while falling to glide.');
   if(!stair.raised&&PROG.secrets.c1_balcony&&dxz(golem.pos,{x:19,z:-21.9})<4)hint('stair','A stair is sunk into the ground here. Its lever must be up on the balcony.');
   if(!pav.open&&dxz(golem.pos,{x:31,z:-70})<6)hint('tower','Giant: lift the Sprite and tap '+actKey('g')+' for a high lob onto the tower ledge.');
+  if(!pav.open&&dxz(golem.pos,{x:20,z:-66})<4.5)hint('pavgate','The Sun Pavilion is locked. Its lever is up on the tower ledge.');
+  if(pav.open&&!pav.lit&&(dxz(golem.pos,{x:pav.cx,z:pav.cz})<4.5||dxz(sprite.pos,{x:pav.cx,z:pav.cz})<4.5))hint('sun','Stand on the golden sun together.');
 }
 
 // ================= story: scenes, dialogue, memory cards =================
@@ -2239,7 +2327,8 @@ const DLG={
   c10:{who:'s',text:"{g}! There's a lever up here, and the stones along the wall look loose."},
   c11:{who:'g',text:'An old water walk. It still holds. Look how far you can see, {s}.'},
   c12:{who:'s',text:'That ledge on the tower is too high for me. Toss me up, {g}?'},
-  c13:{who:'g',text:'Someone sat here every morning, watching the sun come up. I think it was us.'},
+  c13:{who:'g',text:'Someone stood on that sun every morning, side by side. I think it was us. Come stand with me, {s}.'},
+  c14:{who:'s',text:'Hold still, {g}… there. A crown of sun-flowers. It suits you.'},
 };
 const fill=t=>t.replace(/\{g\}/g,nameOf('g')).replace(/\{s\}/g,nameOf('s'));
 let dlgPending=null;
@@ -2414,7 +2503,7 @@ function storyHooks(){
     {id:'c1_balcony',name:'The hidden balcony',test:b=>b.pos.x>25&&b.pos.x<31&&b.pos.z<-17&&b.pos.z>-23&&b.pos.y>4.5},
     {id:'c1_cellar',name:'The secret cellar',test:b=>b.pos.x>C.x0&&b.pos.x<C.x1&&b.pos.z>C.z0&&b.pos.z<C.z1&&b.pos.y<-1.5},
     {id:'c1_island',name:'The flooded island',test:b=>Math.hypot(b.pos.x+34,b.pos.z+55)<2.4&&b.pos.y>0},
-    {id:'c1_pavilion',name:'The sun pavilion',test:b=>b.pos.x>PAV.x0+.4&&b.pos.x<PAV.x1-.4&&b.pos.z>PAV.z0+.4&&b.pos.z<PAV.z1-.4&&b.pos.y>ORCH.y-.3}];
+    {id:'c1_pavilion',name:'The sun crown',test:()=>pav.lit}];
   REG.ch1.talk=[
     {id:'c1',x:0,z:-2,r:5},{id:'c2',x:SEESAW.x,z:SEESAW.z,r:6.5},{id:'c3',x:SEESAW.x,z:SEESAW.z,r:9,cond:()=>G.ch.launches>=1&&!PROG.secrets.c1_balcony},
     {id:'c4',x:34.8,z:-1.2,r:3.2,cond:()=>!crack.broken},{id:'c5',x:-13.5,z:-54.5,r:4},{id:'c6',x:0,z:-25,r:4.5,cond:()=>!bridge.open},
@@ -2546,7 +2635,7 @@ function updateVisuals(dt,t){
   for(const r of runes)if(G.region!=='ch1')r.light.intensity=0;
   if(G.region==='ch1')updateOrchardVis();
   updateSeedInstances(t);updatePetals(t);updateWaystones(t);updateVale(dt,t);updateReal(dt,t);updateRings(dt);
-  updateGreet(dt);updateGiant(dt,t);updateSpriteVis(dt,t);
+  updateGreet(dt);updateGiant(dt,t);updateSpriteVis(dt,t);updateCrown();
   // ending: water and light
   W.fLight.intensity=0;
   if(G.region==='ch1'&&(G.ending||G.phase==='end'||G.fountainOn)){
@@ -2721,7 +2810,7 @@ function packState(){
     pl:G.placed,en:G.ending?1:0,et:r2(G.endT),f:G.falls,fn:G.fallN,lf:G.lastFall,th:G.throws,pk:G.pick,us:G.useN,
     rg:G.region,sc:[G.scene,G.line,r2(G.lineT)],cd:G.card,fo:G.fountainOn?1:0,
     ev:[G.poundN,r2(G.poundAt[0]),r2(G.poundAt[1]),r2(G.poundAt[2]),G.crackN,G.launchN,G.launchBig,G.seedN,G.petalN,G.secretN,G.lastSecret,G.wsN,G.lastWs,G.splashN,G.lastSplash,G.plantN,G.waitN,G.dlgN,G.dlg,G.travelReq,G.hopN||0],
-    x:[r2(seesaw.tilt),crack.broken?1:0,stones.raised?1:0,r2(stones.t),levers[2]&&levers[2].pulled?1:0,golem.pound?1:0,r2(golem.airT||0),stair.raised?1:0,r2(stair.t),pav.open?1:0,r2(pav.t),VCAVE.grotto.open?1:0,r2(VCAVE.grotto.t),VCAVE.echo.raised?1:0,r2(VCAVE.echo.t)],
+    x:[r2(seesaw.tilt),crack.broken?1:0,stones.raised?1:0,r2(stones.t),levers[2]&&levers[2].pulled?1:0,golem.pound?1:0,r2(golem.airT||0),stair.raised?1:0,r2(stair.t),pav.open?1:0,r2(pav.t),VCAVE.grotto.open?1:0,r2(VCAVE.grotto.t),VCAVE.echo.raised?1:0,r2(VCAVE.echo.t),pav.lit?1:0],
     ch:[G.ch.seeds,G.ch.petals,G.ch.secrets,G.ch.launches],
     pg:{r:PROG.roots,ws:Object.keys(PROG.ws).join(','),sd:Object.keys(PROG.seeds).join(','),pt:Object.keys(PROG.petals).join(','),se:Object.keys(PROG.secrets).join(','),pl:PROG.planted,sn:Object.keys(PROG.seen).join(','),c1:PROG.ch1.done,b1:PROG.ch1.best}};
 }
@@ -2747,7 +2836,7 @@ function applyState(st){
   if(Array.isArray(st.ev)){const e=st.ev;G.poundN=e[0]|0;G.poundAt=[+e[1]||0,+e[2]||0,+e[3]||0];G.crackN=e[4]|0;G.launchN=e[5]|0;G.launchBig=e[6]|0;G.seedN=e[7]|0;G.petalN=e[8]|0;G.secretN=e[9]|0;G.lastSecret=String(e[10]||'').slice(0,40);
     G.wsN=e[11]|0;G.lastWs=String(e[12]||'').slice(0,40);G.splashN=e[13]|0;G.lastSplash=e[14]==='g'?'g':'s';G.plantN=e[15]|0;G.waitN=e[16]|0;G.dlgN=e[17]|0;G.dlg=DLG[e[18]]?e[18]:'';G.travelReq=e[19]|0;G.hopN=e[20]|0;}
   if(Array.isArray(st.x)){const x=st.x;seesaw.tilt=+x[0]||-1;crack.broken=!!x[1];stones.raised=!!x[2];stones.t=+x[3]||0;if(levers[2])levers[2].pulled=!!x[4];golem.pound=!!x[5];golem.airT=+x[6]||0;
-    stair.raised=!!x[7];stair.t=+x[8]||0;pav.open=!!x[9];pav.t=+x[10]||0;for(const l of levers){if(l.id==='stair')l.pulled=stair.raised;if(l.id==='pavilion')l.pulled=pav.open;}stepOrchard(0);
+    stair.raised=!!x[7];stair.t=+x[8]||0;pav.open=!!x[9];pav.t=+x[10]||0;pav.lit=!!x[15];for(const l of levers){if(l.id==='stair')l.pulled=stair.raised;if(l.id==='pavilion')l.pulled=pav.open;}stepOrchard(0);
     VCAVE.grotto.open=!!x[11];VCAVE.grotto.t=+x[12]||0;VCAVE.echo.raised=!!x[13];VCAVE.echo.t=+x[14]||0;for(const l of VLEVERS)l.pulled=l.id==='grotto'?VCAVE.grotto.open:VCAVE.echo.raised;stepCaves(0);}
   if(Array.isArray(st.ch))G.ch={seeds:st.ch[0]|0,petals:st.ch[1]|0,secrets:st.ch[2]|0,launches:st.ch[3]|0};
   if(st.pg&&typeof st.pg==='object'){const p=st.pg;PROG.roots=clamp(p.r|0,0,7);PROG.ws=keySet(p.ws);PROG.seeds=keySet(p.sd);PROG.petals=keySet(p.pt);PROG.secrets=keySet(p.se);PROG.planted=p.pl|0;PROG.seen=keySet(p.sn);PROG.ch1.done=p.c1?1:0;PROG.ch1.best=p.b1|0;}
@@ -2956,6 +3045,8 @@ async function boot(){const tb=performance.now();
   catch(e){console.error(e);fail('Something went wrong while building the Vale: '+e.message);return;}
   wireSettings();
   try{renderer.compile(scene,camera);}catch(e){}
+  // the tree-fade shaders too, so the first tree that fades doesn't stutter
+  try{const sw=v=>{for(const F of REAL.forestSets||[])for(const g of F.groups){g.fullWood.material=v?F.woodFade:F.woodMat;g.fullLeaf.material=v?F.leafFade:F.leafMat;}};sw(true);renderer.compile(scene,camera);sw(false);}catch(e){}
   BOOTMS.total=Math.round(performance.now()-tb);
   $('loading').hidden=true;G.phase='title';show('scrTitle');refreshTitleSave();
   $('nameIn').value=recall('bs_name');

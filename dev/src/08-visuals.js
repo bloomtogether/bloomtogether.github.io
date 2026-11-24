@@ -122,7 +122,7 @@ function updateVisuals(dt,t){
   for(const r of runes)if(G.region!=='ch1')r.light.intensity=0;
   if(G.region==='ch1')updateOrchardVis();
   updateSeedInstances(t);updatePetals(t);updateWaystones(t);updateVale(dt,t);updateReal(dt,t);updateRings(dt);
-  updateGreet(dt);updateGiant(dt,t);updateSpriteVis(dt,t);
+  updateGreet(dt);updateGiant(dt,t);updateSpriteVis(dt,t);updateCrown();
   // ending: water and light
   W.fLight.intensity=0;
   if(G.region==='ch1'&&(G.ending||G.phase==='end'||G.fountainOn)){

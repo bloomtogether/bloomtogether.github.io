@@ -56,6 +56,8 @@ function ch1GrassMask(){
   // the orchard plateau: grass on top, cleared under what stands on it
   const O=ORCH;fill(O.x0+.4,O.x1-.4,O.z0+.4,O.z1-.4,1);
   for(const c of colliders){if(!c.on||c.kind==='golem')continue;if(c.min.y>O.y-.3&&c.min.y<O.y+.3&&c.max.y>O.y+.05)fill(c.min.x-.2,c.max.x+.2,c.min.z-.2,c.max.z+.2,0);}
+  // the golden sun in the pavilion floor and its rays
+  for(let j=0;j<C.nz;j++)for(let i=0;i<C.nx;i++){const x=C.x0+(i+.5)*C.cell,z=C.z0+(j+.5)*C.cell;if(Math.hypot(x-pav.cx,z-pav.cz)<2.7)mk[j*C.nx+i]=0;}
 }
 function ch1GrassAllowed(x,z){const C=CH1R;const i=Math.floor((x-C.x0)/C.cell),j=Math.floor((z-C.z0)/C.cell);
   if(i<0||j<0||i>=C.nx||j>=C.nz)return 0;return C.mask[j*C.nx+i]?.85:0;}

@@ -160,6 +160,15 @@ function leafify(src){
  if(diffuseColor.a<alphaTest)discard;`);};
   m.alphaTest=.45;m.side=THREE.DoubleSide;m.transparent=false;REAL.leafMats.push(m);
   const dm=new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking,map:m.map,alphaTest:.45});return {mat:m,depth:dm};}
+// a copy of a tree material that fades by a per-instance amount (screen-door dither), for trees that stand
+// between the camera and a player
+function withFade(mat){const m=mat.clone();const prev=mat.onBeforeCompile;
+  m.onBeforeCompile=(sh,r)=>{
+    sh.vertexShader='attribute float aFade;\nvarying float vFade;\n'+sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvFade=aFade;');
+    sh.fragmentShader='varying float vFade;\n'+sh.fragmentShader.replace('#include <alphatest_fragment>',
+      'if(vFade>.001){float fd=fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715))));if(fd<vFade)discard;}\n#include <alphatest_fragment>');
+    if(prev)prev(sh,r);};
+  m.customProgramCacheKey=()=>'treefade-'+(mat.name||'wood');if(REAL.leafMats.includes(mat))REAL.leafMats.push(m);return m;}
 function buildRealForest(spots,opt){
   if(!REAL.treeSrc)return;
   opt=opt||{};const hAt=opt.h||valeH;
@@ -170,6 +179,7 @@ function buildRealForest(spots,opt){
   const wood=parts.find(x=>!/Leaves/.test(x.name)),leaves=parts.find(x=>/Leaves/.test(x.name));
   const lf=leafify(leaves.mat);leaves.mat=lf.mat;const depth=lf.depth;if(!opt.h)VALE.foliageMat=lf.mat;
   wood.mat=new THREE.MeshLambertMaterial({map:wood.mat.map,color:wood.mat.color.clone()});
+  const woodFade=withFade(wood.mat),leafFade=withFade(leaves.mat);
   // a light trunk for distant trees: the canopy hides the branches anyway
   const stub=new THREE.CylinderGeometry(.55,1.0,9,7,1,true);stub.translate(0,4.5,0);
   if(!leaves.sparse)leaves.sparse=sparseLeaves(leaves.geo,.5,1.3);
@@ -179,15 +189,16 @@ function buildRealForest(spots,opt){
   const sect=new Map();
   spots.forEach((sp,j)=>{const k=Math.floor((Math.atan2(sp[1],sp[0])+Math.PI)/(Math.PI*2)*12)+(Math.hypot(sp[0],sp[1])>60?12:0);if(!sect.has(k))sect.set(k,[]);sect.get(k).push(j);});
   const shared=(src)=>{const g=new THREE.BufferGeometry();g.index=src.index;for(const k in src.attributes)g.setAttribute(k,src.attributes[k]);return g;};
-  const F={root:ROOT,groups:[],near:opt.lodNear||42,mid:opt.lodMid||100,far:opt.lodFar||330,t:0,cam:new V3(1e9,0,0)};
+  const F={root:ROOT,groups:[],woodMat:wood.mat,leafMat:leaves.mat,woodFade,leafFade,near:opt.lodNear||42,mid:opt.lodMid||100,far:opt.lodFar||330,t:0,cam:new V3(1e9,0,0)};
   for(const idx of sect.values()){
     const box3=new THREE.Box3();for(const j of idx){const [x,z,sc]=spots[j];const y=hAt(x,z);box3.expandByPoint(new V3(x-14*sc,y-1,z-14*sc));box3.expandByPoint(new V3(x+14*sc,y+22*sc,z+14*sc));}
     const sphere=box3.getBoundingSphere(new THREE.Sphere());
     const mk=(geo,mat,leafy,full)=>{const g=shared(geo);g.boundingSphere=sphere.clone();g.boundingBox=box3.clone();
+      if(full)g.setAttribute('aFade',new THREE.InstancedBufferAttribute(new Float32Array(idx.length),1));
       const im=new THREE.InstancedMesh(g,mat,idx.length);im.count=0;im.castShadow=full&&!leafy;im.receiveShadow=full;if(leafy)im.customDepthMaterial=depth;
       if(leafy){im.setColorAt(0,col.set('#fff'));}ROOT.add(im);REAL.forest.push(im);return im;};
     const trees=idx.map(j=>{const [x,z,sc]=spots[j];const y=hAt(x,z)-.15;p.set(x,y,z);q.setFromAxisAngle(_yAx,(j*2.399)%6.283);s.set(sc,sc*(.9+((j*7)%5)*.05),sc);
-      return {x,z,m:new THREE.Matrix4().compose(p,q,s),c:new THREE.Color().setHSL(.2+((j*13)%9)*.008,.2,.86+((j*5)%7)*.02)};});
+      return {x,z,y,s:sc,f:0,slot:-1,m:new THREE.Matrix4().compose(p,q,s),c:new THREE.Color().setHSL(.2+((j*13)%9)*.008,.2,.86+((j*5)%7)*.02)};});
     F.groups.push({trees,fullWood:mk(wood.geo,wood.mat,false,true),fullLeaf:mk(leaves.geo,leaves.mat,true,true),lightWood:mk(stub,wood.mat,false,false),lightLeaf:mk(leaves.sparse,leaves.mat,true,false),farLeaf:mk(leaves.sparser,leaves.mat,true,false)});
   }
   REAL.forestSets=REAL.forestSets||[];REAL.forestSets.push(F);updateForestLOD(F,true);
@@ -197,13 +208,30 @@ function updateForestLOD(F,force){
   const c=camera.position;if(!force&&Math.hypot(c.x-F.cam.x,c.z-F.cam.z)<3)return;F.cam.copy(c);
   const n2=F.near*F.near,m2=F.mid*F.mid,f2=F.far*F.far;
   for(const G of F.groups){let a=0,b=0,e=0;
-    for(const t of G.trees){const d2=(t.x-c.x)**2+(t.z-c.z)**2;if(d2>f2)continue;
-      if(d2<n2){G.fullWood.setMatrixAt(a,t.m);G.fullLeaf.setMatrixAt(a,t.m);G.fullLeaf.setColorAt(a,t.c);a++;}
-      else{G.lightWood.setMatrixAt(b,t.m);b++;const L=d2<m2?G.lightLeaf:G.farLeaf,k=d2<m2?b-1-e:e;if(d2<m2)L.setMatrixAt(k,t.m),L.setColorAt(k,t.c);else{L.setMatrixAt(e,t.m);L.setColorAt(e,t.c);e++;}}}
+    const fa=G.fullLeaf.geometry.attributes.aFade.array,fw=G.fullWood.geometry.attributes.aFade.array;
+    for(const t of G.trees){t.slot=-1;const d2=(t.x-c.x)**2+(t.z-c.z)**2;if(d2>f2){t.f=0;continue;}
+      if(d2<n2){G.fullWood.setMatrixAt(a,t.m);G.fullLeaf.setMatrixAt(a,t.m);G.fullLeaf.setColorAt(a,t.c);fa[a]=fw[a]=t.f*.88;t.slot=a;a++;}
+      else{t.f=0;G.lightWood.setMatrixAt(b,t.m);b++;const L=d2<m2?G.lightLeaf:G.farLeaf,k=d2<m2?b-1-e:e;if(d2<m2)L.setMatrixAt(k,t.m),L.setColorAt(k,t.c);else{L.setMatrixAt(e,t.m);L.setColorAt(e,t.c);e++;}}}
     G.fullWood.count=G.fullLeaf.count=a;G.lightWood.count=b;G.lightLeaf.count=b-e;G.farLeaf.count=e;
-    for(const im of [G.fullWood,G.fullLeaf,G.lightWood,G.lightLeaf,G.farLeaf]){im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;}}
+    for(const im of [G.fullWood,G.fullLeaf,G.lightWood,G.lightLeaf,G.farLeaf]){im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;}
+    G.fullLeaf.geometry.attributes.aFade.needsUpdate=G.fullWood.geometry.attributes.aFade.needsUpdate=true;}
 }
-function updateForests(){if(!REAL.forestSets||!curReg)return;for(const F of REAL.forestSets)if(F.root===curReg.group)updateForestLOD(F);}
+// how much a tree's crown (an ellipsoid round its branches and leaves) blocks the line from the camera to a player
+function treeBlocks(c,p,t){const R=12.5*t.s,H=10*t.s,cy=t.y+10.5*t.s;
+  const ax=(c.x-t.x)/R,ay=(c.y-cy)/H,az=(c.z-t.z)/R,dx=(p.x-t.x)/R-ax,dy=(p.y+1-cy)/H-ay,dz=(p.z-t.z)/R-az;
+  const L=dx*dx+dy*dy+dz*dz,k=L>0?clamp(-(ax*dx+ay*dy+az*dz)/L,0,1):0;
+  const qx=ax+dx*k,qy=ay+dy*k,qz=az+dz*k;return smooth(1.12,.82,Math.sqrt(qx*qx+qy*qy+qz*qz));}
+// trees near the camera that hide either player (or that the camera is inside) fade out, and back when clear
+function updateTreeFade(F,dt){const c=camera.position,play=G.phase==='play'||G.phase==='end';
+  for(const G0 of F.groups){const A=G0.fullLeaf.geometry.attributes.aFade,W=G0.fullWood.geometry.attributes.aFade;let ch=false;
+    let any=false;
+    for(const t of G0.trees){if(t.slot<0)continue;
+      const want=play?Math.max(treeBlocks(c,golem.pos,t),treeBlocks(c,sprite.pos,t)):0;
+      const f=approach(t.f,want,dt*(want>t.f?3:1.6));if(f!==t.f){t.f=f;A.array[t.slot]=W.array[t.slot]=f*.88;ch=true;}if(f>0)any=true;}
+    if(ch)A.needsUpdate=W.needsUpdate=true;
+    // the fading shaders cost a little (no early depth test), so a group uses them only while one of its trees fades
+    G0.fullWood.material=any?F.woodFade:F.woodMat;G0.fullLeaf.material=any?F.leafFade:F.leafMat;}}
+function updateForests(dt){if(!REAL.forestSets||!curReg)return;for(const F of REAL.forestSets)if(F.root===curReg.group){updateForestLOD(F);updateTreeFade(F,dt||1/60);}}
 function buildRealHeartTree(th){
   if(!REAL.heartSrc)return null;
   const t=REAL.heartSrc;t.scale.setScalar(2.3);t.position.set(0,th-.3,0);
@@ -220,7 +248,7 @@ function realifyProp(root){root.traverse(o=>{if(!o.isMesh)return;const n=o.mater
   if(n==='Stone'||n==='Trim')o.material=n==='Trim'?(stoneReal.trim||(stoneReal.trim=pbr('masonry',1,{color:new THREE.Color('#a89a88')}))):stoneReal();
   else if(n==='Wood')o.material=new THREE.MeshStandardMaterial({map:o.material.map,color:'#8a7a68',roughness:.85});});}
 function updateReal(dt,t){
-  updateForests();
+  updateForests(dt);
   if(G.region==='ch1'){updateGrass(GRASS_CH1,t);return;}
   if(G.region!=='vale')return;
   updateGrass(GRASS,t);

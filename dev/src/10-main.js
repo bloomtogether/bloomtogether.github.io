@@ -182,6 +182,8 @@ async function boot(){const tb=performance.now();
   catch(e){console.error(e);fail('Something went wrong while building the Vale: '+e.message);return;}
   wireSettings();
   try{renderer.compile(scene,camera);}catch(e){}
+  // the tree-fade shaders too, so the first tree that fades doesn't stutter
+  try{const sw=v=>{for(const F of REAL.forestSets||[])for(const g of F.groups){g.fullWood.material=v?F.woodFade:F.woodMat;g.fullLeaf.material=v?F.leafFade:F.leafMat;}};sw(true);renderer.compile(scene,camera);sw(false);}catch(e){}
   BOOTMS.total=Math.round(performance.now()-tb);
   $('loading').hidden=true;G.phase='title';show('scrTitle');refreshTitleSave();
   $('nameIn').value=recall('bs_name');

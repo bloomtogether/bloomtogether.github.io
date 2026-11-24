@@ -304,7 +304,7 @@ export async function run(opts = {}) {
     await walkBoth(28, -44, 30, -44.5, 60);
     if (!B.PROG.ws.ch1_orchard) throw new Error('the orchard waystone did not wake');
   });
-  await step('Orchard: the Giant lobs the Sprite onto the tower ledge; its lever opens the Sun Pavilion', async () => {
+  await step('Orchard: the Giant lobs the Sprite onto the tower ledge; its lever opens the Sun Pavilion; both stand on the sun and the Giant is crowned', async () => {
     const T = L.TOWER, lv = L.levers.find(l => l.id === 'pavilion');
     await walkTo('g', T.ledge.x0 - 1.5, -70, .3, 60);
     await pickUpSprite(); g.yaw = Math.PI / 2;
@@ -316,8 +316,9 @@ export async function run(opts = {}) {
     if (!L.pav.open) throw new Error('pavilion lever did not work');
     ctl.s = () => ({ mx: -1, jump: s.vel.y < 0 ? 1 : 0 }); await until(() => s.onGround && s.pos.y < L.ORCH.y + .1, 6, 'Sprite gliding down'); ctl.s = null;
     await until(() => L.pav.t > .99, 3, 'pavilion gate opening');
-    await walkBoth(20, -71, 21, -72.5, 60);
-    if (!B.PROG.secrets.c1_pavilion) throw new Error('the pavilion secret did not count');
+    await walkBoth(19.4, -72, 20.8, -72.3, 60);
+    await until(() => L.pav.lit, 4, 'the sun lighting up with both standing on it');
+    if (!B.PROG.secrets.c1_pavilion || !B.PROG.ch1.crown) throw new Error('the sun crown secret did not count');
   });
   await step('Both walk back over the aqueduct and down the stair to the garden', async () => {
     await walkBoth(26.2, -21.9, 27.5, -19, 90);
