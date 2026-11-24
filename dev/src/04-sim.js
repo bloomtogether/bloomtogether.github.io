@@ -111,7 +111,8 @@ function throwSprite(){
 }
 function spriteTarget(){
   const s=sprite;let best=null,bd=1.2;
-  const consider=(obj,p,label)=>{const d=dxz(s.pos,p);if(d<bd&&Math.abs(p.y-s.pos.y)<1.0){bd=d;best={obj,label};}};
+  // the cave levers (deep inside, nothing to reach through) are forgiving: 1.8 m, and a little above or below
+  const consider=(obj,p,label)=>{const lv=!!(obj&&obj.vale),d=dxz(s.pos,p)-(lv?.6:0);if(d<bd&&Math.abs(p.y-s.pos.y)<(lv?1.5:1.0)){bd=d;best={obj,label};}};
   if(inCh1()){
     for(const l of levers)if(!l.pulled)consider(l,l.pos,l.id==='stones'?'Pull the lever (raise the stones)':l.id==='stair'?'Pull the lever (raise the stair)':l.id==='pavilion'?'Pull the lever (open the pavilion)':'Pull the lever');
     if(!crank.used)consider(crank,crank.pos,'Turn the crank');
