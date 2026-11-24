@@ -74,7 +74,7 @@ function travel(reg,g,s,yaw){
   if(reg==='ch1'&&from!=='ch1'){resetLevel();G.ch={seeds:seedsFoundIn('ch1'),petals:0,secrets:0,launches:0};}
   golem.holding=false;golem.charging=false;golem.pound=false;sprite.held=false;
   if(g)placeAt(golem,g);if(s)placeAt(sprite,s);if(yaw!=null)golem.yaw=sprite.yaw=yaw;
-  golem.safe=null;sprite.safe=null;syncGolemCol();camSnap=true;camYawT=Math.round(camYawT/(Math.PI*2))*Math.PI*2;
+  golem.safe=null;sprite.safe=null;syncGolemCol();camSnap=true;CAVECAM.c=null;camYawT=Math.round(camYawT/(Math.PI*2))*Math.PI*2;
   if(reg==='vale'){VALE.wake=(PROG.roots>=1&&!PROG.seen.root1)?0:valeWakeTarget();resetCaves();}
   if(reg==='vale'&&!PROG.seen.prologue)playScene('prologue');
   else if(reg==='vale'&&PROG.roots>=1&&!PROG.seen.root1)playScene('root1');

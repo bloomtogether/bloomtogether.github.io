@@ -1,4 +1,5 @@
 // ================= camera: calm follow, quarter-turns with Q / R =================
+const CAVECAM={c:null,saved:0};
 const camTarget=new V3(0,1,0);let camLift=0,camSnap=true,camDist=14,camYaw=0,camYawT=0,camY=1,dbgDist=0,PITCH=0.84,camPitch=.84;
 function rotateCam(d){camYawT+=d*Math.PI/2;}
 const _mid=new V3();
@@ -9,14 +10,19 @@ function updateCamera(dt,t){
   _mid.set((golem.pos.x+sprite.pos.x)/2,(gy+sy)/2+1,(golem.pos.z+sprite.pos.z)/2);
   const sep=Math.hypot(golem.pos.x-sprite.pos.x,golem.pos.z-sprite.pos.z);
   const vale=G.region==='vale';
+  // in a side cave the hillside and the cave's own walls hide the players from the usual camera, so it swings
+  // round to look in through the mouth (and goes back to where it was on the way out)
+  const cave=vale&&G.phase==='play'?(inCave(golem.pos.x,golem.pos.z,0)||inCave(sprite.pos.x,sprite.pos.z,0)):null;
+  if(cave!==CAVECAM.c){if(cave&&!CAVECAM.c)CAVECAM.saved=camYawT;else if(!cave)camYawT=CAVECAM.saved;CAVECAM.c=cave;}
+  if(cave){const yw=cave.dir<0?Math.PI/2:-Math.PI/2;camYawT=yw+Math.round((camYaw-yw)/(Math.PI*2))*Math.PI*2;}
   // the Vale gets a low, cinematic camera (horizon and the Heart Tree in view); puzzle areas stay a little higher
   // landmark framing: facing the Heart Tree from the meadow, tilt up so its canopy is in view
-  let lookUp=0;if(vale){const tx=-_mid.x,tz=-_mid.z,d=Math.hypot(tx,tz);const fx=-Math.sin(camYaw),fz=-Math.cos(camYaw);
+  let lookUp=0;if(vale&&!cave){const tx=-_mid.x,tz=-_mid.z,d=Math.hypot(tx,tz);const fx=-Math.sin(camYaw),fz=-Math.cos(camYaw);
     const facing=d>1?(tx*fx+tz*fz)/d:0;lookUp=smooth(.55,.9,facing)*smooth(24,40,d)*smooth(150,90,d);}
-  const pitchT=vale?lerp(.30,.16,lookUp):(REAL.ready?.5:.6);camPitch=camSnap?pitchT:lerp(camPitch,pitchT,1-Math.exp(-dt*2));PITCH=camPitch;
+  const pitchT=cave?.2:vale?lerp(.30,.16,lookUp):(REAL.ready?.5:.6);camPitch=camSnap?pitchT:lerp(camPitch,pitchT,1-Math.exp(-dt*2));PITCH=camPitch;
   camLift=camSnap?lookUp*2.6:lerp(camLift,lookUp*2.6,1-Math.exp(-dt*2));
   const fov=vale?50:42;if(Math.abs(camera.fov-fov)>.01){camera.fov=fov;camera.updateProjectionMatrix();}
-  let want=vale?clamp(9.5+Math.max(0,sep-4)*.8,9.5,24):clamp(11+Math.max(0,sep-5)*.85,11,23);
+  let want=vale?clamp(9.5+Math.max(0,sep-4)*.8,9.5,cave?14:24):clamp(11+Math.max(0,sep-5)*.85,11,23);
   _mid.y+=vale?.9+camLift:.4;
   if(G.region==='ch1'&&(G.ending||G.phase==='end')){want=16;_mid.set(F.x,2.2,F.z);}
   if(G.region==='ch1'&&(golem.pos.y<-1.5||sprite.pos.y<-1.5)&&golem.pos.x>29&&sprite.pos.x>29)want=Math.min(want,13);
@@ -29,6 +35,7 @@ function updateCamera(dt,t){
   camSnap=false;
   camera.position.set(camTarget.x+Math.sin(camYaw)*Math.cos(PITCH)*camDist,camTarget.y+Math.sin(PITCH)*camDist,camTarget.z+Math.cos(camYaw)*Math.cos(PITCH)*camDist);
   const gh=terrainAt(camera.position.x,camera.position.z);if(camera.position.y<gh+1.4)camera.position.y=gh+1.4;
+  if(cave&&inCave(camera.position.x,camera.position.z,-2.5)===cave)camera.position.y=Math.min(camera.position.y,cave.f+4.6); // under the cave roof
   camera.lookAt(camTarget);
   if(shakeT>0){shakeT-=dt;const a=shakeT*.3;camera.position.x+=(Math.random()-.5)*a;camera.position.y+=(Math.random()-.5)*a;}
 }

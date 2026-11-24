@@ -20,7 +20,7 @@ function buildCh1Extras(){
   // ---------- east: terraced garden ----------
   wall(11,41,4,5,3);wall(40,41,4,-24,4);wall(11,26.8,-23,-24,4.5);wall(29.2,41,-23,-24,4.5);box(26.8,29.2,0,4.5,-23,-24,M.wall); // the aqueduct walk leaves over the gap
   // opening from the courtyard gets a stone arch frame
-  box(10,11,3.4,4,-1,-6,M.wallTop,{collide:false,fade:false});
+  box(10,11,3.4,4,-1,-6,M.wallTop,{collide:false,fade:true});
   // raised terrace along the east wall with two steps
   box(34,35,0,.4,-6,-23,M.stone);box(35,40,0,.8,-6,-23,M.wall,{fade:false});box(34.94,40,.8,.92,-5.94,-23,M.wallTop,{fade:false});
   addUrn(38.6,-7.2,1.1);addUrn(38.6,-21.6,1.1);addBush(37.5,-12,1.3,3);addBush(37.8,-18,1.1,4);
@@ -39,7 +39,7 @@ function buildCh1Extras(){
   box(25,25.3,4.94,5.5,-17,-20.6,M.stone,{fade:false});box(30.7,31,4.94,5.5,-17,-23,M.stone,{fade:false}); // the west rail stops short: the stair arrives at the back
   box(25,26.4,4.94,5.5,-16.95,-17.25,M.stone,{fade:false});box(29.6,31,4.94,5.5,-16.95,-17.25,M.stone,{fade:false});
   // a doorway at the back of the balcony: the old aqueduct walk to the Hanging Orchard
-  box(26.6,29.4,7.4,7.7,-22.7,-23.1,M.wallTop,{collide:false,fade:false});
+  box(26.6,29.4,7.4,7.7,-22.7,-23.1,M.wallTop,{collide:false,fade:true});
   addColumn(13.5,-18.6,3.4,.42,false);addColumn(20.5,-18.4,2.2,.42,true);addColumn(16,-3.5,1.4,.42,true);
   addRock(20,.15,2.6,.6,12.1,true);addRock(33.5,.15,-19.5,.5,13.3,false);
   // ---------- the cracked floor and the cellar beneath it ----------
@@ -57,7 +57,7 @@ function buildCh1Extras(){
 
   // ---------- west: the flooded garden ----------
   wall(-41,-11,-43.6,-44,3.5);wall(-41,-11,-66,-66.4,3.5);wall(-41,-40.6,-43.6,-66.4,3.5);
-  box(-11,-10,3.4,4,-52.5,-56.5,M.wallTop,{collide:false,fade:false});
+  box(-11,-10,3.4,4,-52.5,-56.5,M.wallTop,{collide:false,fade:true});
   const P=POOL;
   box(P.x0,P.x1,-1.6,-1.2,P.z0,P.z1,M.cliffDark,{cast:false,fade:false});
   const water=new THREE.Mesh(new THREE.PlaneGeometry(P.x1-P.x0,P.z1-P.z0),M.water);water.rotation.x=-Math.PI/2;water.position.set((P.x0+P.x1)/2,P.y,(P.z0+P.z1)/2);ROOT.add(water);

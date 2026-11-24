@@ -818,7 +818,7 @@ function buildCh1Extras(){
   // ---------- east: terraced garden ----------
   wall(11,41,4,5,3);wall(40,41,4,-24,4);wall(11,26.8,-23,-24,4.5);wall(29.2,41,-23,-24,4.5);box(26.8,29.2,0,4.5,-23,-24,M.wall); // the aqueduct walk leaves over the gap
   // opening from the courtyard gets a stone arch frame
-  box(10,11,3.4,4,-1,-6,M.wallTop,{collide:false,fade:false});
+  box(10,11,3.4,4,-1,-6,M.wallTop,{collide:false,fade:true});
   // raised terrace along the east wall with two steps
   box(34,35,0,.4,-6,-23,M.stone);box(35,40,0,.8,-6,-23,M.wall,{fade:false});box(34.94,40,.8,.92,-5.94,-23,M.wallTop,{fade:false});
   addUrn(38.6,-7.2,1.1);addUrn(38.6,-21.6,1.1);addBush(37.5,-12,1.3,3);addBush(37.8,-18,1.1,4);
@@ -837,7 +837,7 @@ function buildCh1Extras(){
   box(25,25.3,4.94,5.5,-17,-20.6,M.stone,{fade:false});box(30.7,31,4.94,5.5,-17,-23,M.stone,{fade:false}); // the west rail stops short: the stair arrives at the back
   box(25,26.4,4.94,5.5,-16.95,-17.25,M.stone,{fade:false});box(29.6,31,4.94,5.5,-16.95,-17.25,M.stone,{fade:false});
   // a doorway at the back of the balcony: the old aqueduct walk to the Hanging Orchard
-  box(26.6,29.4,7.4,7.7,-22.7,-23.1,M.wallTop,{collide:false,fade:false});
+  box(26.6,29.4,7.4,7.7,-22.7,-23.1,M.wallTop,{collide:false,fade:true});
   addColumn(13.5,-18.6,3.4,.42,false);addColumn(20.5,-18.4,2.2,.42,true);addColumn(16,-3.5,1.4,.42,true);
   addRock(20,.15,2.6,.6,12.1,true);addRock(33.5,.15,-19.5,.5,13.3,false);
   // ---------- the cracked floor and the cellar beneath it ----------
@@ -855,7 +855,7 @@ function buildCh1Extras(){
 
   // ---------- west: the flooded garden ----------
   wall(-41,-11,-43.6,-44,3.5);wall(-41,-11,-66,-66.4,3.5);wall(-41,-40.6,-43.6,-66.4,3.5);
-  box(-11,-10,3.4,4,-52.5,-56.5,M.wallTop,{collide:false,fade:false});
+  box(-11,-10,3.4,4,-52.5,-56.5,M.wallTop,{collide:false,fade:true});
   const P=POOL;
   box(P.x0,P.x1,-1.6,-1.2,P.z0,P.z1,M.cliffDark,{cast:false,fade:false});
   const water=new THREE.Mesh(new THREE.PlaneGeometry(P.x1-P.x0,P.z1-P.z0),M.water);water.rotation.x=-Math.PI/2;water.position.set((P.x0+P.x1)/2,P.y,(P.z0+P.z1)/2);ROOT.add(water);
@@ -1323,7 +1323,7 @@ function buildOrchard(){
   for(const z of [-26.2,-32.8])box(27,29,-8,Y-.5,z,z-1,M.wall,{fade:false,cast:false}); // piers down into the ravine
   box(26.8,29.2,Y-1.4,Y-.5,-27.2,-32.8,M.wall,{fade:false,cast:false,collide:false});      // the arch's span
   // the doorway at the back of the balcony becomes a real opening: two posts under the old lintel
-  for(const x of [26.3,29.2])box(x,x+.5,Y,7.4,-22.7,-23.5,M.stone,{fade:false});
+  for(const x of [26.3,29.2])box(x,x+.5,Y,7.4,-22.7,-23.5,M.stone,{fade:true});
 
   // ---------- the plateau: sandstone retaining walls, a grass top, a balustrade all round ----------
   box(O.x0,O.x1,0,Y-.4,O.z0,O.z1,M.wall,{fade:false,cast:false});
@@ -1391,7 +1391,7 @@ function orchardFruit(){
   const m4=new THREE.Matrix4(),col=new THREE.Color();let k=0;
   ORCH_TREES.forEach(([x,z,s],i)=>{for(let j=0;j<14;j++){const a=hash2(i,j,73)*6.283,r=(.35+hash2(i,j,74)*.5)*11*s,h=(CH1R.on?7+hash2(i,j,75)*7:3.2+hash2(i,j,75)*1.6)*s*(CH1R.on?1:2.6);
     m4.makeTranslation(x+Math.cos(a)*r,ORCH.y+h,z+Math.sin(a)*r);im.setMatrixAt(k,m4);im.setColorAt(k,col.setHSL(.06+hash2(i,j,76)*.04,.8,.5+hash2(i,j,77)*.1));k++;}});
-  im.castShadow=true;ROOT.add(im);}
+  ROOT.add(im);}
 function addUrnAt(x,y,z,s){const g=new THREE.Group();g.position.y=y;ROOT.add(g);const R0=ROOT;ROOT=g;addUrn(x,z,s);ROOT=R0;
   // addUrn's collider was made at floor level: lift it with the group
   const c=colliders[colliders.length-1];c.min.y+=y;c.max.y+=y;}
@@ -1424,11 +1424,16 @@ function makeCrown(){
   const g=new THREE.Group();
   const ring=new THREE.Mesh(new THREE.TorusGeometry(.34,.05,8,28),new THREE.MeshStandardMaterial({color:'#4f6b2a',roughness:.8}));ring.rotation.x=Math.PI/2;g.add(ring);
   const leaf=new THREE.MeshStandardMaterial({color:'#6f8f36',roughness:.7,side:THREE.DoubleSide}),pet=new THREE.MeshStandardMaterial({color:'#f6c33b',emissive:'#a8620a',emissiveIntensity:.35,roughness:.5}),mid=new THREE.MeshStandardMaterial({color:'#7a3f12',roughness:.8});
-  for(let i=0;i<9;i++){const a=i/9*Math.PI*2,f=new THREE.Group();f.position.set(Math.cos(a)*.34,.04,Math.sin(a)*.34);f.rotation.y=-a;f.rotation.z=.5;
-    for(let j=0;j<6;j++){const p=new THREE.Mesh(new THREE.SphereGeometry(.055,6,4),pet);const b=j/6*Math.PI*2;p.scale.set(1,.35,.6);p.position.set(0,Math.cos(b)*.07,Math.sin(b)*.07);p.rotation.x=b;f.add(p);}
-    const c=new THREE.Mesh(new THREE.SphereGeometry(.04,6,4),mid);c.position.x=.02;f.add(c);
-    const l=new THREE.Mesh(new THREE.PlaneGeometry(.09,.18),leaf);l.position.set(0,-.02,.1);l.rotation.set(.3,.9,0);f.add(l);g.add(f);}
-  g.traverse(o=>{if(o.isMesh)o.castShadow=true;});g.visible=false;scene.add(g);
+  // nine flowers, drawn as three instanced meshes (petals, centres, leaves) so the crown costs four draw calls
+  const P=new THREE.InstancedMesh(new THREE.SphereGeometry(.055,6,4),pet,54),Cn=new THREE.InstancedMesh(new THREE.SphereGeometry(.04,6,4),mid,9),Lf=new THREE.InstancedMesh(new THREE.PlaneGeometry(.09,.18),leaf,9);
+  const fm=new THREE.Object3D(),pm=new THREE.Object3D();fm.add(pm);
+  for(let i=0;i<9;i++){const a=i/9*Math.PI*2;fm.position.set(Math.cos(a)*.34,.04,Math.sin(a)*.34);fm.rotation.set(0,-a,.5);
+    for(let j=0;j<6;j++){const b=j/6*Math.PI*2;pm.position.set(0,Math.cos(b)*.07,Math.sin(b)*.07);pm.rotation.set(b,0,0);pm.scale.set(1,.35,.6);fm.updateMatrixWorld(true);P.setMatrixAt(i*6+j,pm.matrixWorld);}
+    pm.position.set(.02,0,0);pm.rotation.set(0,0,0);pm.scale.set(1,1,1);fm.updateMatrixWorld(true);Cn.setMatrixAt(i,pm.matrixWorld);
+    pm.position.set(0,-.02,.1);pm.rotation.set(.3,.9,0);fm.updateMatrixWorld(true);Lf.setMatrixAt(i,pm.matrixWorld);}
+  for(const m of [P,Cn,Lf])m.frustumCulled=false; // instances sit round the ring, away from each mesh's own bounds
+  g.add(P,Cn,Lf);
+  g.visible=false;scene.add(g);
   // the head's resting turn relative to the body, so the crown sits level and turns with the head
   golem.root.updateMatrixWorld(true);const hq=head.getWorldQuaternion(new THREE.Quaternion()),rq=golem.root.getWorldQuaternion(new THREE.Quaternion());
   CROWN.rel=rq.invert().multiply(hq).invert();CROWN.m=g;CROWN.head=head;
@@ -1486,17 +1491,17 @@ function buildCaves(){
   // ---------- Glow-worm Grotto: the door with a gap at the bottom ----------
   {const c=CAVES[0],G0=VCAVE.grotto,f=c.f,d=c.dir,x0=c.x+d*.6,x1=c.x+d*1.2,z0=c.z-c.w/2,z1=c.z+c.w/2;
     G0.door=box(x0,x1,f+.55,f+5.2,z0,z1,null,{kind:'door'});
-    G0.slab=new THREE.Mesh(new THREE.BoxGeometry(Math.abs(x1-x0),4.65,c.w),REAL.ready?caveStone():M.stone);G0.slab.position.set((x0+x1)/2,f+.55+2.325,c.z);G0.slab.castShadow=true;G0.slab.receiveShadow=true;ROOT.add(G0.slab);
+    G0.slab=new THREE.Mesh(new THREE.BoxGeometry(Math.abs(x1-x0),4.65,c.w),REAL.ready?caveStone():M.stone);G0.slab.position.set((x0+x1)/2,f+.55+2.325,c.z);G0.slab.castShadow=true;G0.slab.receiveShadow=true;ROOT.add(G0.slab);markFade(G0.slab);
     const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:TEX.glow,color:'#5ff3cf',transparent:true,depthWrite:false,opacity:.55}));glow.scale.set(c.w*.8,.7,1);glow.position.set((x0+x1)/2-d*.3,f+.3,c.z);ROOT.add(glow);G0.glow=glow;
     VLEVERS.push(makeValeLever(c.x+d*(c.len-1.6),c.z+2.2,f,'grotto'));
     addPetal('m4',c.x+d*(c.len-2.4),f,c.z-1.6);
     [[3.5,-2.5],[6.5,2.6],[9.5,-2.4],[12.5,1.2]].forEach(([a,b],i)=>addSeed('vc'+i,c.x+d*a,f,c.z+b));}
   // ---------- Echo Cave: the wall across the mouth and the steps a lever raises ----------
   {const c=CAVES[1],E=VCAVE.echo,f=c.f,d=c.dir,z0=c.z-c.w/2,z1=c.z+c.w/2,wx0=c.x+d*.6,wx1=c.x+d*1.8;
-    box(wx0,wx1,f,f+2.6,z0,z1,REAL.ready?caveStone():M.wall,{fade:false,surface:'stone'});
+    box(wx0,wx1,f,f+2.6,z0,z1,REAL.ready?caveStone():M.wall,{fade:true,surface:'stone'});
     for(const side of [-1,1])for(let i=0;i<6;i++){ // outside (side -1) and inside (side 1), each climbing to the wall top
       const top=f+.44*(i+1),xa=side<0?wx0-d*(6.6-i*1.1):wx1+d*(6.6-i*1.1),xb=side<0?xa+d*1.1:xa-d*1.1;
-      const s=box(xa,xb,f-.5,top,c.z-1.2,c.z+1.2,REAL.ready?caveStone():M.stone,{fade:false,surface:'stone'});s.on=false;s.top=top-f;s.base=f;E.steps.push(s);}
+      const s=box(xa,xb,f-.5,top,c.z-1.2,c.z+1.2,REAL.ready?caveStone():M.stone,{fade:true,surface:'stone'});s.on=false;s.top=top-f;s.base=f;E.steps.push(s);}
     VLEVERS.push(makeValeLever(c.x+d*(c.len-1.6),c.z-2.2,f,'echo'));
     addPetal('m5',c.x+d*(c.len-2.4),f,c.z+1.6);
     [[4,2.6],[7,-2.6],[10,2.4],[13,-1]].forEach(([a,b],i)=>addSeed('vc'+(4+i),c.x+d*a,f,c.z+b));}
@@ -1745,7 +1750,7 @@ function travel(reg,g,s,yaw){
   if(reg==='ch1'&&from!=='ch1'){resetLevel();G.ch={seeds:seedsFoundIn('ch1'),petals:0,secrets:0,launches:0};}
   golem.holding=false;golem.charging=false;golem.pound=false;sprite.held=false;
   if(g)placeAt(golem,g);if(s)placeAt(sprite,s);if(yaw!=null)golem.yaw=sprite.yaw=yaw;
-  golem.safe=null;sprite.safe=null;syncGolemCol();camSnap=true;camYawT=Math.round(camYawT/(Math.PI*2))*Math.PI*2;
+  golem.safe=null;sprite.safe=null;syncGolemCol();camSnap=true;CAVECAM.c=null;camYawT=Math.round(camYawT/(Math.PI*2))*Math.PI*2;
   if(reg==='vale'){VALE.wake=(PROG.roots>=1&&!PROG.seen.root1)?0:valeWakeTarget();resetCaves();}
   if(reg==='vale'&&!PROG.seen.prologue)playScene('prologue');
   else if(reg==='vale'&&PROG.roots>=1&&!PROG.seen.root1)playScene('root1');
@@ -2512,6 +2517,7 @@ function storyHooks(){
 }
 
 // ================= camera: calm follow, quarter-turns with Q / R =================
+const CAVECAM={c:null,saved:0};
 const camTarget=new V3(0,1,0);let camLift=0,camSnap=true,camDist=14,camYaw=0,camYawT=0,camY=1,dbgDist=0,PITCH=0.84,camPitch=.84;
 function rotateCam(d){camYawT+=d*Math.PI/2;}
 const _mid=new V3();
@@ -2522,14 +2528,19 @@ function updateCamera(dt,t){
   _mid.set((golem.pos.x+sprite.pos.x)/2,(gy+sy)/2+1,(golem.pos.z+sprite.pos.z)/2);
   const sep=Math.hypot(golem.pos.x-sprite.pos.x,golem.pos.z-sprite.pos.z);
   const vale=G.region==='vale';
+  // in a side cave the hillside and the cave's own walls hide the players from the usual camera, so it swings
+  // round to look in through the mouth (and goes back to where it was on the way out)
+  const cave=vale&&G.phase==='play'?(inCave(golem.pos.x,golem.pos.z,0)||inCave(sprite.pos.x,sprite.pos.z,0)):null;
+  if(cave!==CAVECAM.c){if(cave&&!CAVECAM.c)CAVECAM.saved=camYawT;else if(!cave)camYawT=CAVECAM.saved;CAVECAM.c=cave;}
+  if(cave){const yw=cave.dir<0?Math.PI/2:-Math.PI/2;camYawT=yw+Math.round((camYaw-yw)/(Math.PI*2))*Math.PI*2;}
   // the Vale gets a low, cinematic camera (horizon and the Heart Tree in view); puzzle areas stay a little higher
   // landmark framing: facing the Heart Tree from the meadow, tilt up so its canopy is in view
-  let lookUp=0;if(vale){const tx=-_mid.x,tz=-_mid.z,d=Math.hypot(tx,tz);const fx=-Math.sin(camYaw),fz=-Math.cos(camYaw);
+  let lookUp=0;if(vale&&!cave){const tx=-_mid.x,tz=-_mid.z,d=Math.hypot(tx,tz);const fx=-Math.sin(camYaw),fz=-Math.cos(camYaw);
     const facing=d>1?(tx*fx+tz*fz)/d:0;lookUp=smooth(.55,.9,facing)*smooth(24,40,d)*smooth(150,90,d);}
-  const pitchT=vale?lerp(.30,.16,lookUp):(REAL.ready?.5:.6);camPitch=camSnap?pitchT:lerp(camPitch,pitchT,1-Math.exp(-dt*2));PITCH=camPitch;
+  const pitchT=cave?.2:vale?lerp(.30,.16,lookUp):(REAL.ready?.5:.6);camPitch=camSnap?pitchT:lerp(camPitch,pitchT,1-Math.exp(-dt*2));PITCH=camPitch;
   camLift=camSnap?lookUp*2.6:lerp(camLift,lookUp*2.6,1-Math.exp(-dt*2));
   const fov=vale?50:42;if(Math.abs(camera.fov-fov)>.01){camera.fov=fov;camera.updateProjectionMatrix();}
-  let want=vale?clamp(9.5+Math.max(0,sep-4)*.8,9.5,24):clamp(11+Math.max(0,sep-5)*.85,11,23);
+  let want=vale?clamp(9.5+Math.max(0,sep-4)*.8,9.5,cave?14:24):clamp(11+Math.max(0,sep-5)*.85,11,23);
   _mid.y+=vale?.9+camLift:.4;
   if(G.region==='ch1'&&(G.ending||G.phase==='end')){want=16;_mid.set(F.x,2.2,F.z);}
   if(G.region==='ch1'&&(golem.pos.y<-1.5||sprite.pos.y<-1.5)&&golem.pos.x>29&&sprite.pos.x>29)want=Math.min(want,13);
@@ -2542,6 +2553,7 @@ function updateCamera(dt,t){
   camSnap=false;
   camera.position.set(camTarget.x+Math.sin(camYaw)*Math.cos(PITCH)*camDist,camTarget.y+Math.sin(PITCH)*camDist,camTarget.z+Math.cos(camYaw)*Math.cos(PITCH)*camDist);
   const gh=terrainAt(camera.position.x,camera.position.z);if(camera.position.y<gh+1.4)camera.position.y=gh+1.4;
+  if(cave&&inCave(camera.position.x,camera.position.z,-2.5)===cave)camera.position.y=Math.min(camera.position.y,cave.f+4.6); // under the cave roof
   camera.lookAt(camTarget);
   if(shakeT>0){shakeT-=dt;const a=shakeT*.3;camera.position.x+=(Math.random()-.5)*a;camera.position.y+=(Math.random()-.5)*a;}
 }

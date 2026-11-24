@@ -29,7 +29,7 @@ function buildOrchard(){
   for(const z of [-26.2,-32.8])box(27,29,-8,Y-.5,z,z-1,M.wall,{fade:false,cast:false}); // piers down into the ravine
   box(26.8,29.2,Y-1.4,Y-.5,-27.2,-32.8,M.wall,{fade:false,cast:false,collide:false});      // the arch's span
   // the doorway at the back of the balcony becomes a real opening: two posts under the old lintel
-  for(const x of [26.3,29.2])box(x,x+.5,Y,7.4,-22.7,-23.5,M.stone,{fade:false});
+  for(const x of [26.3,29.2])box(x,x+.5,Y,7.4,-22.7,-23.5,M.stone,{fade:true});
 
   // ---------- the plateau: sandstone retaining walls, a grass top, a balustrade all round ----------
   box(O.x0,O.x1,0,Y-.4,O.z0,O.z1,M.wall,{fade:false,cast:false});
@@ -97,7 +97,7 @@ function orchardFruit(){
   const m4=new THREE.Matrix4(),col=new THREE.Color();let k=0;
   ORCH_TREES.forEach(([x,z,s],i)=>{for(let j=0;j<14;j++){const a=hash2(i,j,73)*6.283,r=(.35+hash2(i,j,74)*.5)*11*s,h=(CH1R.on?7+hash2(i,j,75)*7:3.2+hash2(i,j,75)*1.6)*s*(CH1R.on?1:2.6);
     m4.makeTranslation(x+Math.cos(a)*r,ORCH.y+h,z+Math.sin(a)*r);im.setMatrixAt(k,m4);im.setColorAt(k,col.setHSL(.06+hash2(i,j,76)*.04,.8,.5+hash2(i,j,77)*.1));k++;}});
-  im.castShadow=true;ROOT.add(im);}
+  ROOT.add(im);}
 function addUrnAt(x,y,z,s){const g=new THREE.Group();g.position.y=y;ROOT.add(g);const R0=ROOT;ROOT=g;addUrn(x,z,s);ROOT=R0;
   // addUrn's collider was made at floor level: lift it with the group
   const c=colliders[colliders.length-1];c.min.y+=y;c.max.y+=y;}
@@ -130,11 +130,16 @@ function makeCrown(){
   const g=new THREE.Group();
   const ring=new THREE.Mesh(new THREE.TorusGeometry(.34,.05,8,28),new THREE.MeshStandardMaterial({color:'#4f6b2a',roughness:.8}));ring.rotation.x=Math.PI/2;g.add(ring);
   const leaf=new THREE.MeshStandardMaterial({color:'#6f8f36',roughness:.7,side:THREE.DoubleSide}),pet=new THREE.MeshStandardMaterial({color:'#f6c33b',emissive:'#a8620a',emissiveIntensity:.35,roughness:.5}),mid=new THREE.MeshStandardMaterial({color:'#7a3f12',roughness:.8});
-  for(let i=0;i<9;i++){const a=i/9*Math.PI*2,f=new THREE.Group();f.position.set(Math.cos(a)*.34,.04,Math.sin(a)*.34);f.rotation.y=-a;f.rotation.z=.5;
-    for(let j=0;j<6;j++){const p=new THREE.Mesh(new THREE.SphereGeometry(.055,6,4),pet);const b=j/6*Math.PI*2;p.scale.set(1,.35,.6);p.position.set(0,Math.cos(b)*.07,Math.sin(b)*.07);p.rotation.x=b;f.add(p);}
-    const c=new THREE.Mesh(new THREE.SphereGeometry(.04,6,4),mid);c.position.x=.02;f.add(c);
-    const l=new THREE.Mesh(new THREE.PlaneGeometry(.09,.18),leaf);l.position.set(0,-.02,.1);l.rotation.set(.3,.9,0);f.add(l);g.add(f);}
-  g.traverse(o=>{if(o.isMesh)o.castShadow=true;});g.visible=false;scene.add(g);
+  // nine flowers, drawn as three instanced meshes (petals, centres, leaves) so the crown costs four draw calls
+  const P=new THREE.InstancedMesh(new THREE.SphereGeometry(.055,6,4),pet,54),Cn=new THREE.InstancedMesh(new THREE.SphereGeometry(.04,6,4),mid,9),Lf=new THREE.InstancedMesh(new THREE.PlaneGeometry(.09,.18),leaf,9);
+  const fm=new THREE.Object3D(),pm=new THREE.Object3D();fm.add(pm);
+  for(let i=0;i<9;i++){const a=i/9*Math.PI*2;fm.position.set(Math.cos(a)*.34,.04,Math.sin(a)*.34);fm.rotation.set(0,-a,.5);
+    for(let j=0;j<6;j++){const b=j/6*Math.PI*2;pm.position.set(0,Math.cos(b)*.07,Math.sin(b)*.07);pm.rotation.set(b,0,0);pm.scale.set(1,.35,.6);fm.updateMatrixWorld(true);P.setMatrixAt(i*6+j,pm.matrixWorld);}
+    pm.position.set(.02,0,0);pm.rotation.set(0,0,0);pm.scale.set(1,1,1);fm.updateMatrixWorld(true);Cn.setMatrixAt(i,pm.matrixWorld);
+    pm.position.set(0,-.02,.1);pm.rotation.set(.3,.9,0);fm.updateMatrixWorld(true);Lf.setMatrixAt(i,pm.matrixWorld);}
+  for(const m of [P,Cn,Lf])m.frustumCulled=false; // instances sit round the ring, away from each mesh's own bounds
+  g.add(P,Cn,Lf);
+  g.visible=false;scene.add(g);
   // the head's resting turn relative to the body, so the crown sits level and turns with the head
   golem.root.updateMatrixWorld(true);const hq=head.getWorldQuaternion(new THREE.Quaternion()),rq=golem.root.getWorldQuaternion(new THREE.Quaternion());
   CROWN.rel=rq.invert().multiply(hq).invert();CROWN.m=g;CROWN.head=head;

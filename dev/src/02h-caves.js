@@ -37,17 +37,17 @@ function buildCaves(){
   // ---------- Glow-worm Grotto: the door with a gap at the bottom ----------
   {const c=CAVES[0],G0=VCAVE.grotto,f=c.f,d=c.dir,x0=c.x+d*.6,x1=c.x+d*1.2,z0=c.z-c.w/2,z1=c.z+c.w/2;
     G0.door=box(x0,x1,f+.55,f+5.2,z0,z1,null,{kind:'door'});
-    G0.slab=new THREE.Mesh(new THREE.BoxGeometry(Math.abs(x1-x0),4.65,c.w),REAL.ready?caveStone():M.stone);G0.slab.position.set((x0+x1)/2,f+.55+2.325,c.z);G0.slab.castShadow=true;G0.slab.receiveShadow=true;ROOT.add(G0.slab);
+    G0.slab=new THREE.Mesh(new THREE.BoxGeometry(Math.abs(x1-x0),4.65,c.w),REAL.ready?caveStone():M.stone);G0.slab.position.set((x0+x1)/2,f+.55+2.325,c.z);G0.slab.castShadow=true;G0.slab.receiveShadow=true;ROOT.add(G0.slab);markFade(G0.slab);
     const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:TEX.glow,color:'#5ff3cf',transparent:true,depthWrite:false,opacity:.55}));glow.scale.set(c.w*.8,.7,1);glow.position.set((x0+x1)/2-d*.3,f+.3,c.z);ROOT.add(glow);G0.glow=glow;
     VLEVERS.push(makeValeLever(c.x+d*(c.len-1.6),c.z+2.2,f,'grotto'));
     addPetal('m4',c.x+d*(c.len-2.4),f,c.z-1.6);
     [[3.5,-2.5],[6.5,2.6],[9.5,-2.4],[12.5,1.2]].forEach(([a,b],i)=>addSeed('vc'+i,c.x+d*a,f,c.z+b));}
   // ---------- Echo Cave: the wall across the mouth and the steps a lever raises ----------
   {const c=CAVES[1],E=VCAVE.echo,f=c.f,d=c.dir,z0=c.z-c.w/2,z1=c.z+c.w/2,wx0=c.x+d*.6,wx1=c.x+d*1.8;
-    box(wx0,wx1,f,f+2.6,z0,z1,REAL.ready?caveStone():M.wall,{fade:false,surface:'stone'});
+    box(wx0,wx1,f,f+2.6,z0,z1,REAL.ready?caveStone():M.wall,{fade:true,surface:'stone'});
     for(const side of [-1,1])for(let i=0;i<6;i++){ // outside (side -1) and inside (side 1), each climbing to the wall top
       const top=f+.44*(i+1),xa=side<0?wx0-d*(6.6-i*1.1):wx1+d*(6.6-i*1.1),xb=side<0?xa+d*1.1:xa-d*1.1;
-      const s=box(xa,xb,f-.5,top,c.z-1.2,c.z+1.2,REAL.ready?caveStone():M.stone,{fade:false,surface:'stone'});s.on=false;s.top=top-f;s.base=f;E.steps.push(s);}
+      const s=box(xa,xb,f-.5,top,c.z-1.2,c.z+1.2,REAL.ready?caveStone():M.stone,{fade:true,surface:'stone'});s.on=false;s.top=top-f;s.base=f;E.steps.push(s);}
     VLEVERS.push(makeValeLever(c.x+d*(c.len-1.6),c.z-2.2,f,'echo'));
     addPetal('m5',c.x+d*(c.len-2.4),f,c.z+1.6);
     [[4,2.6],[7,-2.6],[10,2.4],[13,-1]].forEach(([a,b],i)=>addSeed('vc'+(4+i),c.x+d*a,f,c.z+b));}
