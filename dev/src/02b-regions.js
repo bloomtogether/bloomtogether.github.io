@@ -2,10 +2,10 @@
 // One save per laptop. Online, the host's save is the one that counts; the guest mirrors it while playing.
 const SAVE_KEY='bs_save_v1';
 const DEFAULT_SETTINGS={music:.55,sfx:.8,camMotion:'full',reduceFlash:false,shake:false};
-function freshProgress(){return {v:1,roots:0,ws:{vale_meadow:1},seeds:{},petals:{},secrets:{},planted:0,seen:{},ch1:{done:0,best:0},settings:Object.assign({},DEFAULT_SETTINGS)};}
+function freshProgress(){return {v:1,roots:0,ws:{vale_meadow:1},seeds:{},petals:{},secrets:{},planted:0,seen:{},ch1:{done:0,best:0},ch2:{done:0,best:0,lan:0,door:0},settings:Object.assign({},DEFAULT_SETTINGS)};}
 let PROG=freshProgress();
 function loadProgress(){try{const t=localStorage.getItem(SAVE_KEY);if(!t)return;const o=JSON.parse(t);if(!o||o.v!==1)return;
-  const f=freshProgress();PROG=Object.assign(f,o);PROG.settings=Object.assign({},DEFAULT_SETTINGS,o.settings||{});PROG.ch1=Object.assign(f.ch1,o.ch1||{});}catch(e){}}
+  const f=freshProgress();PROG=Object.assign(f,o);PROG.settings=Object.assign({},DEFAULT_SETTINGS,o.settings||{});PROG.ch1=Object.assign(f.ch1,o.ch1||{});PROG.ch2=Object.assign(f.ch2,o.ch2||{});}catch(e){}}
 let saveT=0;
 function saveProgress(){if(mode==='online'&&role!=='host')return;try{localStorage.setItem(SAVE_KEY,JSON.stringify(PROG));}catch(e){}}
 function saveSoon(){saveT=.6;}
@@ -19,7 +19,7 @@ function seedsFoundIn(reg){return seedsIn(reg).filter(s=>PROG.seeds[s.id]).lengt
 const REG={};let curReg=null;
 function beginRegion(id,o){
   const r={id,name:o.name,short:o.short||o.name,group:new THREE.Group(),colliders:[],fadeables:[],terrain:o.terrain||null,hazard:o.hazard||null,
-    fog:o.fog||[70,190],fogReal:o.fogReal||null,spawn:o.spawn,secrets:o.secrets||[],talk:o.talk||[],chapter:o.chapter||0};
+    fog:o.fog||[70,190],fogReal:o.fogReal||null,spawn:o.spawn,secrets:o.secrets||[],talk:o.talk||[],chapter:o.chapter||0,dark:o.dark||null};
   r.group.visible=false;r.group.name='region-'+id;scene.add(r.group);REG[id]=r;ROOT=r.group;colliders.length=0;fadeables.length=0;return r;
 }
 function endRegion(r){r.colliders=colliders.slice();r.fadeables=fadeables.slice();colliders.length=0;fadeables.length=0;ROOT=scene;}
@@ -29,8 +29,8 @@ function enterRegion(id){
   curReg=r;G.region=id;
   colliders.length=0;colliders.push(...r.colliders,golem.col);
   fadeables.length=0;fadeables.push(...r.fadeables);
-  const fg=REAL.ready&&r.fogReal?r.fogReal:r.fog;scene.fog.near=fg[0];scene.fog.far=fg[1];camSnap=true;
-  for(const b of [golem,sprite]){b.safe=null;}
+  const fg=REAL.ready&&r.fogReal?r.fogReal:r.fog;scene.fog.near=fg[0];scene.fog.far=fg[1];camSnap=true;applyLook(r);
+  for(const b of [golem,sprite]){b.safe=null;b.winding=false;}
 }
 // smooth ground given by a height function (the Vale's hills). Acts like one more collider under everything.
 const TERR={kind:'terrain',on:true,surface:'grass',min:new V3(-1e4,-1e4,-1e4),max:new V3(1e4,0,1e4)};

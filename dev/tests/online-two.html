@@ -1,0 +1,9 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Big &amp; Small: two players on one screen (online test)</title>
+<!-- Loads the game twice, side by side, so an online room can be tested on one laptop: the left copy hosts, the
+     right copy joins. Both stay visible, so neither is slowed down the way a background tab would be.
+     Open http://localhost:PORT/dev/tests/online-two.html from a local server. -->
+<style>html,body{margin:0;height:100%;background:#111}body{display:flex}iframe{flex:1;border:0;height:100%}</style>
+<iframe id="host" src="../../index.html"></iframe>
+<iframe id="guest" src="../../index.html"></iframe>

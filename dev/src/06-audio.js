@@ -10,7 +10,7 @@ function initAudio(){
   amb.wind=loop('bandpass',380,.6,.05);amb.water=loop('lowpass',900,.5,0);amb.glide=loop('bandpass',2200,2,0);amb.grind=loop('lowpass',300,1,0);amb.fount=loop('bandpass',1400,.4,0);
   birdLoop();
 }
-function birdLoop(){if(!AC)return;setTimeout(birdLoop,2500+Math.random()*6000);if(G.phase!=='play'||muted||document.hidden)return;
+function birdLoop(){if(!AC)return;setTimeout(birdLoop,2500+Math.random()*6000);if(G.phase!=='play'||muted||document.hidden||G.region==='ch2')return;
   const base=2200+Math.random()*1600,n=2+Math.floor(Math.random()*4);for(let i=0;i<n;i++)tone(base*(1+Math.random()*.2),base*(.8+Math.random()*.5),.09,'sine',.018,i*.13);}
 function tone(f0,f1,dur,type,vol,delay){if(!AC)return;const t0=AC.currentTime+(delay||0),o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.setValueAtTime(f0,t0);o.frequency.exponentialRampToValueAtTime(Math.max(20,f1),t0+dur);
   g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(vol,t0+.012);g.gain.exponentialRampToValueAtTime(.0008,t0+dur);o.connect(g);g.connect(sfxBus);o.start(t0);o.stop(t0+dur+.05);}
@@ -41,6 +41,9 @@ const SFX={
   stone:()=>{noiseHit(1.6,.18,260);tone(110,140,1.4,'sine',.07);},
   hum:()=>{tone(392,392,1.4,'sine',.05);tone(587,587,1.6,'sine',.04,.15);tone(784,784,1.8,'sine',.03,.3);},
   twinkle:()=>{tone(1760,2349,.12,'sine',.025);},
+  pulse:()=>{tone(523,1046,.5,'sine',.07);tone(784,1568,.6,'sine',.045,.05);tone(1318,1760,.7,'sine',.025,.12);noiseHit(.4,.05,3200,'bandpass');},
+  crystal:()=>{[1568,2093,2637].forEach((f,i)=>tone(f,f*1.003,.9,'sine',.03,i*.06));},
+  drip:()=>{const f=1500+Math.random()*900;tone(f,f*.62,.07,'sine',.05);tone(f*.6,f*.4,.12,'sine',.022,.11);},
   swell:()=>{[262,330,392,523,659].forEach((f,i)=>{tone(f,f*1.001,4.5,'sine',.05,i*.35);tone(f*2,f*2,3,'sine',.015,i*.35+.1);});noiseHit(5,.3,1200,'bandpass',.2);},
 };
 function setMuted(m){muted=m;if(master)master.gain.value=m?0:.8;$('bMute').textContent=m?'Unmute sound':'Mute sound';}
@@ -51,9 +54,11 @@ function updateAudio(dt){
   if(G.region==='ch1')nearWater=Math.max(0,1-Math.abs(focus.z+30)/14)*.12+Math.max(0,1-Math.abs(focus.z+56)/8)*.04*(focus.x<0?1:.4)+(focus.x<-14&&focus.z<-44&&focus.z>-66?.08:0);
   else if(G.region==='vale'&&VALE.wake>.5)nearWater=Math.max(0,1-riverDist(focus.x,focus.z)/18)*.11;
   amb.water.g.gain.setTargetAtTime(G.phase==='play'?nearWater:0,t,.4);
-  amb.wind.g.gain.setTargetAtTime(G.phase==='play'||G.phase==='title'?.05+Math.sin(t*.13)*.02:.02,t,.8);
+  amb.wind.g.gain.setTargetAtTime(G.region==='ch2'&&G.phase==='play'?.018:(G.phase==='play'||G.phase==='title'?.05+Math.sin(t*.13)*.02:.02),t,.8);
   amb.glide.g.gain.setTargetAtTime(sprite.gliding&&G.phase==='play'?.04:0,t,.05);
-  amb.grind.g.gain.setTargetAtTime(golem.pushVis>0?.25:0,t,.08);
+  const ch2=G.region==='ch2'&&G.phase==='play',moving=ch2&&((mine.cart&&mine.cart.moved>0)||(mine.lift&&mine.lift.moving)||mine.boulder.st==='roll');
+  amb.grind.g.gain.setTargetAtTime(golem.pushVis>0||moving?(mine.boulder.st==='roll'&&ch2?.45:.25):0,t,.08);
+  if(ch2&&!muted&&Math.random()<dt*.45)SFX.drip();
   amb.fount.g.gain.setTargetAtTime(G.region==='ch1'&&(G.fountainOn||G.phase==='end')&&Math.hypot(focus.x-F.x,focus.z-F.z)<30?.12:0,t,.8);
   updateMusic(t);
 }

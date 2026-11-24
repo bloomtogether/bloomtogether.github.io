@@ -25,6 +25,7 @@ function updateCamera(dt,t){
   let want=vale?clamp(9.5+Math.max(0,sep-4)*.8,9.5,cave?14:24):clamp(11+Math.max(0,sep-5)*.85,11,23);
   _mid.y+=vale?.9+camLift:.4;
   if(G.region==='ch1'&&(G.ending||G.phase==='end')){want=16;_mid.set(F.x,2.2,F.z);}
+  if(G.region==='ch2'&&(G.ending||G.phase==='end')){want=19;_mid.set(GL.x,3.2,GL.z);}
   if(G.region==='ch1'&&(golem.pos.y<-1.5||sprite.pos.y<-1.5)&&golem.pos.x>29&&sprite.pos.x>29)want=Math.min(want,13);
   if(dbgDist)want=dbgDist;
   const k=camSnap?1:1-Math.exp(-dt*4);
@@ -93,6 +94,9 @@ function refreshNames(){
 
 // ================= characters & world animation =================
 function nextBeaconTarget(){
+  if(G.region==='ch2'){if(minesDone()||G.ending)return null;
+    if(!mine.bar.broken&&!mine.sw.b)return MLEVERS[0].pos;
+    if(!mine.lift.cw&&sprite.pos.y>5)return MLEVERS[1].pos;return null;}
   if(G.region!=='ch1'||G.fountainOn)return null;
   if(!gate.open)return levers[0].pos;
   if(!bridge.open)return crank.pos;
@@ -112,7 +116,7 @@ function updateVisuals(dt,t){
   const pulse=.5+.5*Math.sin(t*3.2);
   for(const p of plates){p.mesh.position.y=p.on?-.04:0;p.ring.material.opacity=p.on?1:(port.open?.25:.35+.45*pulse);}
   for(const h of holeMarkers){h.icon.position.y=h.base+Math.sin(t*2)*.08;h.glow.material.opacity=.35+.3*pulse;}
-  const bt=G.phase==='play'?nextBeaconTarget():null;W.beacon.visible=!!bt;if(bt){W.beacon.position.set(bt.x,bt.y+1.55+Math.abs(Math.sin(t*3))*.25,bt.z);}
+  const bt=G.phase==='play'?nextBeaconTarget():null,bcn=G.region==='ch2'&&mine.beacon?mine.beacon:W.beacon;bcn.visible=!!bt;if(bt){bcn.position.set(bt.x,bt.y+1.55+Math.abs(Math.sin(t*3))*.25,bt.z);}
   block.mesh.position.set(block.pos.x,block.pos.y+.6,block.pos.z);
   // runes
   for(const r of runes){
@@ -128,6 +132,7 @@ function updateVisuals(dt,t){
     if(stones.t>0&&stones.t<1&&Math.random()<dt*20){const st=stones.list[Math.floor(Math.random()*3)];puff(st.m.position.x,POOL.y,st.m.position.z,2,.6,[.85,.95,1],.3,.8);}}
   for(const r of runes)if(G.region!=='ch1')r.light.intensity=0;
   if(G.region==='ch1')updateOrchardVis();
+  if(G.region==='ch2')updateMinesVis(dt,t);
   updateSeedInstances(t);updatePetals(t);updateWaystones(t);updateVale(dt,t);updateReal(dt,t);updateRings(dt);
   updateGreet(dt);updateGiant(dt,t);updateSpriteVis(dt,t);updateCrown();
   // ending: water and light

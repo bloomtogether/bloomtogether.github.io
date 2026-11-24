@@ -64,8 +64,26 @@ function packState(){
     rg:G.region,sc:[G.scene,G.line,r2(G.lineT)],cd:G.card,fo:G.fountainOn?1:0,
     ev:[G.poundN,r2(G.poundAt[0]),r2(G.poundAt[1]),r2(G.poundAt[2]),G.crackN,G.launchN,G.launchBig,G.seedN,G.petalN,G.secretN,G.lastSecret,G.wsN,G.lastWs,G.splashN,G.lastSplash,G.plantN,G.waitN,G.dlgN,G.dlg,G.travelReq,G.hopN||0],
     x:[r2(seesaw.tilt),crack.broken?1:0,stones.raised?1:0,r2(stones.t),levers[2]&&levers[2].pulled?1:0,golem.pound?1:0,r2(golem.airT||0),stair.raised?1:0,r2(stair.t),pav.open?1:0,r2(pav.t),VCAVE.grotto.open?1:0,r2(VCAVE.grotto.t),VCAVE.echo.raised?1:0,r2(VCAVE.echo.t),pav.lit?1:0],
-    ch:[G.ch.seeds,G.ch.petals,G.ch.secrets,G.ch.launches],
-    pg:{r:PROG.roots,ws:Object.keys(PROG.ws).join(','),sd:Object.keys(PROG.seeds).join(','),pt:Object.keys(PROG.petals).join(','),se:Object.keys(PROG.secrets).join(','),pl:PROG.planted,sn:Object.keys(PROG.seen).join(','),c1:PROG.ch1.done,b1:PROG.ch1.best}};
+    ch:[G.ch.seeds,G.ch.petals,G.ch.secrets,G.ch.launches,G.ch.pulses|0],
+    m2:G.region==='ch2'?packMines():null,
+    pg:{r:PROG.roots,ws:Object.keys(PROG.ws).join(','),sd:Object.keys(PROG.seeds).join(','),pt:Object.keys(PROG.petals).join(','),se:Object.keys(PROG.secrets).join(','),pl:PROG.planted,sn:Object.keys(PROG.seen).join(','),c1:PROG.ch1.done,b1:PROG.ch1.best,c2:PROG.ch2.done,b2:PROG.ch2.best,l2:PROG.ch2.lan|0,d2:PROG.ch2.door|0}};
+}
+// the Lantern Mines (only sent while the players are there)
+function packMines(){const C=mine.cart,L=mine.lift,B=mine.boulder,pa=G.pulseAt||[0,0,0];
+  return [mine.lan,CRYST.map(c=>r2(c.t)),r2(C.s),C.br,mine.sw.b?1:0,mine.bar.broken?1:0,r2(L.t),L.cw?1:0,BSTATES.indexOf(B.st),r2(B.x),r2(B.y),r2(B.rot),mine.wall.broken?1:0,
+    LSTONES.map(x=>RS.indexOf(x.state)),mine.placed,mine.door.open?1:0,r2(mine.door.t),mine.crack.broken?1:0,
+    [G.pulseN|0,r2(pa[0]),r2(pa[1]),r2(pa[2]),G.crystN|0,G.swN|0,G.smashN|0,G.bumpN|0,G.rollN|0,G.bowlN|0,G.wallN|0,G.boomN|0,G.lanN|0],golem.winding?1:0,sprite.winding?1:0,r2(C.roll),C.moved>0?1:0,L.moving?1:0];}
+function applyMines(m){
+  if(!Array.isArray(m))return;const C=mine.cart,L=mine.lift,B=mine.boulder;
+  mine.lan=m[0]|0;if(Array.isArray(m[1]))m[1].forEach((t,i)=>{const c=CRYST[i];if(c){c.t=+t||0;c.col.on=c.t>0;}});
+  C.s=+m[2]||0;C.br=m[3]===1?1:m[3]===0?0:-1;syncCart();mine.sw.b=!!m[4];mine.bar.broken=!!m[5];mine.bar.col.on=!mine.bar.broken;
+  L.t=clamp(+m[6]||0,0,1);L.col.min.y=L.t*MINE.liftH-.25;L.col.max.y=L.t*MINE.liftH;L.cw=!!m[7];
+  B.st=BSTATES[m[8]]||'idle';B.x=+m[9]||0;B.y=+m[10]||0;B.rot=+m[11]||0;mine.wall.broken=!!m[12];mine.wall.col.on=!mine.wall.broken;
+  if(Array.isArray(m[13]))m[13].forEach((k,i)=>{if(LSTONES[i])LSTONES[i].state=RS[k]||'rest';});
+  mine.placed=m[14]|0;mine.door.open=!!m[15];mine.door.t=+m[16]||0;mine.crack.broken=!!m[17];mine.crack.col.on=!mine.crack.broken;
+  if(Array.isArray(m[18])){const e=m[18];G.pulseN=e[0]|0;G.pulseAt=[+e[1]||0,+e[2]||0,+e[3]||0];G.crystN=e[4]|0;G.swN=e[5]|0;G.smashN=e[6]|0;G.bumpN=e[7]|0;G.rollN=e[8]|0;G.bowlN=e[9]|0;G.wallN=e[10]|0;G.boomN=e[11]|0;G.lanN=e[12]|0;}
+  golem.winding=!!m[19];sprite.winding=!!m[20];C.roll=+m[21]||0;C.moved=m[22]?.25:0;L.moving=!!m[23];
+  for(const l of MLEVERS)l.pulled=l.id==='switch'?mine.sw.b:l.id==='cw'?L.cw:mine.door.open;
 }
 const keySet=v=>{const o={};if(typeof v==='string'&&v)for(const k of v.split(',').slice(0,400))if(k)o[k.slice(0,24)]=1;return o;};
 const RS=['rest','perched','vault','rolling','free','carried','placed'];
@@ -91,8 +109,9 @@ function applyState(st){
   if(Array.isArray(st.x)){const x=st.x;seesaw.tilt=+x[0]||-1;crack.broken=!!x[1];stones.raised=!!x[2];stones.t=+x[3]||0;if(levers[2])levers[2].pulled=!!x[4];golem.pound=!!x[5];golem.airT=+x[6]||0;
     stair.raised=!!x[7];stair.t=+x[8]||0;pav.open=!!x[9];pav.t=+x[10]||0;pav.lit=!!x[15];for(const l of levers){if(l.id==='stair')l.pulled=stair.raised;if(l.id==='pavilion')l.pulled=pav.open;}stepOrchard(0);
     VCAVE.grotto.open=!!x[11];VCAVE.grotto.t=+x[12]||0;VCAVE.echo.raised=!!x[13];VCAVE.echo.t=+x[14]||0;for(const l of VLEVERS)l.pulled=l.id==='grotto'?VCAVE.grotto.open:VCAVE.echo.raised;stepCaves(0);}
-  if(Array.isArray(st.ch))G.ch={seeds:st.ch[0]|0,petals:st.ch[1]|0,secrets:st.ch[2]|0,launches:st.ch[3]|0};
-  if(st.pg&&typeof st.pg==='object'){const p=st.pg;PROG.roots=clamp(p.r|0,0,7);PROG.ws=keySet(p.ws);PROG.seeds=keySet(p.sd);PROG.petals=keySet(p.pt);PROG.secrets=keySet(p.se);PROG.planted=p.pl|0;PROG.seen=keySet(p.sn);PROG.ch1.done=p.c1?1:0;PROG.ch1.best=p.b1|0;}
+  if(Array.isArray(st.ch))G.ch={seeds:st.ch[0]|0,petals:st.ch[1]|0,secrets:st.ch[2]|0,launches:st.ch[3]|0,pulses:st.ch[4]|0};
+  if(G.region==='ch2'&&st.m2)applyMines(st.m2);
+  if(st.pg&&typeof st.pg==='object'){const p=st.pg;PROG.roots=clamp(p.r|0,0,7);PROG.ws=keySet(p.ws);PROG.seeds=keySet(p.sd);PROG.petals=keySet(p.pt);PROG.secrets=keySet(p.se);PROG.planted=p.pl|0;PROG.seen=keySet(p.sn);PROG.ch1.done=p.c1?1:0;PROG.ch1.best=p.b1|0;PROG.ch2.done=p.c2?1:0;PROG.ch2.best=p.b2|0;PROG.ch2.lan=p.l2|0;PROG.ch2.door=p.d2|0;}
   G.placed=st.pl|0;G.ending=!!st.en;G.endT=+st.et||0;G.falls=st.f|0;G.lastFall=st.lf==='g'?'g':'s';G.fallN=st.fn|0;G.throws=st.th|0;G.pick=st.pk|0;G.useN=st.us|0;
 }
 function guestSmooth(dt){
@@ -100,6 +119,8 @@ function guestSmooth(dt){
   if(golem.pos.distanceTo(tgtG)>4)golem.pos.copy(tgtG);else golem.pos.lerp(tgtG,k);
   if(sprite.pos.distanceTo(tgtS)>4||sprite.held)sprite.pos.copy(tgtS);else sprite.pos.lerp(tgtS,k);
   for(const l of levers)l.t=approach(l.t,l.pulled?1:0,dt/.35);crank.t=approach(crank.t,crank.used?1:0,dt/2.6);
+  for(const l of MLEVERS)l.t=approach(l.t,l.pulled?1:0,dt/.35);
+  if(G.region==='ch2'){const L=mine.lift;if(L.moving)L.wheelA+=dt*.5;mine.sw.t=approach(mine.sw.t,mine.sw.b?1:0,dt/.4);}
 }
 let guestJN=0,guestAN=0,lastPush=0,lastIn='';
 function pushGuest(now){const r=rawOnline();

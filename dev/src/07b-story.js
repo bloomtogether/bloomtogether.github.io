@@ -16,7 +16,16 @@ const SCENES={
   root1:{title:'The first root wakes',lines:[
     {text:'Far away, deep under the Vale, the first root stirs.',p:[[44,14,74],[30,16,58]],l:[[0,4,0],[0,10,0]]},
     {text:'Water returns to the riverbed. The grey trees remember their green.',p:[[-20,16,80],[22,15,82]],l:[[-12,0,52],[20,0,48]]},
-    {text:'Six roots still sleep. A second gate, to the Lantern Mines, has begun to flicker. (Chapter 2 arrives in the next update.)',p:[[0,40,120],[0,50,142]],l:[[0,10,0],[0,10,-20]]}]},
+    {text:'Six roots still sleep. A second gate, to the Lantern Mines in the eastern hills, has begun to glow.',p:[[30,30,-6],[44,26,-24]],l:[[78,8,-72],[78,8,-72]]}]},
+  ch2_intro:{title:'Chapter 2: The Lantern Mines',lines:[
+    {text:'The Lantern Mines run deep under the eastern hills. Long ago, someone dug them to lead the young roots through the dark.',p:[[0,7,15],[0,5,9]],l:[[0,1.6,0],[0,1.6,-7]]},
+    {text:'Since the Hush, every lantern has gone out. Even the crystals have stopped shining.',p:[[10,15,-14],[18,17,-26]],l:[[8,0,-32],[40,0,-40]]},
+    {text:'Three lantern stones are lost somewhere in the dark. Set them in the Great Lantern and the second root will wake.',p:[[-4,18,-52],[-9,16,-56]],l:[[-17,3,-70],[-17,4,-70]]},
+    {text:'Stay close to the Sprite. Its light is the brightest thing down here.',p:[[0,6,6],[0,4.6,3.5]],l:[[0,1,-2],[0,1,-2]]}]},
+  root2:{title:'The second root wakes',lines:[
+    {text:'Deep under the eastern hills, the second root wakes.',p:[[96,30,-34],[88,24,-50]],l:[[78,6,-72],[78,9,-72]]},
+    {text:'One by one, lanterns flicker on along the Vale\u2019s old paths.',p:[[-10,9,78],[8,8,50]],l:[[0,1.5,48],[0,1.5,16]]},
+    {text:'Five roots still sleep. The gate to the Windmill Heights has begun to flicker. (Chapter 3 arrives in a later update.)',p:[[60,30,34],[72,34,16]],l:[[104,6,-8],[104,8,-8]]}]},
 };
 function playScene(id){if(!SCENES[id])return;G.scene=id;G.line=0;G.lineT=0;PROG.seen[id]=1;saveSoon();}
 function storyNext(){const S=SCENES[G.scene];if(!S){G.scene='';return;}G.line++;G.lineT=0;if(G.line>=S.lines.length){const id=G.scene;G.scene='';G.line=0;camSnap=true;if(S.after)S.after();}}
@@ -66,6 +75,20 @@ const DLG={
   c12:{who:'s',text:'That ledge on the tower is too high for me. Toss me up, {g}?'},
   c13:{who:'g',text:'Someone stood on that sun every morning, side by side. I think it was us. Come stand with me, {s}.'},
   c14:{who:'s',text:'Hold still, {g}… there. A crown of sun-flowers. It suits you.'},
+  mi1:{who:'s',text:"It's so dark… stay close to my light, {g}."},
+  mi2:{who:'g',text:'Can you make it brighter, {s}? Like a little sun?'},
+  mi3:{who:'s',text:'A bridge made of crystal! It only shines while I do.'},
+  mi4:{who:'g',text:'A mine cart, still full of ore. If I give it a good shove…'},
+  mi5:{who:'s',text:'The track switch is up on that scaffold. Give me a lift, {g}?'},
+  mi6:{who:'g',text:"Those bridges won't wait for me. You light them, I run."},
+  mi7:{who:'s',text:"Throw me across, {g}. I'll light the way back for you."},
+  mi8:{who:'g',text:'A lift. I wind, you ride, {s}.'},
+  mi9:{who:'s',text:'The counterweight is jammed up here. If I free it, even I could wind this thing.'},
+  mi10:{who:'s',text:'Run, {g}! Into the hollow in the wall!'},
+  mi11:{who:'g',text:'The Great Lantern… I remember carving it. Long, long ago.'},
+  mi12:{who:'s',text:"There's a path across, hidden in the dark. Follow my light, {g}."},
+  mi13:{who:'s',text:'Someone lived down here. Look: a tiny bed of moss, just my size.'},
+  mi14:{who:'g',text:'That was close, {s}. Too close.'},
 };
 const fill=t=>t.replace(/\{g\}/g,nameOf('g')).replace(/\{s\}/g,nameOf('s'));
 let dlgPending=null;
@@ -80,10 +103,13 @@ const MEMS=[
   {id:'m3',where:'Chapter 1: the flooded island',title:'Where Water Sleeps',text:'They found a hollow where the river bent. “Here,” said the Sprite. The Giant pressed the seed into the soft earth with one careful thumb.'},
   {id:'m4',where:'The Vale: the glow-worm grotto',title:'The Long Winter',text:'Snow filled the hollow. The Giant sat around the little shoot all winter like a wall, and the Sprite slept in a crack in his shoulder, glowing just enough to keep it warm.'},
   {id:'m5',where:'The Vale: the echo cave',title:'First Leaves',text:'In spring the shoot opened its first leaves. The Sprite gave every leaf a name. The Giant could never remember them, but he laughed each time he tried.'},
+  {id:'m6',where:'Chapter 2: the lamp room',title:'Little Lanterns',text:'The young tree was afraid of the dark. Every night the Sprite sat in its branches and glowed, and the Giant carved little crystal lanterns so she could rest.'},
+  {id:'m7',where:'Chapter 2: the crystal cellar',title:'Tunnels for the Roots',text:'When the roots grew deep, the Giant dug tunnels ahead of them so they would never lose their way. The Sprite walked in front, lighting every turn.'},
+  {id:'m8',where:'Chapter 2: the far crystal island',title:'The First Glow',text:'One night a root shone for the very first time, a thread of light running through the dark. The Sprite cheered so loudly the whole mountain echoed, and the Giant laughed until the tunnels shook.'},
 ];
 function drawMemory(c,id,W,H){
   const sky=c.createLinearGradient(0,0,0,H);
-  const pal={m0:['#ffd9a8','#f7a7a0'],m1:['#bfe3f2','#e6f3e0'],m2:['#9fb8c9','#d2dfe0'],m3:['#ffe7b8','#cfe9c8'],m4:['#c9d6e6','#f1f4f7'],m5:['#d9f0c4','#fff3cf']}[id]||['#bfe3f2','#e6f3e0'];
+  const pal={m0:['#ffd9a8','#f7a7a0'],m1:['#bfe3f2','#e6f3e0'],m2:['#9fb8c9','#d2dfe0'],m3:['#ffe7b8','#cfe9c8'],m4:['#c9d6e6','#f1f4f7'],m5:['#d9f0c4','#fff3cf'],m6:['#1f2a4a','#4a4f78'],m7:['#3a2c22','#5e4a38'],m8:['#141a2a','#2c3550']}[id]||['#bfe3f2','#e6f3e0'];
   sky.addColorStop(0,pal[0]);sky.addColorStop(1,pal[1]);c.fillStyle=sky;c.fillRect(0,0,W,H);
   const hill=(y,col,amp,ph)=>{c.fillStyle=col;c.beginPath();c.moveTo(0,H);for(let x=0;x<=W;x+=8)c.lineTo(x,y+Math.sin(x/W*Math.PI*2*1.2+ph)*amp);c.lineTo(W,H);c.fill();};
   const giant=(x,y,s,kneel)=>{c.fillStyle='#8c7a6a';c.beginPath();c.ellipse(x,y-60*s*(kneel?.75:1),42*s,58*s*(kneel?.75:1),0,0,7);c.fill();c.beginPath();c.arc(x+(kneel?14*s:0),y-(kneel?112:128)*s,24*s,0,7);c.fill();
@@ -102,6 +128,17 @@ function drawMemory(c,id,W,H){
     c.fillStyle='#6cbf52';c.beginPath();c.ellipse(W*.52,H*.8,3,9,0,0,7);c.fill();giant(W*.44,H*.9,1.1,true);spr(W*.5,H*.52,.8);}
   else if(id==='m5'){hill(H*.64,'#b5dc8f',12,.8);hill(H*.86,'#93c070',8,2);c.strokeStyle='#7a5a3c';c.lineWidth=5;c.beginPath();c.moveTo(W*.56,H*.86);c.lineTo(W*.56,H*.62);c.stroke();
     c.fillStyle='#7cc35c';for(let i=0;i<5;i++){c.beginPath();c.ellipse(W*.56+(i-2)*14,H*.6-Math.abs(i-2)*6,10,6,(i-2)*.4,0,7);c.fill();}giant(W*.36,H*.92,1);spr(W*.64,H*.56,.9);}
+  else if(id==='m6'){c.fillStyle='rgba(255,255,255,.8)';for(let i=0;i<40;i++){c.beginPath();c.arc(hash2(i,1,6)*W,hash2(i,2,6)*H*.5,1+hash2(i,3,6)*1.4,0,7);c.fill();}
+    hill(H*.78,'#2f3d3a',10,1.3);c.strokeStyle='#4a3a2c';c.lineWidth=7;c.beginPath();c.moveTo(W*.55,H*.8);c.lineTo(W*.55,H*.5);c.moveTo(W*.55,H*.6);c.lineTo(W*.47,H*.5);c.moveTo(W*.55,H*.58);c.lineTo(W*.63,H*.48);c.stroke();
+    c.fillStyle='#3e6b45';c.beginPath();c.ellipse(W*.55,H*.45,50,26,0,0,7);c.fill();spr(W*.58,H*.44,.9);
+    for(const [x,y] of [[.3,.74],[.4,.8],[.7,.79],[.8,.73]]){const gl=c.createRadialGradient(W*x,H*y,0,W*x,H*y,22);gl.addColorStop(0,'rgba(255,214,140,.95)');gl.addColorStop(1,'rgba(255,190,100,0)');c.fillStyle=gl;c.beginPath();c.arc(W*x,H*y,22,0,7);c.fill();}
+    giant(W*.22,H*.98,.85,true);}
+  else if(id==='m7'){c.fillStyle='#2a2019';c.beginPath();c.moveTo(0,H*.25);c.bezierCurveTo(W*.4,H*.15,W*.6,H*.35,W,H*.22);c.lineTo(W,0);c.lineTo(0,0);c.fill();
+    c.fillStyle='#4a3a2c';c.beginPath();c.ellipse(W*.5,H*.62,W*.44,H*.24,0,0,7);c.fill();c.strokeStyle='#d9b04a';c.lineWidth=4;c.beginPath();c.moveTo(0,H*.7);c.bezierCurveTo(W*.25,H*.6,W*.4,H*.72,W*.62,H*.64);c.stroke();
+    giant(W*.7,H*.9,.95,true);spr(W*.84,H*.5,.9);}
+  else if(id==='m8'){c.fillStyle='#0f1422';c.fillRect(0,H*.7,W,H*.3);const gr=c.createLinearGradient(0,0,W,0);gr.addColorStop(0,'rgba(255,210,120,0)');gr.addColorStop(.5,'rgba(255,220,140,1)');gr.addColorStop(1,'rgba(255,210,120,0)');
+    c.strokeStyle=gr;c.lineWidth=6;c.beginPath();c.moveTo(0,H*.78);c.bezierCurveTo(W*.3,H*.62,W*.6,H*.9,W,H*.7);c.stroke();c.globalAlpha=.35;c.lineWidth=18;c.stroke();c.globalAlpha=1;
+    giant(W*.32,H*.94,1,true);spr(W*.58,H*.5,1.2);}
   else{hill(H*.62,'#a3cf84',12,2.2);c.fillStyle='#7fb7c9';c.beginPath();c.ellipse(W*.25,H*.82,150,26,-.1,0,7);c.fill();hill(H*.86,'#8a6a4c',4,1);
     giant(W*.58,H*.94,1.1,true);c.fillStyle='#6cbf52';c.beginPath();c.ellipse(W*.7,H*.84,4,12,0,0,7);c.fill();c.beginPath();c.ellipse(W*.7+8,H*.8,9,4,.4,0,7);c.fill();spr(W*.76,H*.7,1);}
   // soft vignette like an old storybook page
@@ -126,7 +163,9 @@ function storySoFar(){
   out.push(['The Hush','The Heart Tree fell asleep when the Hush stopped its seven roots. Before it slept it woke the Giant and the Sprite, who remember nothing.']);
   if(PROG.ch1.done)out.push(['The Sunken Garden','The Giant and the Sprite found three rune stones and woke the dry fountain. The first root stirred, the river came back and the Vale turned green again.']);
   else out.push(['Now','The north gate glows. The first root runs under the Sunken Garden, where three rune stones wait to be set in a dry fountain.']);
-  if(PROG.ch1.done)out.push(['Next','A second gate has begun to flicker: the Lantern Mines. Chapter 2 arrives in the next update.']);
+  if(PROG.ch2.done)out.push(['The Lantern Mines','Deep under the eastern hills they found three lantern stones and lit the Great Lantern. The second root woke, and lanterns came on along the Vale\u2019s paths.']);
+  else if(PROG.ch1.done)out.push(['Next','The gate to the Lantern Mines glows in the eastern hills. Somewhere in the dark, three lantern stones wait to light the Great Lantern.']);
+  if(PROG.ch2.done)out.push(['Next','A third gate, to the Windmill Heights, has begun to flicker. Chapter 3 arrives in a later update.']);
   return out;
 }
 let jTab='story';
@@ -140,6 +179,8 @@ function renderJournal(){
     const st=document.createElement('dl');st.className='stats';const add=(a,b)=>{const dt=document.createElement('dt');dt.textContent=a;const dd=document.createElement('dd');dd.textContent=b;st.append(dt,dd);};
     add('Roots awake',PROG.roots+' of 7');add('Golden seeds found',seedsFound()+' (planted '+PROG.planted+')');add('Memory petals',countKeys(PROG.petals)+' of '+MEMS.length);add('Secrets',countKeys(PROG.secrets)+' of '+Object.values(REG).reduce((a,r)=>a+r.secrets.length,0));add('Waystones',countKeys(PROG.ws)+' of '+WAYS.length);
     if(PROG.ch1.best)add('Best time, Chapter 1',Math.floor(PROG.ch1.best/60)+' min '+(PROG.ch1.best%60)+' s');
+    if(PROG.ch2.best)add('Best time, Chapter 2',Math.floor(PROG.ch2.best/60)+' min '+(PROG.ch2.best%60)+' s');
+    if(PROG.ch1.done)add('Lanterns lit, Chapter 2',countBits(PROG.ch2.lan|0)+' of '+LANTERNS.length);
     el.appendChild(st);}
   if(jTab==='mem'){const el=$('jMem');el.textContent='';
     for(const m of MEMS){const got=PROG.petals[m.id];const d=document.createElement('button');d.className='memthumb'+(got?'':' locked');d.disabled=!got;
@@ -157,7 +198,7 @@ function buildValeMapImage(){const N=200,cv=document.createElement('canvas');cv.
   c.putImageData(im,0,0);valeMapImg=cv;}
 function drawMap(cv){
   const c=cv.getContext('2d'),W=cv.width,H=cv.height;c.clearRect(0,0,W,H);c.fillStyle='#e9e2d0';c.fillRect(0,0,W,H);
-  let x0,x1,z0,z1;if(G.region==='vale'){x0=-128;x1=128;z0=-128;z1=128;}else{x0=-44;x1=48;z0=-86;z1=8;}
+  let x0,x1,z0,z1;if(G.region==='vale'){x0=-128;x1=128;z0=-128;z1=128;}else if(G.region==='ch2'){x0=-38;x1=78;z0=-88;z1=8;}else{x0=-44;x1=48;z0=-86;z1=8;}
   const s=Math.min((W-40)/(x1-x0),(H-40)/(z1-z0)),ox=(W-(x1-x0)*s)/2,oz=(H-(z1-z0)*s)/2;
   const X=x=>ox+(x-x0)*s,Z=z=>oz+(z-z0)*s;
   if(G.region==='vale'){
@@ -171,6 +212,17 @@ function drawMap(cv){
     for(const g of GATES){c.fillStyle=g.ready?'#f2873a':'#8f9aa3';c.beginPath();c.arc(X(g.pos.x),Z(g.pos.z),7,0,7);c.fill();label(c,g.ch+' · '+g.name,X(g.pos.x),Z(g.pos.z)+(g.pos.z<0?-14:22),g.ready?'#c9621a':'#5c6b76');}
     for(const cv of CAVES){const r=caveRect(cv);c.fillStyle='#4b4038';c.fillRect(X(r.x0),Z(r.z0),(r.x1-r.x0)*s,(r.z1-r.z0)*s);label(c,cv.name,X(cv.x-cv.dir*4),Z(cv.z)-12,'#5c4636');}
     c.fillStyle='#8a6448';c.beginPath();c.arc(X(VALE.plot.x),Z(VALE.plot.z),6,0,7);c.fill();label(c,'Seed Garden',X(VALE.plot.x)-26,Z(VALE.plot.z)+4,'#5c6b76');
+  }else if(G.region==='ch2'){
+    c.fillStyle='#1c2128';c.fillRect(X(x0),Z(z1),(x1-x0)*s,(z0-z1)*s);
+    const cols=REG.ch2.colliders.filter(k=>k.mesh);
+    for(const k of cols){const top=k.max.y;if(k.max.y-k.min.y>1.2&&!(top>5.9&&top<6.1))continue;if(top<-.2||(top>.2&&top<5.8)||top>6.2)continue;
+      c.fillStyle=top>5?'#7d7466':'#a69c8c';c.fillRect(X(k.min.x),Z(k.min.z),(k.max.x-k.min.x)*s,(k.max.z-k.min.z)*s);}
+    for(const k of cols)if(k.max.y-k.min.y>1.2&&k.max.y>6.5&&k.mesh&&k.mesh.material===MM.rock){c.fillStyle='#3c3a37';c.fillRect(X(k.min.x),Z(k.min.z),Math.max(1.5,(k.max.x-k.min.x)*s),Math.max(1.5,(k.max.z-k.min.z)*s));}
+    for(const cr of CRYST){if(cr.kind==='tile'&&!minesDone())continue;const b=cr.col;c.fillStyle=cr.t>0||minesDone()?'#8fe6ff':'rgba(143,230,255,.35)';c.fillRect(X(b.min.x),Z(b.min.z),(b.max.x-b.min.x)*s,(b.max.z-b.min.z)*s);}
+    c.strokeStyle='#ffc46a';c.lineWidth=3;c.beginPath();c.arc(X(GL.x),Z(GL.z),2.4*s,0,7);c.stroke();label(c,'Great Lantern',X(GL.x),Z(GL.z)+3*s+14,'#f2e6c8');
+    for(const l of LANTERNS){c.fillStyle=lanLit(l)?'#ffc46a':'#5f6870';c.beginPath();c.arc(X(l.pos.x),Z(l.pos.z),4,0,7);c.fill();}
+    label(c,'To the Vale',X(0),Z(7),'#7ff0cf');label(c,'Cart Yard',X(12),Z(-21.5),'#d9d2c4');label(c,'Crystal Gallery',X(54),Z(-23),'#d9d2c4');label(c,'High Drift',X(30),Z(-70.5),'#d9d2c4');label(c,'Pulley',X(60),Z(-69),'#d9d2c4');
+    for(const p of PETALS)if(p.reg==='ch2'&&PROG.petals[p.id]){c.fillStyle='#ff8fc0';c.beginPath();c.arc(X(p.pos.x),Z(p.pos.z),5,0,7);c.fill();}
   }else{
     const cols=REG.ch1.colliders.filter(k=>k.mesh&&k.mesh.visible!==false);
     c.fillStyle='#20343d';c.fillRect(X(-44),Z(-33),88*s,6*s);
@@ -216,7 +268,7 @@ function openTravel(){
   if(mode==='online'&&role!=='host'){toast(nameOf(myRole==='g'?'s':'g')+' chooses where to travel');return;}
   openOverlay('scrTravel');const L=$('travelList');L.textContent='';
   for(const w of WAYS){if(!PROG.ws[w.id])continue;const b=document.createElement('button');b.className='btn';const here=w.reg===G.region&&(dxz(golem.pos,w.pos)<4||dxz(sprite.pos,w.pos)<4);
-    b.append((w.reg==='vale'?'The Vale: ':'Chapter 1: ')+w.name);const sm=document.createElement('small');sm.textContent=here?'you are here':(w.reg===G.region?'this area':'another area');b.append(sm);
+    b.append(({vale:'The Vale: ',ch1:'Chapter 1: ',ch2:'Chapter 2: '}[w.reg]||'')+w.name);const sm=document.createElement('small');sm.textContent=here?'you are here':(w.reg===G.region?'this area':'another area');b.append(sm);
     b.disabled=here;b.onclick=()=>{closeOverlay();travelToWaystone(w.id);};L.appendChild(b);}
 }
 function refreshTitleSave(){
@@ -246,4 +298,17 @@ function storyHooks(){
     {id:'c4',x:34.8,z:-1.2,r:3.2,cond:()=>!crack.broken},{id:'c5',x:-13.5,z:-54.5,r:4},{id:'c6',x:0,z:-25,r:4.5,cond:()=>!bridge.open},
     {id:'c7',x:0,z:-66,r:6,cond:()=>!G.fountainOn},{id:'c8',x:-34,z:-55,r:2.6,cond:()=>!stones.raised},
     {id:'c10',x:30.3,z:-18.2,r:2.6,cond:()=>!stair.raised},{id:'c11',x:28,z:-30,r:3},{id:'c12',x:31,z:-66,r:6,cond:()=>!pav.open},{id:'c13',x:20,z:-72,r:3}];
+  REG.ch2.secrets=[
+    {id:'c2_lamproom',name:'The lamp room',test:b=>b.pos.x<-10.4&&b.pos.x>-17&&b.pos.z<-23&&b.pos.z>-31},
+    {id:'c2_island',name:'The far crystal island',test:b=>b.pos.x>59&&b.pos.x<64&&b.pos.z>-31.5&&b.pos.z<-26&&b.pos.y>-.5},
+    {id:'c2_cellar',name:'The crystal cellar',test:b=>b.pos.x>-11&&b.pos.x<-4&&b.pos.z<-76&&b.pos.z>-84&&b.pos.y<-1.5}];
+  const notDone=()=>!minesDone();
+  REG.ch2.talk=[
+    {id:'mi1',x:0,z:-1.5,r:5},{id:'mi2',x:-5,z:-8,r:3.6,cond:()=>!lanLit(LANTERNS[0])},{id:'mi3',x:0,z:-12.6,r:4,cond:notDone},
+    {id:'mi4',x:4,z:-22.5,r:3.6,cond:()=>!mine.bar.broken},{id:'mi5',x:6,z:-35,r:4,cond:()=>!mine.bar.broken},{id:'mi6',x:37,z:-41,r:4,cond:notDone},
+    {id:'mi7',x:48,z:-41,r:3,cond:()=>LSTONES[0].state==='rest'},{id:'mi8',x:60,z:-60,r:5,cond:()=>!mine.lift.cw},
+    {id:'mi9',x:50.5,z:-63,r:3.5,cond:()=>!mine.lift.cw&&sprite.pos.y>5},{id:'mi10',x:47.5,z:-63,r:6,cond:()=>mine.boulder.st==='wait'||mine.boulder.st==='roll'},
+    {id:'mi11',x:-8,z:-62.5,r:6,cond:()=>golem.pos.y<1},{id:'mi12',x:-21,z:-58.4,r:3.6,cond:()=>LSTONES[2].state==='rest'},{id:'mi13',x:-13.5,z:-27,r:3},
+    {id:'mi14',x:13.75,z:-67,r:2.5,cond:()=>mine.wall.broken&&mine.boulder.st!=='idle'}];
 }
+function countBits(n){let c=0;while(n){c+=n&1;n>>>=1;}return c;}

@@ -47,6 +47,9 @@ function valeColor(x,z,h,out){
 // the parts of the Vale that change as roots wake
 const VALE={wake:0,wakeT:0,river:null,foliage:[],ground:null,tree:null,roots:[],leaf:null,blossom:null,beds:[],gates:[]};
 const GATES=[];
+// chapters built so far; a gate opens once the chapter before it is complete
+function chapterOpens(n){return n===2;}
+function gateReady(n){return n===1||(n===2&&!!PROG.ch1.done);}
 const CHAPTERS=[
   {n:1,name:'The Sunken Garden',ready:true},{n:2,name:'The Lantern Mines'},{n:3,name:'The Windmill Heights'},{n:4,name:'The Frostmere Lake'},
   {n:5,name:'The Mushroom Marsh'},{n:6,name:'The Clockwork Library'},{n:7,name:'The Sunstone Desert'}];
@@ -100,12 +103,14 @@ function buildVale(){
     const veil=new THREE.Mesh(new THREE.PlaneGeometry(6.4,9.6),new THREE.MeshBasicMaterial({color:'#7ff0cf',transparent:true,opacity:.35,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,fog:false}));
     veil.position.set(0,4.8,0);g.add(veil);
     const lab=labelSprite(c.n+' · '+c.name,c.ready?'Chapter '+c.n:'Sealed',c.ready?'#f2873a':'#9aa7b0');lab.position.set(x,y+14.6,z);ROOT.add(lab);
+    // a chapter that opens during play gets a second label to swap in
+    let labOpen=null;if(chapterOpens(c.n)){labOpen=labelSprite(c.n+' · '+c.name,'Chapter '+c.n,'#f2873a');labOpen.position.copy(lab.position);labOpen.visible=false;ROOT.add(labOpen);}
     // pillars (approximated as squares) + a barrier in the opening for sealed gates
     const fx=Math.cos(rot),fz=-Math.sin(rot); // gate's local +x axis in world
     for(const s of [-1,1]){const px=x+fx*4.2*s,pz=z+fz*4.2*s;box(px-1.3,px+1.3,y-1,y+8,pz-1.3,pz+1.3,null,{surface:'stone'});}
     const bar=box(x-3,x+3,y-1,y+8,z-3,z+3,null,{kind:'door'});bar.on=!c.ready;
-    if(c.ready){const bx=x-Math.sin(rot)*4.2,bz=z-Math.cos(rot)*4.2;box(bx-4,bx+4,y-1,y+10,bz-1,bz+1,null);}
-    GATES.push({ch:c.n,name:c.name,ready:!!c.ready,pos:new V3(x,y,z),rot,g,key,veil,lab,bar});
+    if(c.ready||chapterOpens(c.n)){const bx=x-Math.sin(rot)*4.6,bz=z-Math.cos(rot)*4.6;box(bx-3.4,bx+3.4,y-1,y+10,bz-3.4,bz+3.4,null);}
+    GATES.push({ch:c.n,name:c.name,ready:!!c.ready,pos:new V3(x,y,z),rot,g,key,veil,lab,labOpen,bar});
   });
   // ---------- waystones ----------
   addWaystone('vale_meadow','Meadow',8,valeH(8,84),84,0);
@@ -137,6 +142,7 @@ function buildVale(){
   for(let k=0;k<6;k++){const a=k/6*6.28;ruin(VALE_HILL.x+Math.cos(a)*6,VALE_HILL.z+Math.sin(a)*6,2.4+(k%2)*1.4,.45,k%3===0);}
   box(VALE_HILL.x-1.6,VALE_HILL.x+1.6,hy-1,hy+.35,VALE_HILL.z-1.6,VALE_HILL.z+1.6,REAL.ready?stoneReal():M.pave,{fade:false,surface:'stone'});
   buildCaves();
+  buildValeLamps();
   // ---------- forests (batched) ----------
   buildValeForest();
   if(REAL.ready){GRASS=newGrassField(grassAllowed,valeH,()=>VALE.wake);buildGrass(GRASS);if(VALE.veinTex)GRASS.mat.uniforms.uVein.value=VALE.veinTex;}else buildValeTufts();
@@ -206,7 +212,11 @@ function updateVale(dt,t){
   VALE.roots.forEach((r,i)=>{if(r.vein){const u=r.material.uniforms;u.uT.value=t;u.uOn.value=approach(u.uOn.value,i<PROG.roots?(PROG.settings.reduceFlash?.6:1):0,dt*.6);if(GRASS&&GRASS.mat)GRASS.mat.uniforms.uRootOn.value[i]=u.uOn.value;return;}const on=i<PROG.roots,em=r.material.emissive;if(on){em.set('#1fb3a3');r.material.emissiveIntensity=PROG.settings.reduceFlash?.35:.3+.15*Math.sin(t*1.5+i);}else r.material.emissiveIntensity=0;});
   VALE.treeLight.intensity=PROG.roots>0?.6:0;
   const planted=Math.floor(PROG.planted/5);VALE.beds.forEach((g,i)=>g.visible=i<planted);
-  for(const g of GATES){const ready=g.ready;g.veil.visible=ready;if(ready)g.veil.material.opacity=PROG.settings.reduceFlash?.3:.26+.1*Math.sin(t*1.6);
+  updateValeLamps(dt);
+  for(const g of GATES){g.ready=gateReady(g.ch);const ready=g.ready;g.bar.on=!ready;if(g.labOpen){g.labOpen.visible=ready;g.lab.visible=!ready;}
+    const flicker=!ready&&g.ch===PROG.roots+1; // the next sealed gate flickers faintly
+    g.veil.visible=ready||flicker;if(ready)g.veil.material.opacity=PROG.settings.reduceFlash?.3:.26+.1*Math.sin(t*1.6);
+    else if(flicker)g.veil.material.opacity=PROG.settings.reduceFlash?.08:.05+.06*Math.max(0,Math.sin(t*2.3)*Math.sin(t*.7));
     for(const k of g.key){k.material.emissiveIntensity=ready?1.2:.05;k.material.color.set(ready?'#2fd6c0':'#6f7d82');}}
   if(!PROG.settings.reduceFlash&&Math.random()<dt*6){const gg=GATES[0];emit(gg.pos.x+(Math.random()-.5)*5,gg.pos.y+Math.random()*7,gg.pos.z+(Math.random()-.5)*.6,0,.4,0,.5,1,.85,.12,1.6,0,.3);}
 }
