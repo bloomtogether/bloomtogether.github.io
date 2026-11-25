@@ -43,7 +43,16 @@ const SCENES={
   root4:{title:'The fourth root wakes',lines:[
     {text:'Far across the snow, the fourth root wakes, and the Frostmere Lake begins to thaw.',p:[[60,26,90],[70,22,80]],l:[[78,6,74],[78,8,74]]},
     {text:'Frost lilies open along the river, cool and bright.',p:[[-30,10,70],[0,8,66]],l:[[-20,0,54],[20,0,50]]},
-    {text:'Three roots still sleep. The gate to the Mushroom Marsh has begun to flicker. (Chapter 5 arrives in a later update.)',p:[[-30,30,40],[-50,34,40]],l:[[-78,6,74],[-78,8,74]]}]},
+    {text:'Three roots still sleep. The gate to the Mushroom Marsh, in the south-west of the Vale, has begun to glow.',p:[[-30,30,40],[-50,34,40]],l:[[-78,6,74],[-78,8,74]]}]},
+  ch5_intro:{title:'Chapter 5: The Mushroom Marsh',lines:[
+    {text:'The Mushroom Marsh once glowed from the inside, like a lantern made of moss. Since the Hush its light has dimmed, and its fog has thickened.',p:[[0,9,24],[0,12,8]],l:[[0,1,-10],[0,1,-30]]},
+    {text:'At its heart sleeps the Elder Mushroom. Her three glow spores drifted away into the marsh.',p:[[14,18,-66],[10,16,-72]],l:[[0,8,-90],[0,9,-90]]},
+    {text:'Bring the spores home and wake her, and the fifth root will wake.',p:[[-30,18,-40],[24,18,-50]],l:[[-36,0,-56],[30,0,-52]]},
+    {text:'The mushrooms here are springy. Land on one, and hold jump as you land.',p:[[0,5,14],[0,4,11]],l:[[4,1,-8],[4,1,-8]]}]},
+  root5:{title:'The fifth root wakes',lines:[
+    {text:'In the misty south-west, the fifth root wakes, and the Mushroom Marsh glows again.',p:[[-60,26,90],[-70,22,80]],l:[[-78,6,74],[-78,8,74]]},
+    {text:'Little blue mushrooms light up all across the Vale.',p:[[-40,12,40],[-20,10,30]],l:[[-60,0,20],[-30,0,10]]},
+    {text:'Two roots still sleep. The gate to the Clockwork Library has begun to flicker. (Chapter 6 arrives in a later update.)',p:[[-70,30,10],[-84,26,0]],l:[[-104,6,-8],[-104,8,-8]]}]},
 };
 function playScene(id){if(!SCENES[id])return;G.scene=id;G.line=0;G.lineT=0;PROG.seen[id]=1;saveSoon();}
 function storyNext(){const S=SCENES[G.scene];if(!S){G.scene='';return;}G.line++;G.lineT=0;if(G.line>=S.lines.length){const id=G.scene;G.scene='';G.line=0;camSnap=true;if(S.after)S.after();}}
@@ -129,6 +138,16 @@ const DLG={
   f8:{who:'g',text:'The old hearth. We used to sit by it, didn\u2019t we, {s}?'},
   f9:{who:'s',text:'Something glows behind that ice wall. Let me warm it.'},
   f10:{who:'s',text:'A little hut, frozen shut. I wonder who fished here.'},
+  k1:{who:'s',text:'Mushrooms as big as me! And so springy, {g}.'},
+  k2:{who:'g',text:'That seed-pod looks thirsty, {s}.'},
+  k3:{who:'s',text:'Hold jump as you land, {g}. Boing, boing, boing!'},
+  k4:{who:'g',text:'Three glow spores. The Elder will want them back.'},
+  k5:{who:'s',text:"If you slam that mushroom while I'm on it… up we go!"},
+  k6:{who:'g',text:'Too wide for me. Can you grow us a way across, {s}?'},
+  k7:{who:'s',text:"I can't see a thing in this fog. Stay close to my light, {g}."},
+  k8:{who:'g',text:'This one has wilted. A little water, maybe?'},
+  k9:{who:'s',text:"The Elder Mushroom. She's been asleep since the Hush."},
+  k10:{who:'s',text:'A hollow stump, and a seed-pod at its foot…'},
 };
 const fill=t=>t.replace(/\{g\}/g,nameOf('g')).replace(/\{s\}/g,nameOf('s'));
 let dlgPending=null;
@@ -152,10 +171,13 @@ const MEMS=[
   {id:'m12',where:'Chapter 4: the fishing hut',title:'Winter Fish',text:'One hard winter the Giant cut a hole in the lake for the Sprite to fish through. The Sprite caught nothing all day, and then one silver fish that she let go again.'},
   {id:'m13',where:'Chapter 4: the thin-ice islet',title:'Skating',text:'The Sprite skated in circles on the thin ice where the Giant could never follow. He stood at the shore and clapped every time she spun.'},
   {id:'m14',where:'Chapter 4: the great boulder',title:'The First Snowman',text:'They built a snowman together. The Giant rolled the body as tall as himself; the Sprite made a tiny head and stuck a single pine needle on it for a smile.'},
+  {id:'m15',where:'Chapter 5: the bog hummock',title:'Puddle Jumping',text:'After the spring rains the Sprite jumped in every puddle in the marsh. The Giant tried it once, and emptied the whole pond.'},
+  {id:'m16',where:'Chapter 5: the lost island',title:'Lost in the Fog',text:'One autumn the fog came down so thick the Giant could not see his own feet. The Sprite glowed all night, and he followed her light home, one careful step at a time.'},
+  {id:'m17',where:'Chapter 5: the hollow stump',title:'The Mushroom House',text:'They found a hollow stump with a mushroom for a roof. The Sprite lived in it for a whole summer. The Giant visited every day and knocked very, very gently.'},
 ];
 function drawMemory(c,id,W,H){
   const sky=c.createLinearGradient(0,0,0,H);
-  const pal={m0:['#ffd9a8','#f7a7a0'],m1:['#bfe3f2','#e6f3e0'],m2:['#9fb8c9','#d2dfe0'],m3:['#ffe7b8','#cfe9c8'],m4:['#c9d6e6','#f1f4f7'],m5:['#d9f0c4','#fff3cf'],m6:['#1f2a4a','#4a4f78'],m7:['#3a2c22','#5e4a38'],m8:['#141a2a','#2c3550'],m9:['#9fd0f2','#eaf6ff'],m10:['#ffe3b0','#d9efc7'],m11:['#7fbfe8','#e9f6ff'],m12:['#cfe2ee','#f4f9fc'],m13:['#bcd9ea','#eef7fb'],m14:['#dfe9f1','#ffffff']}[id]||['#bfe3f2','#e6f3e0'];
+  const pal={m0:['#ffd9a8','#f7a7a0'],m1:['#bfe3f2','#e6f3e0'],m2:['#9fb8c9','#d2dfe0'],m3:['#ffe7b8','#cfe9c8'],m4:['#c9d6e6','#f1f4f7'],m5:['#d9f0c4','#fff3cf'],m6:['#1f2a4a','#4a4f78'],m7:['#3a2c22','#5e4a38'],m8:['#141a2a','#2c3550'],m9:['#9fd0f2','#eaf6ff'],m10:['#ffe3b0','#d9efc7'],m11:['#7fbfe8','#e9f6ff'],m12:['#cfe2ee','#f4f9fc'],m13:['#bcd9ea','#eef7fb'],m14:['#dfe9f1','#ffffff'],m15:['#bcd6b8','#eef3df'],m16:['#9aa8a2','#d6dcd6'],m17:['#c9b8d8','#f1e9d6']}[id]||['#bfe3f2','#e6f3e0'];
   sky.addColorStop(0,pal[0]);sky.addColorStop(1,pal[1]);c.fillStyle=sky;c.fillRect(0,0,W,H);
   const hill=(y,col,amp,ph)=>{c.fillStyle=col;c.beginPath();c.moveTo(0,H);for(let x=0;x<=W;x+=8)c.lineTo(x,y+Math.sin(x/W*Math.PI*2*1.2+ph)*amp);c.lineTo(W,H);c.fill();};
   const giant=(x,y,s,kneel)=>{c.fillStyle='#8c7a6a';c.beginPath();c.ellipse(x,y-60*s*(kneel?.75:1),42*s,58*s*(kneel?.75:1),0,0,7);c.fill();c.beginPath();c.arc(x+(kneel?14*s:0),y-(kneel?112:128)*s,24*s,0,7);c.fill();
@@ -195,6 +217,12 @@ function drawMemory(c,id,W,H){
     if(id==='m12'){c.fillStyle='#2d4f63';c.beginPath();c.ellipse(W*.6,H*.86,20,8,0,0,7);c.fill();giant(W*.38,H*.95,.9,true);spr(W*.62,H*.74,.9);c.fillStyle='#d8e6ee';c.beginPath();c.ellipse(W*.7,H*.7,12,5,.3,0,7);c.fill();}
     else if(id==='m13'){c.strokeStyle='rgba(255,255,255,.9)';c.lineWidth=2;c.beginPath();c.ellipse(W*.6,H*.86,60,12,0,0,7);c.stroke();spr(W*.6,H*.78,.9);giant(W*.2,H*.92,.8);}
     else{c.fillStyle='#ffffff';c.beginPath();c.arc(W*.6,H*.76,40,0,7);c.fill();c.beginPath();c.arc(W*.6,H*.6,14,0,7);c.fill();giant(W*.36,H*.95,.9);spr(W*.68,H*.55,.8);}}
+  else if(id==='m15'||id==='m16'||id==='m17'){
+    const shroom=(x,y,r,h,col)=>{c.fillStyle='#efe3cc';c.fillRect(x-r*.18,y-h,r*.36,h);c.fillStyle=col;c.beginPath();c.ellipse(x,y-h,r,r*.45,0,Math.PI,0);c.fill();};
+    hill(H*.72,'#6f8a5c',10,1.8);c.fillStyle='#3f5a48';c.beginPath();c.ellipse(W*.5,H*.88,W*.46,H*.09,0,0,7);c.fill();
+    if(id==='m15'){c.fillStyle='#5f8fa6';for(const [x,y] of [[.3,.86],[.55,.9],[.75,.85]]){c.beginPath();c.ellipse(W*x,H*y,34,7,0,0,7);c.fill();}shroom(W*.15,H*.8,30,40,'#e2589c');spr(W*.55,H*.72,.9);giant(W*.78,H*.97,.8);}
+    else if(id==='m16'){c.fillStyle='rgba(230,236,232,.6)';for(let i=0;i<6;i++){c.beginPath();c.ellipse(hash2(i,1,16)*W,H*(.3+hash2(i,2,16)*.4),120,28,0,0,7);c.fill();}spr(W*.6,H*.66,1.1);giant(W*.4,H*.95,.85);c.fillStyle='rgba(230,236,232,.45)';c.fillRect(0,H*.4,W,H*.3);}
+    else{shroom(W*.55,H*.86,90,70,'#b5774a');c.fillStyle='#5a3f2c';c.fillRect(W*.55-50,H*.86-70,100,70);c.fillStyle='#f6d27a';c.fillRect(W*.55-10,H*.86-36,20,24);spr(W*.55,H*.86-46,.6);giant(W*.22,H*.97,.85,true);}}
   else if(id==='m8'){c.fillStyle='#0f1422';c.fillRect(0,H*.7,W,H*.3);const gr=c.createLinearGradient(0,0,W,0);gr.addColorStop(0,'rgba(255,210,120,0)');gr.addColorStop(.5,'rgba(255,220,140,1)');gr.addColorStop(1,'rgba(255,210,120,0)');
     c.strokeStyle=gr;c.lineWidth=6;c.beginPath();c.moveTo(0,H*.78);c.bezierCurveTo(W*.3,H*.62,W*.6,H*.9,W,H*.7);c.stroke();c.globalAlpha=.35;c.lineWidth=18;c.stroke();c.globalAlpha=1;
     giant(W*.32,H*.94,1,true);spr(W*.58,H*.5,1.2);}
@@ -228,7 +256,9 @@ function storySoFar(){
   else if(PROG.ch2.done)out.push(['Next','The gate to the Windmill Heights glows at the eastern edge of the Vale. Up there the Great Windmill is missing three cogs.']);
   if(PROG.ch4.done)out.push(['The Frostmere Lake','On the frozen lake they slid ice, rolled a snowball as big as a bridge and melted their way to three embers. The old hearth burns again, the lake is thawing, and frost lilies line the Vale\u2019s river.']);
   else if(PROG.ch3.done)out.push(['Next','The gate to the Frostmere Lake glows in the south-east of the Vale. Its old hearth needs three embers.']);
-  if(PROG.ch4.done)out.push(['Next','A fifth gate, to the Mushroom Marsh, has begun to flicker. Chapter 5 arrives in a later update.']);
+  if(PROG.ch5.done)out.push(['The Mushroom Marsh','In the misty marsh they bounced on giant mushrooms, grew vine bridges from seed-pods and found their way through the fog by the Sprite’s light. The Elder Mushroom woke, and little blue mushrooms glow all over the Vale.']);
+  else if(PROG.ch4.done)out.push(['Next','The gate to the Mushroom Marsh glows in the south-west of the Vale. The Elder Mushroom has lost her three glow spores.']);
+  if(PROG.ch5.done)out.push(['Next','A sixth gate, to the Clockwork Library, has begun to flicker. Chapter 6 arrives in a later update.']);
   return out;
 }
 let jTab='story';
@@ -245,6 +275,7 @@ function renderJournal(){
     if(PROG.ch2.best)add('Best time, Chapter 2',Math.floor(PROG.ch2.best/60)+' min '+(PROG.ch2.best%60)+' s');
     if(PROG.ch3.best)add('Best time, Chapter 3',Math.floor(PROG.ch3.best/60)+' min '+(PROG.ch3.best%60)+' s');
     if(PROG.ch4.best)add('Best time, Chapter 4',Math.floor(PROG.ch4.best/60)+' min '+(PROG.ch4.best%60)+' s');
+    if(PROG.ch5.best)add('Best time, Chapter 5',Math.floor(PROG.ch5.best/60)+' min '+(PROG.ch5.best%60)+' s');
     if(PROG.ch1.done)add('Lanterns lit, Chapter 2',countBits(PROG.ch2.lan|0)+' of '+LANTERNS.length);
     el.appendChild(st);}
   if(jTab==='mem'){const el=$('jMem');el.textContent='';
@@ -263,7 +294,7 @@ function buildValeMapImage(){const N=200,cv=document.createElement('canvas');cv.
   c.putImageData(im,0,0);valeMapImg=cv;}
 function drawMap(cv){
   const c=cv.getContext('2d'),W=cv.width,H=cv.height;c.clearRect(0,0,W,H);c.fillStyle='#e9e2d0';c.fillRect(0,0,W,H);
-  let x0,x1,z0,z1;if(G.region==='vale'){x0=-128;x1=128;z0=-128;z1=128;}else if(G.region==='ch2'){x0=-38;x1=78;z0=-88;z1=8;}else if(G.region==='ch3'){x0=-20;x1=64;z0=-92;z1=12;}else if(G.region==='ch4'){x0=-40;x1=34;z0=-86;z1=12;}else{x0=-44;x1=48;z0=-86;z1=8;}
+  let x0,x1,z0,z1;if(G.region==='vale'){x0=-128;x1=128;z0=-128;z1=128;}else if(G.region==='ch2'){x0=-38;x1=78;z0=-88;z1=8;}else if(G.region==='ch3'){x0=-20;x1=64;z0=-92;z1=12;}else if(G.region==='ch4'){x0=-40;x1=34;z0=-86;z1=12;}else if(G.region==='ch5'){x0=-48;x1=44;z0=-100;z1=12;}else{x0=-44;x1=48;z0=-86;z1=8;}
   const s=Math.min((W-40)/(x1-x0),(H-40)/(z1-z0)),ox=(W-(x1-x0)*s)/2,oz=(H-(z1-z0)*s)/2;
   const X=x=>ox+(x-x0)*s,Z=z=>oz+(z-z0)*s;
   if(G.region==='vale'){
@@ -277,6 +308,16 @@ function drawMap(cv){
     for(const g of GATES){c.fillStyle=g.ready?'#f2873a':'#8f9aa3';c.beginPath();c.arc(X(g.pos.x),Z(g.pos.z),7,0,7);c.fill();label(c,g.ch+' · '+g.name,X(g.pos.x),Z(g.pos.z)+(g.pos.z<0?-14:22),g.ready?'#c9621a':'#5c6b76');}
     for(const cv of CAVES){const r=caveRect(cv);c.fillStyle='#4b4038';c.fillRect(X(r.x0),Z(r.z0),(r.x1-r.x0)*s,(r.z1-r.z0)*s);label(c,cv.name,X(cv.x-cv.dir*4),Z(cv.z)-12,'#5c4636');}
     c.fillStyle='#8a6448';c.beginPath();c.arc(X(VALE.plot.x),Z(VALE.plot.z),6,0,7);c.fill();label(c,'Seed Garden',X(VALE.plot.x)-26,Z(VALE.plot.z)+4,'#5c6b76');
+  }else if(G.region==='ch5'){
+    c.fillStyle='#5f6f62';c.fillRect(X(x0),Z(z1),(x1-x0)*s,(z0-z1)*s);
+    for(const R of [MK.stream,MK.bog,MK.hollow]){c.fillStyle='#3f5a4a';c.fillRect(X(R.x0),Z(R.z0),(R.x1-R.x0)*s,(R.z1-R.z0)*s);}
+    for(const k of REG.ch5.colliders){if(!k.mesh||!k.on||k.surface!=='grass')continue;c.fillStyle=k.max.y>3?'#7fa262':'#9cbf7e';c.fillRect(X(k.min.x),Z(k.min.z),(k.max.x-k.min.x)*s,(k.max.z-k.min.z)*s);}
+    c.fillStyle='#7a6f62';c.fillRect(X(30),Z(-70),12*s,27*s);c.fillRect(X(13),Z(-70),7*s,8*s);c.fillRect(X(-12),Z(-64),6*s,6*s);c.fillStyle='#2c2622';c.fillRect(X(20),Z(-72),10*s,31*s);
+    for(const P of PODS)if(P.grown&&P.cols.length){for(const k of P.cols){c.fillStyle='#4f8a3c';c.fillRect(X(k.min.x),Z(k.min.z),(k.max.x-k.min.x)*s,(k.max.z-k.min.z)*s);}}
+    for(const sh of SHROOMS)if(sh.awake){c.fillStyle='#e2589c';c.beginPath();c.arc(X(sh.pos.x),Z(sh.pos.z),Math.max(3,sh.r*.8*s),0,7);c.fill();}
+    c.fillStyle='#9b86b0';c.beginPath();c.arc(X(0),Z(-90),7*s,0,7);c.fill();label(c,'Elder Mushroom',X(0),Z(-90)-7*s-6,'#f4f0ff');
+    label(c,'Reed Landing',X(0),Z(-2),'#f4f0ff');label(c,'Bounding Bog',X(0),Z(-34),'#f4f0ff');label(c,'Glowcap Clearing',X(4),Z(-53),'#f4f0ff');label(c,'Fog Hollow',X(-30),Z(-58),'#f4f0ff');label(c,'Vine Ravine',X(25),Z(-56),'#f4f0ff');label(c,'To the Vale',X(0),Z(11),'#7ff0cf');
+    for(const p of PETALS)if(p.reg==='ch5'&&PROG.petals[p.id]){c.fillStyle='#ff8fc0';c.beginPath();c.arc(X(p.pos.x),Z(p.pos.z),5,0,7);c.fill();}
   }else if(G.region==='ch4'){
     c.fillStyle='#dfe9ef';c.fillRect(X(x0),Z(z1),(x1-x0)*s,(z0-z1)*s);
     for(const k of REG.ch4.colliders){if(!k.mesh||!k.on)continue;const top=k.max.y;if(top>.05||top<-.05)continue;c.fillStyle=k.surface==='ice'?'#bfe0ee':'#ffffff';c.fillRect(X(k.min.x),Z(k.min.z),(k.max.x-k.min.x)*s,(k.max.z-k.min.z)*s);}
@@ -352,7 +393,7 @@ function openTravel(){
   if(mode==='online'&&role!=='host'){toast(nameOf(myRole==='g'?'s':'g')+' chooses where to travel');return;}
   openOverlay('scrTravel');const L=$('travelList');L.textContent='';
   for(const w of WAYS){if(!PROG.ws[w.id])continue;const b=document.createElement('button');b.className='btn';const here=w.reg===G.region&&(dxz(golem.pos,w.pos)<4||dxz(sprite.pos,w.pos)<4);
-    b.append(({vale:'The Vale: ',ch1:'Chapter 1: ',ch2:'Chapter 2: ',ch3:'Chapter 3: ',ch4:'Chapter 4: '}[w.reg]||'')+w.name);const sm=document.createElement('small');sm.textContent=here?'you are here':(w.reg===G.region?'this area':'another area');b.append(sm);
+    b.append(({vale:'The Vale: ',ch1:'Chapter 1: ',ch2:'Chapter 2: ',ch3:'Chapter 3: ',ch4:'Chapter 4: ',ch5:'Chapter 5: '}[w.reg]||'')+w.name);const sm=document.createElement('small');sm.textContent=here?'you are here':(w.reg===G.region?'this area':'another area');b.append(sm);
     b.disabled=here;b.onclick=()=>{closeOverlay();travelToWaystone(w.id);};L.appendChild(b);}
 }
 function refreshTitleSave(){
@@ -417,5 +458,16 @@ function frostHooks(){
     {id:'f4',x:4,z:-48,r:4,cond:()=>EMBERS[0].state==='rest'},{id:'f5',x:4,z:-52,r:4,cond:()=>!frs.cause},
     {id:'f6',x:-20,z:-46.6,r:4,cond:()=>!SNOWB.bridged},{id:'f7',x:-24,z:-49,r:4,cond:()=>!SNOWB.bridged&&SNOWB.r>.9},
     {id:'f8',x:0,z:-68,r:4},{id:'f9',x:-5,z:-76,r:4,cond:()=>EMBERS[2].state==='rest'},{id:'f10',x:13.5,z:-36,r:3}];
+}
+function marshHooks(){
+  REG.ch5.secrets=[
+    {id:'c5_hummock',name:'The bog hummock',test:b=>b.pos.x>10&&b.pos.x<14&&b.pos.z>-35.4&&b.pos.z<-31&&b.pos.y>1.4},
+    {id:'c5_island',name:'The lost island',test:b=>b.pos.x>-44&&b.pos.x<-40&&b.pos.z>-48&&b.pos.z<-44&&b.pos.y>-.2},
+    {id:'c5_stump',name:'The hollow stump',test:b=>b.pos.x>36&&b.pos.x<40&&b.pos.z>-64.4&&b.pos.z<-57.4&&b.pos.y>10.8}];
+  const P=id=>PODS.find(p=>p.id===id);
+  REG.ch5.talk=[
+    {id:'k1',x:2,z:-6,r:4},{id:'k2',x:1,z:-15.6,r:3,cond:()=>!P('stream').grown},{id:'k3',x:0,z:-23,r:4},
+    {id:'k4',x:2,z:-46,r:5,cond:()=>mks.placed<3},{id:'k5',x:16,z:-57,r:3.5,cond:()=>!P('bridge').grown},{id:'k6',x:19,z:-64,r:3,cond:()=>!P('bridge').grown&&golem.pos.y>6},
+    {id:'k7',x:-14,z:-50,r:3},{id:'k8',x:-9,z:-54,r:3,cond:()=>!P('wilt').grown},{id:'k9',x:0,z:-76,r:6},{id:'k10',x:35,z:-65,r:3,cond:()=>!P('ladder').grown}];
 }
 function countBits(n){let c=0;while(n){c+=n&1;n>>>=1;}return c;}

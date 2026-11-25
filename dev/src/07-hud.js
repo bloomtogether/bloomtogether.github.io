@@ -85,6 +85,18 @@ function runWatchers(){
     watch('fall4',G.fallN,()=>{SFX.splash();toast(nameOf(G.lastFall==='g'?'g':'s')+' fell. Back to safe ground');});
     watch('ending4',G.ending,v=>{if(v){SFX.swell();toast('The hearth roars and the lake begins to thaw!');celebrate();}});
   }
+  // ---- the Mushroom Marsh ----
+  if(G.region==='ch5'){
+    watch('bounce',G.bounceN||0,(v,o)=>{if(v>o)SFX.boing(0);});
+    watch('bigBounce',G.bigBounceN||0,(v,o)=>{if(v>o){SFX.boing(1);hint('slam5','A slam on a springy cap bounces the Giant much higher, and throws anyone else on the cap higher still.');}});
+    watch('dew',G.dewN||0,(v,o)=>{if(v>o){SFX.chime();toast(nameOf('s')+' collects a dewdrop');hint('dew','Sprite: carry the dewdrop to a seed-pod and press '+actKey('s')+' to water it.');}});
+    watch('grow',G.growN||0,(v,o)=>{if(v>o){SFX.chime();toast({stream:'The seed-pod bursts: a vine grows across the stream!',bridge:'A vine bridge grows across the ravine!',wilt:'The wilted mushroom stands up, springy again!',ladder:'Shelf fungi sprout up the stump!'}[G.lastGrow]||'Something grows!');}});
+    watch('wake5',G.wakeN||0,(v,o)=>{if(v>o&&G.lastWake==='root'){SFX.rumble(1.6);toast('The root cap in front of the Elder wakes up, springy!');}});
+    SPORES.forEach((e,i)=>watch('sp'+i,e.state,v=>{if(v==='carried'){SFX.chime();const n=SPORES.filter(x=>x.state!=='rest').length;toast('Glow spore found ('+n+'/3)');}if(v==='placed')SFX.place();}));
+    watch('kplaced',mks.placed,v=>{if(marshDone()||G.ending)return;if(v>=3)toast('All three spores glow around the Elder. Her root cap stirs…');else if(v>0)toast(v+' of 3 spores set');});
+    watch('fall5',G.fallN,()=>{SFX.splash();toast(nameOf(G.lastFall==='g'?'g':'s')+' fell. Back to safe ground');});
+    watch('ending5',G.ending,v=>{if(v){SFX.swell();toast('The Elder Mushroom wakes, and the whole marsh glows!');celebrate();}});
+  }
 }
 
 // ================= HUD helpers =================
@@ -111,6 +123,7 @@ function golemPrompt(){
   if(g.charging)return 'Release '+k+' to throw!';
   if(g.holding&&inCh3()&&heightsCogTarget())return k+': take the cog';
   if(g.holding&&inCh4()&&emberTarget())return k+': take the ember';
+  if(g.holding&&inCh5()&&sporeTarget())return k+': take the glow spore';
   if(g.holding)return 'Tap '+k+' for a high lob, or hold '+k+' for a long throw';
   if(g.pound)return 'Slam!';
   const ch1=G.region==='ch1';
@@ -132,6 +145,12 @@ function golemPrompt(){
     if(!ICEB.sunk&&dxz(g.pos,ICEB.pos)<2.4)return 'Walk into the ice block to send it sliding';
     if(g.icy)return 'Slippery! Slow to start, slow to stop';
   }
+  if(inCh5()){
+    if(g.runes>0&&dxz(g.pos,MK.ring)<3&&g.pos.y<1)return k+': set the spores at the Elder’s roots';
+    if(sporeTarget())return k+': take the glow spore';
+    if(g.onGround&&g.ground&&g.ground.kind==='shroom')return 'Springy! Jump, then '+k+' in mid-air to slam it';
+    if(!g.onGround&&!g.pound&&g.vel.y<0)for(const sh of SHROOMS)if(sh.awake&&dxz(g.pos,sh.pos)<sh.r+.8&&g.pos.y>sh.top-.2)return 'Hold '+jumpKey('g')+' as you land to bounce high';
+  }
   if(inCh3()){
     if(g.wading)return g.holding?'Wading. Deep water, but '+nameOf('s')+' is safe up top':'Wading through deep water';
   }
@@ -151,8 +170,10 @@ function spritePrompt(){
   if(s.held)return jumpKey('s')+': leap off. Or wait to be thrown';
   if(s.winding)return 'Keep holding '+actKey('s')+': winding the lift';
   if(s.melting)return 'Keep holding '+actKey('s')+': melting the ice ('+Math.round(s.melting.t*100)+'%)';
+  if(inCh5()&&!s.onGround&&s.vel.y<0)for(const sh of SHROOMS)if(sh.awake&&dxz(s.pos,sh.pos)<sh.r+.6&&s.pos.y>sh.top-.2)return 'Hold '+jumpKey('s')+' as you land to bounce high';
   const t=spriteTarget();if(t)return actKey('s')+': '+t.label.toLowerCase();
   if(inCh2()&&!G.ending)return actKey('s')+': light pulse';
+  if(inCh5()&&s.dew)return 'Carrying a dewdrop. Find a seed-pod';
   if(inCh3()&&!s.onGround&&windAt(s))return 'Hold '+jumpKey('s')+' to ride the wind';
   if(inCh3()&&s.onGround&&windAt(s))return 'Jump and hold '+jumpKey('s')+' to ride the wind up';
   if(!s.onGround&&!s.gliding&&s.vel.y<0)return 'Hold '+jumpKey('s')+' to glide';
@@ -167,10 +188,12 @@ function objectiveText(){
     if(!PROG.ch2.done)return 'The first root is awake. The gate to the Lantern Mines glows in the eastern hills, past the lookout: walk through it together for Chapter 2.';
     if(!PROG.ch3.done)return 'Two roots are awake. The gate to the Windmill Heights glows at the eastern edge of the Vale: walk through it together for Chapter 3.';
     if(!PROG.ch4.done)return 'Three roots are awake. The gate to the Frostmere Lake glows in the south-east of the Vale: walk through it together for Chapter 4.';
-    return 'Four roots are awake. Explore the Vale, plant seeds, or return to any chapter for what you missed. Chapter 5 arrives in a later update.';}
+    if(!PROG.ch5.done)return 'Four roots are awake. The gate to the Mushroom Marsh glows in the south-west of the Vale: walk through it together for Chapter 5.';
+    return 'Five roots are awake. Explore the Vale, plant seeds, or return to any chapter for what you missed. Chapter 6 arrives in a later update.';}
   if(inCh2())return mineObjective();
   if(inCh3())return heightsObjective();
   if(inCh4())return frostObjective();
+  if(inCh5())return marshObjective();
   if(G.ending)return 'The fountain wakes.';
   if(G.fountainOn)return 'The fountain runs again. Look for missed seeds, memory petals and secrets, or walk back through the south gate to the Vale.';
   if(!gate.open)return 'Open the north gate. Its lever is in a small room behind the east wall. Only the Sprite fits through the glowing gap.';
@@ -187,11 +210,11 @@ function updateHUD(dt){
   if(helpOpen)setText('helpGoal',obj);
   const cs=seedsFound()+'|'+countKeys(PROG.petals)+'|'+G.region;if(hudCache.cnt!==cs){if(hudCache.cnt)cntShowT=4;hudCache.cnt=cs;}
   objShowT-=dt;cntShowT-=dt;chipT+=dt;
-  const ch1=G.region==='ch1',ch2=G.region==='ch2',ch3=G.region==='ch3',ch4=G.region==='ch4';$('runeList').hidden=ch2?minesDone():ch3?heightsDone():ch4?frostDone():(!ch1||G.fountainOn);$('timerWrap').hidden=!ch1&&!ch2&&!ch3&&!ch4;
+  const ch1=G.region==='ch1',ch2=G.region==='ch2',ch3=G.region==='ch3',ch4=G.region==='ch4',ch5=G.region==='ch5';$('runeList').hidden=ch2?minesDone():ch3?heightsDone():ch4?frostDone():ch5?marshDone():(!ch1||G.fountainOn);$('timerWrap').hidden=!ch1&&!ch2&&!ch3&&!ch4&&!ch5;
   setText('regName',curReg?curReg.short:'');setText('seedCount',String(seedsFound()));setText('petalCount',countKeys(PROG.petals)+'/'+MEMS.length);
-  const rl=$('runeList');const list=ch2?LSTONES:ch3?COGS:ch4?EMBERS:runes,sig=G.region+list.map(r=>r.state).join();
+  const rl=$('runeList');const list=ch2?LSTONES:ch3?COGS:ch4?EMBERS:ch5?SPORES:runes,sig=G.region+list.map(r=>r.state).join();
   if(hudCache.runes!==sig){hudCache.runes=sig;rl.textContent='';for(const r of list){const d=document.createElement('div');const st=r.state==='carried'?'carried':r.state==='placed'?'placed':'';d.className=st;
-    d.textContent=(ch2||ch3||ch4?r.where:r.where.split(' ')[1].replace(/^./,c=>c.toUpperCase()))+(st==='carried'?' · carried':st==='placed'?' · set':'');d.title=r.where;rl.appendChild(d);}}
+    d.textContent=(ch2||ch3||ch4||ch5?r.where:r.where.split(' ')[1].replace(/^./,c=>c.toUpperCase()))+(st==='carried'?' · carried':st==='placed'?' · set':'');d.title=r.where;rl.appendChild(d);}}
   const inWW=ch1&&(golem.pos.z<-44||sprite.pos.z<-44)&&golem.pos.x>-11&&!port.open;$('plates').hidden=!inWW;
   if(inWW){$('plA').classList.toggle('on',plates[0].on);$('plB').classList.toggle('on',plates[1].on);$('latch').firstChild.style.width=(latch.t/1.1*100)+'%';}
   const m=Math.floor(G.time/60),s=Math.floor(G.time%60);setText('timer',m+':'+(s<10?'0':'')+s);
@@ -214,6 +237,7 @@ function updateHUD(dt){
   if(ch2){mineHints(mineG,mineS);return;}
   if(ch3){heightsHints(mineG,mineS);return;}
   if(ch4){frostHints(mineG,mineS);return;}
+  if(ch5){marshHints(mineG,mineS);return;}
   if(dxz(golem.pos,{x:SEESAW.x,z:SEESAW.z})<6.5||dxz(sprite.pos,{x:SEESAW.x,z:SEESAW.z})<6.5)hint('seesaw','Seesaw: the Sprite stands in the mint cup. The Giant jumps onto the orange end, and the Sprite flies.');
   if(!crack.broken&&dxz(golem.pos,{x:34.8,z:-1.2})<3){if(hintsShown.has('pound'))hint('crack','A cracked slab. A ground pound might break it.');else hint('pound','New: Ground Pound. Giant, jump and then press '+actKey('g')+' in mid-air to slam down. That cracked slab looks weak.');}
   if(stones.raised===false&&(dxz(sprite.pos,{x:-24.5,z:-55})<2.5||dxz(golem.pos,{x:-24.5,z:-55})<2.5))hint('island','Too far to jump. Giant: throw the Sprite to the island.');
@@ -322,4 +346,28 @@ function frostHints(mineG,mineS){
   if(!SNOWB.bridged&&dxz(g.pos,SNOWB.pos)<4)hint('snowball','Giant: roll the snowball around the snowfield to make it grow. It must be big to fill the crevasse.');
   if(EMBERS[2].state==='rest'&&dxz(s.pos,{x:-5.7,z:-76})<4)hint('cave','Sprite: hold '+actKey('s')+' next to the ice wall to melt it.');
   if(frs.placed>=3&&dxz(g.pos,FR.hearth)<5)hint('lob4','Giant: lift the Sprite, face the hearth and tap '+actKey('g')+' for a high lob onto its roof.');
+}
+
+// ================= the Mushroom Marsh: goal, hints =================
+function marshObjective(){
+  const g=golem,s=sprite,P=id=>PODS.find(p=>p.id===id);
+  if(G.ending)return 'The Elder Mushroom wakes.';
+  if(marshDone())return 'The Elder is awake and the marsh glows again. Look for missed seeds, memory petals and secrets, or walk back out through the gate at Reed Landing.';
+  if(g.pos.z>-11)return 'The reed wall is too high to jump. Jump onto the glowing mushroom and hold '+jumpKey('g')+' (Sprite: '+jumpKey('s')+') as you land to bounce over.';
+  if(!P('stream').grown&&g.pos.z>-21)return 'The stream is too wide for the Giant. Sprite: collect a dewdrop from the white lily, then water the seed-pod by the stream ('+actKey('s')+').';
+  if(g.pos.z>-43)return 'Cross the Bounding Bog on the chain of mushrooms. Hold jump as you land on each one to bounce to the next.';
+  if(SPORES[0].state==='rest')return P('bridge').grown?'The vine bridge is across. Giant: cross to the east cliff and take the glow spore.':'A glow spore lies across the Vine Ravine, in the east. Sprite: take a dewdrop from the lily in the clearing and stand on the big mushroom by the cliff. Giant: slam it. Then water the seed-pod on the ledge.';
+  if(SPORES[1].state==='rest')return 'A glow spore is lost in Fog Hollow, in the west. Its boardwalk only rises near the Sprite’s light: stay close together.';
+  if(SPORES[2].state==='rest')return P('wilt').grown?'Giant: jump onto the mushroom below the shelf and slam it to bounce up. Take the spore.':'A glow spore sits on the shelf in the north-west of the clearing. Sprite: water the wilted mushroom below it. Giant: slam it to bounce up.';
+  if(mks.placed<3)return 'Giant: set the three glow spores at the roots of the Elder Mushroom, in the north.';
+  return 'The Elder’s bud is on top of her cap. Sprite: take a dewdrop from the lily and stand on the root cap. Giant: slam it to throw the Sprite up. Then water the bud.';
+}
+function marshHints(mineG,mineS){
+  const g=golem,s=sprite;
+  if(G.time>1.5&&G.time<3)hint('bounce','New: Springy mushrooms. Land on a glowing pink cap to bounce. Hold jump as you land to bounce high.');
+  if(dxz(s.pos,LILIES[0].pos)<3||dxz(g.pos,LILIES[0].pos)<3)hint('lily','Dew lilies: the Sprite can collect a dewdrop ('+actKey('s')+') and pour it on a seed-pod to make it grow.');
+  if(g.pos.z<-42&&g.pos.x>12&&g.pos.y<1&&SPORES[0].state==='rest')hint('ravine','Sprite: bring a dewdrop and stand on the big cap. Giant: jump on too and slam it. You both fly.');
+  if(g.pos.x<-11&&g.pos.z<-44&&g.pos.z>-68)hint('fog','Fog Hollow: the boardwalk only rises near the Sprite’s light. Sprite, lead the way. Giant, follow close behind.');
+  if(!PODS.find(p=>p.id==='wilt').grown&&dxz(g.pos,{x:-9,z:-55.6})<4)hint('wilt','This mushroom has wilted. A dewdrop might bring it back.');
+  if(mks.placed>=3&&dxz(g.pos,mks.root.pos)<5)hint('root5','Sprite: carry a dewdrop onto the root cap. Giant: jump on and slam it to send the Sprite onto the Elder’s cap.');
 }

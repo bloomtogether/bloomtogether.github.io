@@ -52,6 +52,7 @@ function updateAudio(dt){
   if(!AC)return;const t=AC.currentTime,focus=camTarget;
   let nearWater=0;
   if(G.region==='ch4')nearWater=0;
+  else if(G.region==='ch5')nearWater=marshMire(focus.x,focus.z)?.07:.03;
   else if(G.region==='ch3')nearWater=Math.max(0,1-Math.hypot(focus.x,focus.z+36)/16)*.1;
   else if(G.region==='ch1')nearWater=Math.max(0,1-Math.abs(focus.z+30)/14)*.12+Math.max(0,1-Math.abs(focus.z+56)/8)*.04*(focus.x<0?1:.4)+(focus.x<-14&&focus.z<-44&&focus.z>-66?.08:0);
   else if(G.region==='vale'&&VALE.wake>.5)nearWater=Math.max(0,1-riverDist(focus.x,focus.z)/18)*.11;

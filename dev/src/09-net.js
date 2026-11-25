@@ -68,7 +68,8 @@ function packState(){
     m2:G.region==='ch2'?packMines():null,
     m3:G.region==='ch3'?packHeights():null,
     m4:G.region==='ch4'?packFrost():null,
-    pg:{r:PROG.roots,ws:Object.keys(PROG.ws).join(','),sd:Object.keys(PROG.seeds).join(','),pt:Object.keys(PROG.petals).join(','),se:Object.keys(PROG.secrets).join(','),pl:PROG.planted,sn:Object.keys(PROG.seen).join(','),c1:PROG.ch1.done,b1:PROG.ch1.best,c2:PROG.ch2.done,b2:PROG.ch2.best,l2:PROG.ch2.lan|0,d2:PROG.ch2.door|0,c3:PROG.ch3.done,b3:PROG.ch3.best,c4:PROG.ch4.done,b4:PROG.ch4.best}};
+    m5:G.region==='ch5'?packMarsh():null,
+    pg:{r:PROG.roots,ws:Object.keys(PROG.ws).join(','),sd:Object.keys(PROG.seeds).join(','),pt:Object.keys(PROG.petals).join(','),se:Object.keys(PROG.secrets).join(','),pl:PROG.planted,sn:Object.keys(PROG.seen).join(','),c1:PROG.ch1.done,b1:PROG.ch1.best,c2:PROG.ch2.done,b2:PROG.ch2.best,l2:PROG.ch2.lan|0,d2:PROG.ch2.door|0,c3:PROG.ch3.done,b3:PROG.ch3.best,c4:PROG.ch4.done,b4:PROG.ch4.best,c5:PROG.ch5.done,b5:PROG.ch5.best}};
 }
 // the Lantern Mines (only sent while the players are there)
 function packMines(){const C=mine.cart,L=mine.lift,B=mine.boulder,pa=G.pulseAt||[0,0,0];
@@ -106,6 +107,20 @@ function applyFrost(m){
   frs.placed=m[9]|0;frs.flue=!!m[10];
   if(Array.isArray(m[11])){const e=m[11];G.meltN=e[0]|0;G.lastMelt=String(e[1]||'').slice(0,8);G.slideN=e[2]|0;G.sinkN=e[3]|0;G.blockBackN=e[4]|0;G.snowN=e[5]|0;G.snowLostN=e[6]|0;}
   sprite.melting=m[12]>=0?MELTS[m[12]]||null:null;golem.icy=!!m[13];
+}
+// the Mushroom Marsh (only sent while the players are there)
+function packMarsh(){return [PODS.map(P=>P.grown?(P.t>=1?1:2+r2(P.t)):0),SHROOMS.map(sh=>sh.awake?1:0).join(''),SPORES.map(e=>ES.indexOf(e.state)),mks.placed,mks.bud?1:0,sprite.dew?1:0,
+  [G.bounceN|0,G.bigBounceN|0,G.dewN|0,G.growN|0,G.lastGrow||'',G.wakeN|0,G.lastWake||''],SHROOMS.map(sh=>r2(sh.sq)),G.ch.bounces|0];}
+function applyMarsh(m){
+  if(!Array.isArray(m))return;
+  if(Array.isArray(m[0]))m[0].forEach((v,i)=>{const P=PODS[i];if(!P)return;v=+v||0;P.grown=v>0;P.t=v===1?1:v>=2?v-2:0;for(const c of P.cols)c.on=P.t>=1;});
+  if(typeof m[1]==='string')SHROOMS.forEach((sh,i)=>{const a=m[1][i]==='1';if(sh.sleep){sh.awake=a;sh.col.on=a;sh.sleep.on=!a;if(a&&sh.grow<1)sh.grow=Math.min(1,sh.grow+.05);}});
+  if(Array.isArray(m[2]))m[2].forEach((k,i)=>{if(SPORES[i])SPORES[i].state=ES[k]||'rest';});
+  mks.placed=m[3]|0;mks.bud=!!m[4];sprite.dew=m[5]?1:0;
+  if(Array.isArray(m[6])){const e=m[6];G.bounceN=e[0]|0;G.bigBounceN=e[1]|0;G.dewN=e[2]|0;G.growN=e[3]|0;G.lastGrow=String(e[4]||'').slice(0,8);G.wakeN=e[5]|0;G.lastWake=String(e[6]||'').slice(0,8);}
+  if(Array.isArray(m[7]))m[7].forEach((q,i)=>{if(SHROOMS[i])SHROOMS[i].sq=Math.max(SHROOMS[i].sq,+q||0);});
+  G.ch.bounces=m[8]|0;
+  mks.budT=approach(mks.budT,mks.bud?1:0,1/150);
 }
 function applyMines(m){
   if(!Array.isArray(m))return;const C=mine.cart,L=mine.lift,B=mine.boulder;
@@ -147,7 +162,8 @@ function applyState(st){
   if(G.region==='ch2'&&st.m2)applyMines(st.m2);
   if(G.region==='ch3'&&st.m3)applyHeights(st.m3);
   if(G.region==='ch4'&&st.m4)applyFrost(st.m4);
-  if(st.pg&&typeof st.pg==='object'){const p=st.pg;PROG.roots=clamp(p.r|0,0,7);PROG.ws=keySet(p.ws);PROG.seeds=keySet(p.sd);PROG.petals=keySet(p.pt);PROG.secrets=keySet(p.se);PROG.planted=p.pl|0;PROG.seen=keySet(p.sn);PROG.ch1.done=p.c1?1:0;PROG.ch1.best=p.b1|0;PROG.ch2.done=p.c2?1:0;PROG.ch2.best=p.b2|0;PROG.ch2.lan=p.l2|0;PROG.ch2.door=p.d2|0;PROG.ch3.done=p.c3?1:0;PROG.ch3.best=p.b3|0;PROG.ch4.done=p.c4?1:0;PROG.ch4.best=p.b4|0;}
+  if(G.region==='ch5'&&st.m5)applyMarsh(st.m5);
+  if(st.pg&&typeof st.pg==='object'){const p=st.pg;PROG.roots=clamp(p.r|0,0,7);PROG.ws=keySet(p.ws);PROG.seeds=keySet(p.sd);PROG.petals=keySet(p.pt);PROG.secrets=keySet(p.se);PROG.planted=p.pl|0;PROG.seen=keySet(p.sn);PROG.ch1.done=p.c1?1:0;PROG.ch1.best=p.b1|0;PROG.ch2.done=p.c2?1:0;PROG.ch2.best=p.b2|0;PROG.ch2.lan=p.l2|0;PROG.ch2.door=p.d2|0;PROG.ch3.done=p.c3?1:0;PROG.ch3.best=p.b3|0;PROG.ch4.done=p.c4?1:0;PROG.ch4.best=p.b4|0;PROG.ch5.done=p.c5?1:0;PROG.ch5.best=p.b5|0;}
   G.placed=st.pl|0;G.ending=!!st.en;G.endT=+st.et||0;G.falls=st.f|0;G.lastFall=st.lf==='g'?'g':'s';G.fallN=st.fn|0;G.throws=st.th|0;G.pick=st.pk|0;G.useN=st.us|0;
 }
 function guestSmooth(dt){

@@ -533,11 +533,11 @@ const LOOK={saved:null};
 function applyLook(r){
   if(!LOOK.saved)LOOK.saved={env:scene.environment,bg:scene.background,fog:scene.fog.color.clone(),hemi:W.hemi?W.hemi.intensity:0,hs:W.hemi?W.hemi.color.clone():null,hg:W.hemi?W.hemi.groundColor.clone():null,exp:renderer.toneMappingExposure};
   const S=LOOK.saved,d=r.dark;
-  scene.environment=d?null:S.env;scene.background=d?new THREE.Color(d.bg):S.bg;scene.fog.color.copy(d?new THREE.Color(d.fog):S.fog);
+  scene.environment=d?null:S.env;scene.background=d?new THREE.Color(d.bg):S.bg;scene.fog.color.copy(d?new THREE.Color(d.fog):r.tint?new THREE.Color(r.tint.fog):S.fog);
   if(W.sky)W.sky.visible=!d;if(W.sun)W.sun.visible=!d;
   if(W.hemi){W.hemi.intensity=d?d.hemi:S.hemi;W.hemi.color.copy(d?new THREE.Color(d.sky):S.hs);W.hemi.groundColor.copy(d?new THREE.Color(d.ground):S.hg);}
   renderer.toneMappingExposure=d?d.exp:S.exp;
-  if(SPRITE_LIGHT)SPRITE_LIGHT.visible=!!d;
+  if(SPRITE_LIGHT)SPRITE_LIGHT.visible=!!d||!!r.glow;
   // the Giant's stone body is lit mostly by the sky's reflections, which don't exist underground: give it a soft fill instead
   if(LOOK.gb===undefined){LOOK.gb=null;if(golem.model)golem.model.traverse(o=>{if(o.isMesh&&o.material.name==='GiantBody'&&!LOOK.gb){LOOK.gb=o.material;if(o.material.map){o.material.emissiveMap=o.material.map;o.material.needsUpdate=true;}}});}
   if(LOOK.gb)LOOK.gb.emissive.set(d?'#59636e':'#000000');

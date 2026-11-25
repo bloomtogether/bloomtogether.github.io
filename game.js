@@ -451,10 +451,10 @@ function syncBlock(){const b=block,c=block.col;c.min.set(b.pos.x-b.hw,b.pos.y,b.
 // One save per laptop. Online, the host's save is the one that counts; the guest mirrors it while playing.
 const SAVE_KEY='bs_save_v1';
 const DEFAULT_SETTINGS={music:.55,sfx:.8,camMotion:'full',reduceFlash:false,shake:false};
-function freshProgress(){return {v:1,roots:0,ws:{vale_meadow:1},seeds:{},petals:{},secrets:{},planted:0,seen:{},ch1:{done:0,best:0},ch2:{done:0,best:0,lan:0,door:0},ch3:{done:0,best:0},ch4:{done:0,best:0},settings:Object.assign({},DEFAULT_SETTINGS)};}
+function freshProgress(){return {v:1,roots:0,ws:{vale_meadow:1},seeds:{},petals:{},secrets:{},planted:0,seen:{},ch1:{done:0,best:0},ch2:{done:0,best:0,lan:0,door:0},ch3:{done:0,best:0},ch4:{done:0,best:0},ch5:{done:0,best:0},settings:Object.assign({},DEFAULT_SETTINGS)};}
 let PROG=freshProgress();
 function loadProgress(){try{const t=localStorage.getItem(SAVE_KEY);if(!t)return;const o=JSON.parse(t);if(!o||o.v!==1)return;
-  const f=freshProgress();PROG=Object.assign(f,o);PROG.settings=Object.assign({},DEFAULT_SETTINGS,o.settings||{});PROG.ch1=Object.assign(f.ch1,o.ch1||{});PROG.ch2=Object.assign(f.ch2,o.ch2||{});PROG.ch3=Object.assign(f.ch3,o.ch3||{});PROG.ch4=Object.assign(f.ch4,o.ch4||{});}catch(e){}}
+  const f=freshProgress();PROG=Object.assign(f,o);PROG.settings=Object.assign({},DEFAULT_SETTINGS,o.settings||{});PROG.ch1=Object.assign(f.ch1,o.ch1||{});PROG.ch2=Object.assign(f.ch2,o.ch2||{});PROG.ch3=Object.assign(f.ch3,o.ch3||{});PROG.ch4=Object.assign(f.ch4,o.ch4||{});PROG.ch5=Object.assign(f.ch5,o.ch5||{});}catch(e){}}
 let saveT=0;
 function saveProgress(){if(mode==='online'&&role!=='host')return;try{localStorage.setItem(SAVE_KEY,JSON.stringify(PROG));}catch(e){}}
 function saveSoon(){saveT=.6;}
@@ -468,7 +468,7 @@ function seedsFoundIn(reg){return seedsIn(reg).filter(s=>PROG.seeds[s.id]).lengt
 const REG={};let curReg=null;
 function beginRegion(id,o){
   const r={id,name:o.name,short:o.short||o.name,group:new THREE.Group(),colliders:[],fadeables:[],terrain:o.terrain||null,hazard:o.hazard||null,
-    fog:o.fog||[70,190],fogReal:o.fogReal||null,spawn:o.spawn,secrets:o.secrets||[],talk:o.talk||[],chapter:o.chapter||0,dark:o.dark||null};
+    fog:o.fog||[70,190],fogReal:o.fogReal||null,spawn:o.spawn,secrets:o.secrets||[],talk:o.talk||[],chapter:o.chapter||0,dark:o.dark||null,tint:o.tint||null,glow:!!o.glow};
   r.group.visible=false;r.group.name='region-'+id;scene.add(r.group);REG[id]=r;ROOT=r.group;colliders.length=0;fadeables.length=0;return r;
 }
 function endRegion(r){r.colliders=colliders.slice();r.fadeables=fadeables.slice();colliders.length=0;fadeables.length=0;ROOT=scene;}
@@ -633,8 +633,8 @@ function valeColor(x,z,h,out){
 const VALE={wake:0,wakeT:0,river:null,foliage:[],ground:null,tree:null,roots:[],leaf:null,blossom:null,beds:[],gates:[]};
 const GATES=[];
 // chapters built so far; a gate opens once the chapter before it is complete
-function chapterOpens(n){return n>=2&&n<=4;}
-function gateReady(n){return n===1||(n===2&&!!PROG.ch1.done)||(n===3&&!!PROG.ch2.done)||(n===4&&!!PROG.ch3.done);}
+function chapterOpens(n){return n>=2&&n<=5;}
+function gateReady(n){return n===1||(n===2&&!!PROG.ch1.done)||(n===3&&!!PROG.ch2.done)||(n===4&&!!PROG.ch3.done)||(n===5&&!!PROG.ch4.done);}
 const CHAPTERS=[
   {n:1,name:'The Sunken Garden',ready:true},{n:2,name:'The Lantern Mines'},{n:3,name:'The Windmill Heights'},{n:4,name:'The Frostmere Lake'},
   {n:5,name:'The Mushroom Marsh'},{n:6,name:'The Clockwork Library'},{n:7,name:'The Sunstone Desert'}];
@@ -727,7 +727,7 @@ function buildVale(){
   for(let k=0;k<6;k++){const a=k/6*6.28;ruin(VALE_HILL.x+Math.cos(a)*6,VALE_HILL.z+Math.sin(a)*6,2.4+(k%2)*1.4,.45,k%3===0);}
   box(VALE_HILL.x-1.6,VALE_HILL.x+1.6,hy-1,hy+.35,VALE_HILL.z-1.6,VALE_HILL.z+1.6,REAL.ready?stoneReal():M.pave,{fade:false,surface:'stone'});
   buildCaves();
-  buildValeLamps();buildValePinwheels();buildValeLilies();
+  buildValeLamps();buildValePinwheels();buildValeLilies();buildValeGlowshrooms();
   // ---------- forests (batched) ----------
   buildValeForest();
   if(REAL.ready){GRASS=newGrassField(grassAllowed,valeH,()=>VALE.wake);buildGrass(GRASS);if(VALE.veinTex)GRASS.mat.uniforms.uVein.value=VALE.veinTex;}else buildValeTufts();
@@ -797,7 +797,7 @@ function updateVale(dt,t){
   VALE.roots.forEach((r,i)=>{if(r.vein){const u=r.material.uniforms;u.uT.value=t;u.uOn.value=approach(u.uOn.value,i<PROG.roots?(PROG.settings.reduceFlash?.6:1):0,dt*.6);if(GRASS&&GRASS.mat)GRASS.mat.uniforms.uRootOn.value[i]=u.uOn.value;return;}const on=i<PROG.roots,em=r.material.emissive;if(on){em.set('#1fb3a3');r.material.emissiveIntensity=PROG.settings.reduceFlash?.35:.3+.15*Math.sin(t*1.5+i);}else r.material.emissiveIntensity=0;});
   VALE.treeLight.intensity=PROG.roots>0?.6:0;
   const planted=Math.floor(PROG.planted/5);VALE.beds.forEach((g,i)=>g.visible=i<planted);
-  updateValeLamps(dt);updateValePinwheels(dt);updateValeLilies();
+  updateValeLamps(dt);updateValePinwheels(dt);updateValeLilies();updateValeGlowshrooms();
   for(const g of GATES){g.ready=gateReady(g.ch);const ready=g.ready;g.bar.on=!ready;if(g.labOpen){g.labOpen.visible=ready;g.lab.visible=!ready;}
     const flicker=!ready&&g.ch===PROG.roots+1; // the next sealed gate flickers faintly
     g.veil.visible=ready||flicker;if(ready)g.veil.material.opacity=PROG.settings.reduceFlash?.3:.26+.1*Math.sin(t*1.6);
@@ -2077,11 +2077,11 @@ const LOOK={saved:null};
 function applyLook(r){
   if(!LOOK.saved)LOOK.saved={env:scene.environment,bg:scene.background,fog:scene.fog.color.clone(),hemi:W.hemi?W.hemi.intensity:0,hs:W.hemi?W.hemi.color.clone():null,hg:W.hemi?W.hemi.groundColor.clone():null,exp:renderer.toneMappingExposure};
   const S=LOOK.saved,d=r.dark;
-  scene.environment=d?null:S.env;scene.background=d?new THREE.Color(d.bg):S.bg;scene.fog.color.copy(d?new THREE.Color(d.fog):S.fog);
+  scene.environment=d?null:S.env;scene.background=d?new THREE.Color(d.bg):S.bg;scene.fog.color.copy(d?new THREE.Color(d.fog):r.tint?new THREE.Color(r.tint.fog):S.fog);
   if(W.sky)W.sky.visible=!d;if(W.sun)W.sun.visible=!d;
   if(W.hemi){W.hemi.intensity=d?d.hemi:S.hemi;W.hemi.color.copy(d?new THREE.Color(d.sky):S.hs);W.hemi.groundColor.copy(d?new THREE.Color(d.ground):S.hg);}
   renderer.toneMappingExposure=d?d.exp:S.exp;
-  if(SPRITE_LIGHT)SPRITE_LIGHT.visible=!!d;
+  if(SPRITE_LIGHT)SPRITE_LIGHT.visible=!!d||!!r.glow;
   // the Giant's stone body is lit mostly by the sky's reflections, which don't exist underground: give it a soft fill instead
   if(LOOK.gb===undefined){LOOK.gb=null;if(golem.model)golem.model.traverse(o=>{if(o.isMesh&&o.material.name==='GiantBody'&&!LOOK.gb){LOOK.gb=o.material;if(o.material.map){o.material.emissiveMap=o.material.map;o.material.needsUpdate=true;}}});}
   if(LOOK.gb)LOOK.gb.emissive.set(d?'#59636e':'#000000');
@@ -2688,6 +2688,331 @@ function buildValeLilies(){
 }
 function updateValeLilies(){if(VALE.lilies)VALE.lilies.visible=PROG.roots>=4&&!(G.scene==='root4'&&G.line<1);}
 
+// ================= Chapter 5: The Mushroom Marsh =================
+// A misty, glowing swamp of giant fungi. New: bouncy mushrooms and growing vines.
+//  - Glowing pink mushrooms are springy: land on one to bounce, hold jump as you land to bounce high. A Giant's ground
+//    pound on one throws him much higher, and throws anyone else standing on the same cap higher still.
+//  - Dew lilies give the Sprite one dewdrop; she pours it on a seed-pod (or a wilted mushroom) and it grows.
+//  - Fog Hollow's boardwalk lies sunk in the murk and rises only near the Sprite's light.
+// The route, south to north:
+//  Reed Landing (bounce over the reed wall) -> the stream (dew + seed-pod: a vine bridge) -> the Bounding Bog (a chain of
+//  mushrooms) -> Glowcap Clearing, the hub. Three glow spores:
+//   1. the Vine Ravine (east): the Sprite takes dew, stands on the big cap, the Giant slams it; both fly onto the ledge;
+//      the Sprite waters the pod there and a vine bridge grows across to the east cliff.
+//   2. Fog Hollow (west): the sunken boardwalk maze, lit only near the Sprite.
+//   3. the Shelf (north-west): the Sprite waters a wilted mushroom; the Giant slams it and bounces up onto the shelf.
+//  -> the Elder Glade: set the spores at the Elder Mushroom; its root cap wakes; the Sprite takes dew, the Giant slams
+//     the root cap and the Sprite flies onto the Elder's cap to water her sleeping bud.
+// Optional: the bog hummock (a side chain of mushrooms), the lost island in the fog, the hollow stump (a vine ladder).
+const KCP={g:[-1.5,0,4.5],s:[1.5,0,4.5]};
+const MK={ring:new V3(0,0,-85.5),bud:new V3(0,10.2,-90),hollow:{x0:-46,x1:-12,z0:-68,z1:-44},stream:{x0:-14,x1:14,z0:-21,z1:-17},bog:{x0:-14,x1:14,z0:-43,z1:-25},rav:{x0:20,x1:30}};
+const mks={placed:0,bud:false,budT:0,fogK:0,rootT:0};
+const SHROOMS=[],PODS=[],LILIES=[],SPORES=[],PLANKS=[];
+const KM={};
+const inCh5=()=>G.region==='ch5';
+
+function marshMats(){
+  const R=REAL.ready;
+  KM.moss=R?M.ground:new THREE.MeshLambertMaterial({map:M.ground.map,color:'#93b07a'});if(!R)TILE.set(KM.moss,8);
+  KM.rock=R?rockMat('marshRock','#a3aa96'):new THREE.MeshLambertMaterial({color:'#8c927f'});if(R)KM.rock.envMapIntensity=1.3;TILE.set(KM.rock,3.5);
+  KM.root=new THREE.MeshStandardMaterial({map:M.wood.map,color:'#b08a68',roughness:.88,metalness:0,envMapIntensity:.9});TILE.set(KM.root,1.6);
+  KM.murk=new THREE.MeshStandardMaterial({color:'#557463',roughness:.22,metalness:0,envMapIntensity:1});
+  KM.stream=M.water;
+  KM.stem=new THREE.MeshLambertMaterial({color:'#efe3cc'});
+  KM.bouncy=new THREE.MeshStandardMaterial({color:'#e2589c',emissive:'#a8246a',emissiveIntensity:.55,roughness:.55});
+  KM.decor=new THREE.MeshLambertMaterial({color:'#b5774a'});
+  KM.decor2=new THREE.MeshLambertMaterial({color:'#7d9bd0',emissive:'#2a4a8a',emissiveIntensity:.4});
+  KM.wilt=new THREE.MeshLambertMaterial({color:'#8d7a74'});
+  KM.vine=new THREE.MeshLambertMaterial({color:'#4f8a3c'});
+  KM.leaf=new THREE.MeshLambertMaterial({color:'#6fb04a',side:THREE.DoubleSide});
+  KM.pod=new THREE.MeshStandardMaterial({color:'#9ccf5a',emissive:'#4f7a1f',emissiveIntensity:.5,roughness:.6});
+  KM.lily=new THREE.MeshStandardMaterial({color:'#f4f0ff',emissive:'#7fb6ff',emissiveIntensity:.45,roughness:.5});
+  KM.dew=new THREE.MeshStandardMaterial({color:'#bfe6ff',emissive:'#5fb4ff',emissiveIntensity:.8,roughness:.1,transparent:true,opacity:.85});
+  KM.spore=new THREE.MeshStandardMaterial({color:'#c9fff0',emissive:'#3fe0b8',emissiveIntensity:1.5,roughness:.4});
+  KM.elderCap=new THREE.MeshStandardMaterial({color:'#9b86b0',emissive:'#6b3fa0',emissiveIntensity:.05,roughness:.6});
+  KM.reed=new THREE.MeshLambertMaterial({color:'#6f8a4a'});
+  KM.pad=new THREE.MeshLambertMaterial({color:'#4f7d44'});
+}
+function mossFloor(xa,xb,za,zb,y,deep){const t=y||0;box(xa,xb,t-.5,t,za,zb,KM.moss,{cast:false,fade:false,surface:'grass'});if(deep!==0)box(xa,xb,t-(deep||4),t-.5,za,zb,KM.rock,{cast:false,fade:false,collide:false});}
+function cliff(xa,xb,za,zb,h){return box(xa,xb,0,h,za,zb,KM.rock,{surface:'stone'});}
+// a flat-topped rock with a mossy top you can stand on
+function mesa(xa,xb,za,zb,h,y0){const b=y0||0;box(xa,xb,b,h,za,zb,null,{surface:'grass'});box(xa,xb,b,h-.1,za,zb,KM.rock,{collide:false});box(xa,xb,h-.1,h,za,zb,KM.moss,{collide:false,fade:false,cast:false});}
+// a mushroom cap: flat on top (so feet sit on it), curling down at the rim
+function capGeo(r){const pts=[new THREE.Vector2(.001,0),new THREE.Vector2(r*.4,-.01*r),new THREE.Vector2(r*.7,-.05*r),new THREE.Vector2(r*.88,-.12*r),new THREE.Vector2(r,-.26*r),new THREE.Vector2(r*.92,-.36*r),new THREE.Vector2(r*.5,-.3*r),new THREE.Vector2(.001,-.28*r)];
+  const g=new THREE.LatheGeometry(pts.reverse(),20);g.computeVertexNormals();return g;} // reversed so the faces point outward
+// ---- springy mushrooms ----
+// H: bounce height when holding jump; P: a Giant's slam; L: what a slam throws someone else on the same cap
+function addShroom(id,x,z,r,top,o){
+  o=o||{};const g=new THREE.Group();g.position.set(x,0,z);ROOT.add(g);
+  const stem=new THREE.Mesh(new THREE.CylinderGeometry(r*.28,r*.38,top-.15,10),KM.stem);stem.position.y=(top-.15)/2;stem.castShadow=true;g.add(stem);
+  const cap=new THREE.Mesh(capGeo(r),KM.bouncy);cap.position.y=top;cap.castShadow=true;cap.receiveShadow=true;g.add(cap);
+  const hw=r*.8,col=box(x-hw,x+hw,0,top,z-hw,z+hw,null,{kind:'shroom',surface:'shroom'});
+  const sh={id,pos:new V3(x,0,z),r,top,H:o.H||3.4,P:o.P||8,L:o.L||9,col,g,cap,stem,sq:0,awake:o.asleep?false:true,grow:o.asleep?0:1,sleep:null};col.sh=sh;
+  if(o.asleep){sh.sleep=box(x-r*.5,x+r*.5,0,.35,z-r*.5,z+r*.5,null,{surface:'grass'});col.on=false;}
+  SHROOMS.push(sh);return sh;
+}
+// ---- dew lilies and seed-pods ----
+function addLily(x,y,z){const g=new THREE.Group();g.position.set(x,y,z);ROOT.add(g);
+  const st=new THREE.Mesh(new THREE.CylinderGeometry(.05,.07,.7,5),KM.vine);st.position.y=.35;g.add(st);
+  for(let i=0;i<5;i++){const p=new THREE.Mesh(new THREE.SphereGeometry(.22,8,6),KM.lily);p.scale.set(.5,.25,1);const a=i/5*Math.PI*2;p.position.set(Math.sin(a)*.18,.74,Math.cos(a)*.18);p.rotation.y=a;p.rotation.x=-.5;g.add(p);}
+  const drop=new THREE.Mesh(new THREE.SphereGeometry(.11,10,8),KM.dew);drop.position.y=.86;g.add(drop);
+  LILIES.push({pos:new V3(x,y,z),g,drop});box(x-.2,x+.2,y,y+.6,z-.2,z+.2,null,{collide:false});}
+function addPod(id,x,y,z,label,cols,onGrow){
+  const m=new THREE.Mesh(new THREE.SphereGeometry(.4,12,10),KM.pod);m.scale.set(1,.8,1);m.position.set(x,y+.32,z);m.castShadow=true;ROOT.add(m);
+  const P={id,pos:new V3(x,y,z),label,grown:false,t:0,cols:cols||[],onGrow:onGrow||null,m,parts:[]};for(const c of P.cols)c.on=false;PODS.push(P);return P;}
+const podReach=(s,p)=>dxz(s.pos,p.pos)<1.3&&Math.abs(s.pos.y-p.pos.y)<1;
+// ---- glow spores (the chapter's root stones) ----
+function addSpore(i,x,y,z,where){const m=new THREE.Mesh(new THREE.IcosahedronGeometry(.3,1),KM.spore);m.castShadow=true;ROOT.add(m);
+  const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:TEX.glow,color:'#7ff7d8',transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:.75}));glow.scale.set(1.8,1.8,1);ROOT.add(glow);
+  SPORES.push({i,pos:new V3(x,y,z),home:new V3(x,y,z),state:'rest',m,glow,where});}
+const sporeReach=(g,e)=>dxz(g.pos,e.pos)<1.9&&e.pos.y-g.pos.y>-.8&&e.pos.y-g.pos.y<2.2;
+// ---- Fog Hollow's sunken boardwalk: axis-aligned runs, cut into ~2 m planks ----
+function boardwalk(runs){
+  const tiles=[];
+  for(const [ax,az,bx,bz] of runs){const len=Math.hypot(bx-ax,bz-az)+1.6,n=Math.max(1,Math.round(len/2)),alongX=Math.abs(bx-ax)>Math.abs(bz-az);
+    const sx=Math.sign(bx-ax)||1,sz=Math.sign(bz-az)||1;
+    for(let k=0;k<n;k++){const a=-.8+len*k/n,b=-.8+len*(k+1)/n;
+      if(alongX){const x0=ax+sx*a,x1=ax+sx*b;tiles.push([Math.min(x0,x1),Math.max(x0,x1),az-.8,az+.8]);}
+      else{const z0=az+sz*a,z1=az+sz*b;tiles.push([ax-.8,ax+.8,Math.min(z0,z1),Math.max(z0,z1)]);}}}
+  const im=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),M.wood,tiles.length);im.castShadow=false;im.receiveShadow=true;
+  tiles.forEach(([x0,x1,z0,z1],i)=>{const col=box(x0,x1,-.2,0,z0,z1,null,{kind:'plank',surface:'wood'});col.on=false;
+    PLANKS.push({col,i,t:0,lit:false,cx:(x0+x1)/2,cz:(z0+z1)/2,w:x1-x0-.06,d:z1-z0-.06,vis:-1});});
+  ROOT.add(im);mks.plankIM=im;
+}
+
+// ================= build =================
+function buildMarsh(){
+  curBuild='ch5';
+  const R=beginRegion('ch5',{name:'Chapter 5: The Mushroom Marsh',short:'Mushroom Marsh',chapter:5,fog:[26,120],fogReal:[30,150],spawn:KCP,
+    tint:{fog:'#9fb6a6'},glow:true,hazard:b=>!(b===sprite&&sprite.held)&&b.pos.y<-.3&&marshMire(b.pos.x,b.pos.z)});
+  marshMats();
+  const murk=(x0,x1,z0,z1,noPlane)=>{if(!noPlane){const w=new THREE.Mesh(new THREE.PlaneGeometry(x1-x0,z1-z0),KM.murk);w.rotation.x=-Math.PI/2;w.position.set((x0+x1)/2,-.12,(z0+z1)/2);w.receiveShadow=true;ROOT.add(w);}
+    box(x0,x1,-1.6,-1.2,z0,z1,null,{surface:'stone'});};
+  // ---------- Reed Landing ----------
+  mossFloor(-14,14,10,-17);
+  {const g=prop('gate');if(REAL.ready)realifyProp(g);g.position.set(0,-.05,8.5);g.rotation.y=Math.PI;g.scale.setScalar(.82);ROOT.add(g);
+    const gm=[];g.traverse(o=>{if(o.isMesh)gm.push(o);});if(gm.length)markFadeGroup(gm);
+    for(const s of [-1,1])box(s>0?2.62:-4.3,s>0?4.3:-2.62,0,6.5,7.3,9.7,null,{surface:'stone'});
+    const veil=new THREE.Mesh(new THREE.PlaneGeometry(5.2,7.6),new THREE.MeshBasicMaterial({color:'#7ff0cf',transparent:true,opacity:.28,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}));
+    veil.position.set(0,3.9,8.9);ROOT.add(veil);mks.veil=veil;
+    const lab=labelSprite('The Vale','Walk through together','#1fb3a3');lab.scale.set(4.4,1.4,1);lab.position.set(0,9,8.6);ROOT.add(lab);invis(-5,5,0,12,11,12);}
+  cliff(-14,-4.3,9.2,10.4,1.4);cliff(4.3,14,9.2,10.4,1.4);
+  cliff(-16,-14,12,-43,4);cliff(14,16,12,-41,4);
+  addWaystone('ch5_landing','Reed Landing',-7,0,5,Math.PI);
+  // the reed wall: too high to jump, so bounce over it (a mushroom on each side)
+  box(-14,14,0,2.2,-11,-13,KM.root,{surface:'wood'});
+  addShroom('wallS',4,-8.8,1.5,.9);addShroom('wallN',-6,-15,1.5,.9);
+  // the stream: too wide for the Giant; the Sprite grows a vine bridge
+  const S0=MK.stream;murk(S0.x0,S0.x1,S0.z1,S0.z0,true);box(S0.x0,S0.x1,-1.6,-1.2,S0.z1,S0.z0,KM.rock,{cast:false,fade:false,collide:false});
+  {const w=new THREE.Mesh(new THREE.PlaneGeometry(S0.x1-S0.x0,4),M.water);w.rotation.x=-Math.PI/2;w.position.set(0,-.1,-19);ROOT.add(w);}
+  addLily(-9.5,0,-15.4);
+  {const c=box(.4,2.6,-.3,0,-16.8,-21.2,null,{surface:'wood'});const v=new THREE.Group();v.position.set(1.5,-.15,-16.8);ROOT.add(v);
+    const b=new THREE.Mesh(new THREE.BoxGeometry(2.1,.3,4.4),KM.vine);b.position.z=-2.2;b.receiveShadow=true;v.add(b);
+    const P=addPod('stream',1.5,0,-16.2,'Water the seed-pod',[c]);P.vine=v;}
+  mossFloor(-14,14,-21,-25);
+  // ---------- the Bounding Bog: a chain of mushrooms ----------
+  const B0=MK.bog;murk(B0.x0,B0.x1,B0.z1,B0.z0);
+  for(const z of [-25.6,-29.4,-33.2,-37,-40.8])addShroom('bog'+z,0,z,1.5,.9);
+  addShroom('side1',3.8,-33.2,1.5,.9);addShroom('side2',7.6,-33.2,1.5,.9);
+  box(10,14,-1.2,1.6,-31,-35.4,KM.moss,{surface:'grass'}); // the hummock (secret)
+  // ---------- Glowcap Clearing (the hub) ----------
+  mossFloor(-12,20,-43,-64);mossFloor(12,20,-64,-70);
+  cliff(14,44,-41,-43,4);
+  addLily(4,0,-48);
+  addWaystone('ch5_clearing','Glowcap Clearing',8,0,-58,-Math.PI/2);
+  // the Shelf: a mushroom that has wilted; water it and slam it to bounce up
+  mesa(-12,-6,-58,-64,6.5);
+  const wilt=addShroom('wilt',-9,-55.6,1.6,.9,{asleep:true});
+  addPod('wilt',-9,0,-55.6,'Water the wilted mushroom',[],()=>{wilt.awake=true;});
+  PODS[PODS.length-1].m.visible=false;PODS[PODS.length-1].shroom=wilt;
+  addSpore(2,-9,6.5,-61.5,'The Shelf');
+  // ---------- the Vine Ravine (east) ----------
+  box(20,30,-12.4,-12,-41,-72,KM.rock,{fade:false,cast:false});
+  mesa(30,42,-43,-70,6.5,-12);
+  cliff(42,44,-41,-72,10);cliff(12,44,-70,-72,7);
+  mesa(13,20,-62,-70,6.5); // the ledge
+  addShroom('ravine',16,-59.4,1.7,.9,{P:8,L:9});
+  {const c=box(19.6,30.4,6.15,6.5,-64,-66,null,{surface:'wood'});const v=new THREE.Group();v.position.set(19.6,6.33,-65);ROOT.add(v);
+    const b=new THREE.Mesh(new THREE.BoxGeometry(10.8,.35,2),KM.vine);b.position.x=5.4;b.castShadow=true;b.receiveShadow=true;v.add(b);
+    for(let i=0;i<9;i++){const l=new THREE.Mesh(new THREE.CircleGeometry(.45,6),KM.leaf);l.rotation.x=-Math.PI/2+.3;l.position.set(.8+i*1.2,.22,i%2?.9:-.9);v.add(l);}
+    const P=addPod('bridge',19.2,6.5,-63.4,'Water the seed-pod',[c]);P.vine=v;}
+  addSpore(0,36,6.5,-48,'The Vine Ravine');
+  addLily(33,6.5,-52);
+  // the hollow stump (secret): a seed-pod at its foot grows a ladder of shelf fungi
+  {box(36,40,6.5,11,-57.4,-64.4,KM.root,{surface:'wood'});const steps=[];
+    [[-64.2,-62.8,.9],[-62.7,-61.3,1.8],[-61.2,-59.8,2.7],[-59.7,-58.3,3.6]].forEach(([z0,z1,h])=>{const c=box(34.4,36,6.5+h-.2,6.5+h,z0,z1,null,{surface:'wood'});steps.push(c);});
+    const P=addPod('ladder',35.2,6.5,-65.6,'Water the seed-pod',steps);
+    for(const c of steps){const m=new THREE.Mesh(new THREE.CylinderGeometry(.9,.9,.22,12,1,false,Math.PI,Math.PI),KM.decor);m.scale.set(1,1,.85);m.position.set(36,c.max.y-.11,(c.min.z+c.max.z)/2);m.castShadow=true;ROOT.add(m);P.parts.push(m);}}
+  // ---------- Fog Hollow (west): the sunken boardwalk ----------
+  const H0=MK.hollow;murk(H0.x0,H0.x1,H0.z0,H0.z1);
+  cliff(-48,-14,-42,-44,4);cliff(-48,-12,-68,-70,4);cliff(-48,-46,-42,-70,4);
+  mossFloor(-44,-38,-58,-64,0,2);mossFloor(-44,-40,-44,-48,0,2);mossFloor(-30,-26,-48,-52,0,2);
+  boardwalk([[-12,-50,-26,-50],[-19,-50,-19,-45],[-19,-45,-24,-45],[-30,-50,-35,-50],[-35,-50,-35,-46],[-35,-46,-40,-46],[-35,-50,-35,-61],[-35,-61,-38,-61],[-35,-55,-29,-55],[-29,-55,-29,-62]]);
+  addSpore(1,-41,0,-61,'Fog Hollow');
+  // ---------- the Elder Glade ----------
+  mossFloor(-12,12,-64,-98);
+  cliff(-14,-12,-64,-100,5);cliff(12,14,-70,-100,5);cliff(-14,14,-98,-100,5);
+  {box(-2.5,2.5,0,9.6,-87.5,-92.5,null,{surface:'wood'});box(-7,7,9.6,10.2,-83,-97,null,{surface:'shroom'});
+    const stalk=new THREE.Mesh(new THREE.CylinderGeometry(2.3,3.1,9.8,16),KM.stem);stalk.position.set(0,4.9,-90);stalk.castShadow=true;ROOT.add(stalk);markFade(stalk);
+    const cap=new THREE.Mesh(new THREE.CylinderGeometry(7.2,7.7,.7,32),KM.elderCap);cap.position.set(0,9.85,-90);cap.castShadow=true;cap.receiveShadow=true;ROOT.add(cap);
+    const rim=new THREE.Mesh(new THREE.TorusGeometry(7.5,.45,8,40),KM.elderCap);rim.rotation.x=Math.PI/2;rim.position.set(0,9.6,-90);ROOT.add(rim);
+    const gill=new THREE.Mesh(new THREE.ConeGeometry(7.4,1.6,32,1,true),KM.stem);gill.rotation.x=Math.PI;gill.position.set(0,8.8,-90);ROOT.add(gill);
+    mks.elder=[cap,rim];markFadeGroup([cap,rim,gill]);
+    const bud=new THREE.Mesh(new THREE.SphereGeometry(.55,14,10),new THREE.MeshStandardMaterial({color:'#d9b8f0',emissive:'#9a5fd0',emissiveIntensity:.3,roughness:.5}));bud.scale.set(1,1.3,1);bud.position.set(0,10.7,-90);ROOT.add(bud);mks.budM=bud;
+    mks.light=new THREE.PointLight('#b98cff',0,30,1.6);mks.light.position.set(0,12,-90);ROOT.add(mks.light);
+    mks.sockets=[];for(let k=0;k<3;k++){const x=-1.6+k*1.6,z=k===1?-87.3:-87;const st=new THREE.Mesh(new THREE.CylinderGeometry(.35,.45,.5,8),KM.rock);st.position.set(x,.25,z);ROOT.add(st);
+      const e=new THREE.Mesh(new THREE.IcosahedronGeometry(.24,1),KM.spore);e.position.set(x,.75,z);e.visible=false;ROOT.add(e);mks.sockets.push(e);}}
+  mks.root=addShroom('root',0,-80,1.8,.9,{asleep:true,L:11,P:6});
+  addLily(6,0,-78);
+  // ---------- scenery: giant fungi, reeds, lily pads ----------
+  decorShrooms([[-11,-2,1.6,3.2],[11,-4,1.3,2.6],[-11,-22,1.2,2.2],[11,-22.6,1.4,2.8],[-10,-60,1.2,2],[17,-46,1.5,3.6],[10,-62.5,1.1,2.4],
+    [-10,-72,2.2,5.5],[10,-74,2.6,6.4],[-10,-96,2.4,6],[10,-95,2,5],[-8,-80,1.2,2.6],[9,-86,1.3,2.8],[40,-44.6,1.4,3],[40.6,-68,1.6,3.4],[-44.6,-60,1.3,2.6],[-43,-63,1,1.8]]);
+  reeds([[-13,-18],[13,-19.5],[-13,-27],[-13,-34],[-13,-41],[13,-27],[13,-39],[-14,-46],[-14,-56],[-20,-66],[-30,-66.5],[-45,-50],[-40,-43],[-26,-43],[-12.6,-63]]);
+  lilyPads(B0);
+  // ---------- collectibles ----------
+  const SD=[[-8,0,0],[8,0,-2],[-10,0,-6],[10,0,-7],[-8,2.2,-12],[8,2.2,-12],[6,0,-15],[-10,0,-15.5],[-8,0,-23],[8,0,-23],
+    [0,3.9,-31.3],[0,3.9,-38.9],[11,1.6,-32],[13,1.6,-34.4],
+    [-8,0,-46],[10,0,-46],[-2,0,-52],[14,0,-50],[2,0,-60],[16,0,-45],[-7,6.5,-59],[14,6.5,-64.6],
+    [33,6.5,-46],[40,6.5,-46],[33,6.5,-68],[40,6.5,-68],[35.2,8.3,-62],[35.2,10.1,-59],
+    [-24,0,-45],[-29,0,-62],[-28,0,-50],[-42,0,-59.5],[-40,0,-62.5],[-43,0,-45],
+    [-8,0,-70],[8,0,-72],[-9,0,-84],[9,0,-84],[-5,0,-95],[5,0,-95]];
+  SD.forEach(([x,y,z],i)=>addSeed('c5s'+i,x,y,z));
+  addPetal('m15',12,1.6,-33.2);addPetal('m16',-42,0,-46);addPetal('m17',38,11,-61);
+  if(REAL.ready)ROOT.traverse(o=>{if(o.isMesh&&o.material===M.ground&&!o.geometry.attributes.color){const n=o.geometry.attributes.position.count;o.geometry.setAttribute('color',new THREE.Float32BufferAttribute(new Float32Array(n*3),3));}});
+  SPORES.sort((a,b)=>a.i-b.i);
+  mks.beacon=makeBeacon();
+  endRegion(R);
+  buildSeedInstances('ch5');
+}
+function decorShrooms(list){
+  const n=list.length,sG=new THREE.CylinderGeometry(.3,.42,1,8);sG.translate(0,.5,0);const cG=capGeo(1);
+  const a=new THREE.InstancedMesh(sG,KM.stem,n),b=new THREE.InstancedMesh(cG,KM.decor,n),m4=new THREE.Matrix4(),q=new THREE.Quaternion(),p=new V3(),sc=new V3();
+  const c2=[];
+  list.forEach(([x,z,r,h],i)=>{p.set(x,0,z);sc.set(r,h,r);m4.compose(p,q,sc);a.setMatrixAt(i,m4);p.set(x,h,z);sc.set(r,r,r);m4.compose(p,q,sc);b.setMatrixAt(i,m4);
+    box(x-r*.3,x+r*.3,0,h,z-r*.3,z+r*.3,null,{surface:'wood'});if(i%3===1)c2.push(i);});
+  b.instanceColor=null;for(const im of [a,b]){im.castShadow=true;im.receiveShadow=true;ROOT.add(im);}
+  // every third one glows blue
+  const g2=new THREE.InstancedMesh(cG,KM.decor2,c2.length);c2.forEach((i,k)=>{b.getMatrixAt(i,m4);g2.setMatrixAt(k,m4);m4.makeScale(0,0,0);b.setMatrixAt(i,m4);});ROOT.add(g2);
+}
+function reeds(spots){
+  const n=spots.length*7,im=new THREE.InstancedMesh(new THREE.ConeGeometry(.06,1.8,4),KM.reed,n),m4=new THREE.Matrix4();let k=0;
+  for(const [x,z] of spots)for(let i=0;i<7;i++){const h=.8+hash2(k,3,5)*.7;m4.makeScale(1,h,1);m4.setPosition(x+(hash2(k,1,5)-.5)*1.6,.9*h,z+(hash2(k,2,5)-.5)*1.6);im.setMatrixAt(k++,m4);}
+  ROOT.add(im);
+}
+function lilyPads(B){
+  const n=40,im=new THREE.InstancedMesh(new THREE.CircleGeometry(.5,8),KM.pad,n),m4=new THREE.Matrix4(),q=new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI/2,0,0)),p=new V3(),sc=new V3();
+  for(let i=0;i<n;i++){const x=lerp(B.x0+.6,B.x1-.6,hash2(i,1,7)),z=lerp(B.z0+.6,B.z1-.6,hash2(i,2,7));if(Math.abs(x)<2.2){sc.set(0,0,0);}else{const s=.6+hash2(i,3,7)*.8;sc.set(s,s,s);}p.set(x,-.06,z);m4.compose(p,q,sc);im.setMatrixAt(i,m4);}
+  ROOT.add(im);
+}
+// murky water: the stream, the bog and the hollow (below the surface counts as a slip)
+function marshMire(x,z){for(const R of [MK.stream,MK.bog,MK.hollow])if(x>R.x0&&x<R.x1&&z>R.z0&&z<R.z1)return true;return false;}
+
+// ================= state =================
+function resetMarsh(){
+  const done=!!PROG.ch5.done;
+  G.time=0;G.falls=0;G.throws=0;G.ending=false;G.endT=0;G.fallN=0;G.pick=0;G.useN=0;
+  for(const P of PODS){P.grown=done;P.t=+done;for(const c of P.cols)c.on=done;}
+  for(const sh of SHROOMS){if(!sh.sleep)continue;sh.awake=done;sh.grow=+done;sh.col.on=done;sh.sleep.on=!done;}
+  for(const e of SPORES){e.state=done?'placed':'rest';e.pos.copy(e.home);}
+  mks.placed=done?3:0;mks.bud=done;mks.budT=+done;
+  for(const p of PLANKS){p.t=0;p.lit=false;p.col.on=false;}
+  golem.runes=0;golem.holding=false;golem.charging=false;golem.pound=false;sprite.held=false;sprite.dew=0;
+  placeAt(golem,KCP.g);placeAt(sprite,KCP.s);golem.yaw=sprite.yaw=Math.PI;hintsShown.clear();camSnap=true;
+}
+function marshDone(){return !!PROG.ch5.done;}
+function sporeTarget(){const g=golem;for(const e of SPORES)if(e.state==='rest'&&sporeReach(g,e))return e;return null;}
+function golemMarshAction(){
+  const g=golem;
+  if(g.runes>0&&dxz(g.pos,MK.ring)<3&&g.pos.y<1){for(const e of SPORES)if(e.state==='carried'){e.state='placed';mks.placed++;}g.runes=0;return true;}
+  const e=sporeTarget();if(e){e.state='carried';g.runes++;G.pick++;return true;}
+  return false;
+}
+// what the Sprite can use here: a lily (no dewdrop yet), a pod (with one), the Elder's bud (with one, at the top)
+function marshTarget(){
+  const s=sprite;
+  if(s.dew){
+    if(mks.placed>=3&&!mks.bud&&dxz(s.pos,MK.bud)<1.6&&Math.abs(s.pos.y-MK.bud.y)<1)return {obj:{marsh:'bud'},label:'Water the Elder’s bud'};
+    for(const P of PODS)if(!P.grown&&podReach(s,P))return {obj:{marsh:'pod',P},label:P.label};
+    return null;}
+  for(const L of LILIES)if(dxz(s.pos,L.pos)<1.2&&Math.abs(s.pos.y-L.pos.y)<1)return {obj:{marsh:'lily',L},label:'Collect a dewdrop'};
+  return null;
+}
+function marshUse(o){
+  const s=sprite;
+  if(o.marsh==='lily'){s.dew=1;G.dewN=(G.dewN||0)+1;return;}
+  if(o.marsh==='pod'){s.dew=0;o.P.grown=true;G.growN=(G.growN||0)+1;G.lastGrow=o.P.id;return;}
+  if(o.marsh==='bud'){s.dew=0;mks.bud=true;if(!G.ending&&!marshDone()){G.ending=true;G.endT=0;chapterComplete(5);}}
+}
+// landing on a springy cap: hold jump to bounce high; a Giant's slam goes higher and throws whoever else is on the cap
+function marshLand(b,landed,pounded,hold){
+  if(!landed)return;const c=b.ground;if(!c||c.kind!=='shroom'||!c.sh)return;const sh=c.sh,v=-(b.landVy||0);let H=0;
+  if(pounded){H=sh.P;G.bigBounceN=(G.bigBounceN||0)+1;
+    const o=sprite;if(b===golem&&!o.held&&o.ground===c&&Math.abs(o.pos.y-c.max.y)<.15){o.vel.set(o.vel.x*.3,Math.sqrt(2*GRAV*sh.L),o.vel.z*.3);o.onGround=false;o.thrownT=0;o.airT=0;o.coyote=0;G.launchN++;G.launchBig=1;G.ch.launches++;}}
+  else if(hold)H=sh.H;
+  else if(v*.55>3.2)H=(v*.55)*(v*.55)/(2*GRAV);
+  if(H<=0)return;
+  b.vel.y=Math.sqrt(2*GRAV*H);b.onGround=false;b.coyote=0;sh.sq=1;G.bounceN=(G.bounceN||0)+1;G.ch.bounces=(G.ch.bounces||0)+1;
+}
+// the boardwalk rises where the Sprite's light reaches (with a little give so planks don't flicker), and a plank
+// someone is standing on stays up: nobody drops in just because the other one walked on ahead
+const onPlank=(b,p)=>Math.abs(b.pos.x-p.cx)<p.w/2+b.hw&&Math.abs(b.pos.z-p.cz)<p.d/2+b.hw&&Math.abs(b.pos.y)<.3;
+function stepPlanks(dt,solid){
+  const s=sprite;
+  for(const p of PLANKS){const d=Math.hypot(s.pos.x-p.cx,s.pos.z-p.cz);p.lit=d<(p.lit?6.6:5.6)||(p.t>.55&&(onPlank(golem,p)||(!s.held&&onPlank(s,p))));p.t=approach(p.t,p.lit?1:0,dt/.45);
+    if(solid){const on=p.t>.55;if(on&&!p.col.on)liftOnto(p.col);p.col.on=on;}}
+}
+function stepMarshB(dt){
+  for(const P of PODS){if(!P.grown||P.t>=1)continue;P.t=Math.min(1,P.t+dt/2.2);if(P.t>=1){for(const c of P.cols){c.on=true;liftOnto(c);}if(P.shroom)wakeShroom(P.shroom);if(P.onGrow)P.onGrow();}}
+  if(mks.placed>=3&&!mks.root.awake)wakeShroom(mks.root);
+  for(const sh of SHROOMS)if(sh.awake&&sh.grow<1)sh.grow=Math.min(1,sh.grow+dt/1.6);
+  stepPlanks(dt,true);
+  mks.budT=approach(mks.budT,mks.bud?1:0,dt/2.5);
+}
+function wakeShroom(sh){if(sh.awake&&sh.col.on)return;sh.awake=true;sh.col.on=true;if(sh.sleep)sh.sleep.on=false;liftOnto(sh.col);G.wakeN=(G.wakeN||0)+1;G.lastWake=sh.id;}
+
+// ================= visuals =================
+function updateMarshVis(dt,t){
+  const rf=PROG.settings.reduceFlash,guest=mode==='online'&&role!=='host';
+  if(guest)stepPlanks(dt,false);
+  for(const sh of SHROOMS){sh.sq=Math.max(0,sh.sq-dt*4);const k=sh.sleep?(sh.awake?smooth(0,1,sh.grow):0):1;
+    const s=sh.sleep?.35+.65*k:1,sq=1-.32*Math.sin(Math.min(1,sh.sq)*Math.PI);sh.g.scale.set(s,s*sq,s);
+    sh.cap.material=k>.5||!sh.sleep?KM.bouncy:KM.wilt;sh.g.rotation.z=sh.sleep?(1-k)*.5:0;}
+  for(const P of PODS){const k=smooth(0,1,P.t);P.m.scale.setScalar(P.grown?Math.max(.01,1-k):1+.06*Math.sin(t*2.4));
+    if(P.vine){P.vine.visible=k>.02;if(P.id==='bridge')P.vine.scale.set(Math.max(.01,k),1,1);else P.vine.scale.set(1,1,Math.max(.01,k));}
+    for(const m of P.parts){m.visible=k>.02;m.scale.set(Math.max(.01,k),1,.85*Math.max(.01,k));}
+    if(P.grown&&P.t<1&&!rf&&Math.random()<dt*25)emit(P.pos.x+(Math.random()-.5),P.pos.y+.4,P.pos.z+(Math.random()-.5),0,1,0,.6,1,.5,.1,1,-.2,.3);}
+  for(const L of LILIES){L.drop.visible=true;L.drop.position.y=.86+Math.sin(t*2+L.pos.x)*.03;}
+  // the boardwalk
+  const im=mks.plankIM,m4=new THREE.Matrix4();let dirty=false;
+  for(const p of PLANKS){const k=Math.round(smooth(0,1,p.t)*40)/40;if(k===p.vis)continue;p.vis=k;dirty=true;m4.makeScale(p.w,.2,p.d);m4.setPosition(p.cx,-.1-.42*(1-k),p.cz);im.setMatrixAt(p.i,m4);}
+  if(dirty)im.instanceMatrix.needsUpdate=true;
+  for(const e of SPORES){const vis=e.state==='rest';e.m.visible=e.glow.visible=vis;if(vis){const y=e.pos.y+.6+Math.sin(t*1.6+e.i)*.08;e.m.position.set(e.pos.x,y,e.pos.z);e.m.rotation.y=t*.7;e.glow.position.set(e.pos.x,y,e.pos.z);e.glow.material.opacity=rf?.7:.55+.2*Math.sin(t*2.6+e.i);}}
+  mks.sockets.forEach((m,i)=>m.visible=i<mks.placed);
+  const awake=mks.bud||marshDone(),b=smooth(0,1,awake?Math.max(mks.budT,marshDone()?1:0):0);
+  mks.budM.scale.set(1+b*.8,1.3-b*.5,1+b*.8);mks.budM.material.emissiveIntensity=.3+b*1.4;
+  KM.elderCap.emissiveIntensity=.05+(mks.placed/3)*.15+b*.6;mks.light.intensity=approach(mks.light.intensity,b*2.4+mks.placed*.2,dt*2);
+  mks.veil.material.opacity=rf?.24:.2+.1*Math.sin(t*1.6);
+  // the dewdrop the Sprite carries
+  if(!mks.dewM){mks.dewM=new THREE.Mesh(new THREE.SphereGeometry(.1,10,8),KM.dew);ROOT.add(mks.dewM);}
+  if(mks.dewM.parent!==REG.ch5.group)REG.ch5.group.add(mks.dewM);
+  mks.dewM.visible=!!sprite.dew;if(sprite.dew){const p=sprite.root?sprite.root.position:sprite.pos;mks.dewM.position.set(p.x,p.y+.75+Math.sin(t*4)*.04,p.z);}
+  // Fog Hollow: the mist closes in, and the Sprite's light matters
+  const inH=camTarget.x<-13&&camTarget.z<-42&&camTarget.z>-69;mks.fogK=approach(mks.fogK,inH?1:0,dt*.7);
+  const fg=REAL.ready?REG.ch5.fogReal:REG.ch5.fog,fk=smooth(0,1,mks.fogK);scene.fog.near=lerp(fg[0],7,fk);scene.fog.far=lerp(fg[1],32,fk);
+  if(SPRITE_LIGHT){const p=sprite.root?sprite.root.position:sprite.pos;SPRITE_LIGHT.position.set(p.x,p.y+.6,p.z);SPRITE_LIGHT.intensity=.7+fk*1.8;SPRITE_LIGHT.distance=8+fk*4;}
+  // drifting glow motes
+  if(!rf&&Math.random()<dt*10)emit(camTarget.x+(Math.random()-.5)*24,camTarget.y+Math.random()*4,camTarget.z+(Math.random()-.5)*24,(Math.random()-.5)*.2,.15,(Math.random()-.5)*.2,.6,1,.85,.06,5,0,.05);
+}
+// ================= the Vale: glowing mushrooms under the trees once the fifth root wakes =================
+function buildValeGlowshrooms(){
+  const n=90,sG=new THREE.CylinderGeometry(.05,.07,.4,6);sG.translate(0,.2,0);const cG=capGeo(.22);cG.translate(0,.4,0);
+  const a=new THREE.InstancedMesh(sG,new THREE.MeshLambertMaterial({color:'#e8f1ff'}),n),b=new THREE.InstancedMesh(cG,new THREE.MeshLambertMaterial({color:'#9fc4ff',emissive:'#4f86e0',emissiveIntensity:.6}),n),m4=new THREE.Matrix4();
+  let k=0;for(let i=0;i<600&&k<n;i++){const ang=hash2(i,1,21)*Math.PI*2,r=lerp(36,104,hash2(i,2,21)),x=Math.cos(ang)*r,z=Math.sin(ang)*r;
+    if(riverDist(x,z)<RIVER_W+4||pathDist(x,z)<3)continue;const s=1.3+hash2(i,3,21)*1.4;m4.makeScale(s,s,s);m4.setPosition(x,valeH(x,z),z);a.setMatrixAt(k,m4);b.setMatrixAt(k,m4);k++;}
+  a.count=b.count=k;a.visible=b.visible=false;ROOT.add(a);ROOT.add(b);VALE.glowsh=[a,b];
+}
+function updateValeGlowshrooms(){if(!VALE.glowsh)return;const on=PROG.roots>=5&&!(G.scene==='root5'&&G.line<1);for(const m of VALE.glowsh)m.visible=on;}
+
 // ================= characters =================
 const golem={kind:'golem',pos:new V3(),vel:new V3(),hw:.6,h:2.3,stepH:.45,yaw:Math.PI,onGround:false,coyote:0,holding:false,charging:false,charge:0,runes:0,cp:0,pushing:false,anim:0,prev:new V3(),delta:new V3(),stepSound:0,walk:0};
 const sprite={kind:'sprite',pos:new V3(),vel:new V3(),hw:.14,h:.4,stepH:.14,yaw:Math.PI,onGround:false,coyote:0,held:false,gliding:false,thrownT:0,cp:0,walk:0,anim:0,airT:0};
@@ -2914,6 +3239,7 @@ function travel(reg,g,s,yaw){
   if(reg==='ch2'&&from!=='ch2'){G.ch={seeds:seedsFoundIn('ch2'),petals:0,secrets:0,launches:0,pulses:0};resetMines();}
   if(reg==='ch3'&&from!=='ch3'){G.ch={seeds:seedsFoundIn('ch3'),petals:0,secrets:0,launches:0,pulses:0};resetHeights();}
   if(reg==='ch4'&&from!=='ch4'){G.ch={seeds:seedsFoundIn('ch4'),petals:0,secrets:0,launches:0,pulses:0};resetFrost();}
+  if(reg==='ch5'&&from!=='ch5'){G.ch={seeds:seedsFoundIn('ch5'),petals:0,secrets:0,launches:0,pulses:0,bounces:0};resetMarsh();}
   golem.holding=false;golem.charging=false;golem.pound=false;sprite.held=false;
   if(g)placeAt(golem,g);if(s)placeAt(sprite,s);if(yaw!=null)golem.yaw=sprite.yaw=yaw;
   golem.safe=null;sprite.safe=null;syncGolemCol();camSnap=true;CAVECAM.c=null;camYawT=Math.round(camYawT/(Math.PI*2))*Math.PI*2;
@@ -2923,10 +3249,12 @@ function travel(reg,g,s,yaw){
   else if(reg==='vale'&&PROG.roots>=2&&!PROG.seen.root2)playScene('root2');
   else if(reg==='vale'&&PROG.roots>=3&&!PROG.seen.root3)playScene('root3');
   else if(reg==='vale'&&PROG.roots>=4&&!PROG.seen.root4)playScene('root4');
+  else if(reg==='vale'&&PROG.roots>=5&&!PROG.seen.root5)playScene('root5');
   else if(reg==='ch1'&&!PROG.seen.ch1_intro)playScene('ch1_intro');
   else if(reg==='ch2'&&!PROG.seen.ch2_intro)playScene('ch2_intro');
   else if(reg==='ch3'&&!PROG.seen.ch3_intro)playScene('ch3_intro');
   else if(reg==='ch4'&&!PROG.seen.ch4_intro)playScene('ch4_intro');
+  else if(reg==='ch5'&&!PROG.seen.ch5_intro)playScene('ch5_intro');
 }
 // just inside the Vale in front of a chapter's gate, facing the Heart Tree
 function valeSpotAtGate(n){
@@ -2952,6 +3280,7 @@ function golemAction(){
   if(inCh2()&&golemMineAction())return;
   if(inCh3()&&golemHeightsAction())return;
   if(inCh4()&&golemFrostAction())return;
+  if(inCh5()&&golemMarshAction())return;
   if(!sprite.held&&dxz(g.pos,sprite.pos)<1.75){const dy=sprite.pos.y-g.pos.y;if(dy>-.7&&dy<2.75){sprite.held=true;g.holding=true;sprite.vel.set(0,0,0);sprite.gliding=false;G.pick++;return;}}
   if(G.region==='vale'&&plotNear(g)&&seedsToPlant()>=5){plantSeeds();return;}
   if(nearWaystone(g)){G.travelReq++;return;}
@@ -2987,6 +3316,7 @@ function spriteTarget(){
     for(const c of COGS)if(c.state==='perched')consider(c,c.pos,'Nudge the cog off the pillar');
   }
   if(inCh4()&&!best){const m=meltTarget();if(m)best={obj:m,label:m.label};}
+  if(inCh5()&&!best)best=marshTarget();
   if(!best){const w=nearWaystone(s,2.4);if(w)best={obj:w,label:'Travel from the waystone'};}
   if(!best&&G.region==='vale'&&plotNear(s)&&seedsToPlant()>=5)best={obj:'plot',label:'Plant 5 golden seeds'};
   return best;
@@ -2997,6 +3327,7 @@ function spriteAction(){
   if(t.obj.mine){pullMineLever(t.obj);return;}
   if(t.obj.ch3){pullHeightsLever(t.obj);return;}
   if(t.obj.onDone){sprite.melting=t.obj;return;}
+  if(t.obj.marsh){marshUse(t.obj);return;}
   if(t.obj.kind==='cog'){const c=t.obj;c.state='free';c.pos.y+=.05;c.vel.set(0,3.2,5.2);c.onGround=false;G.nudgeN=(G.nudgeN||0)+1;return;}
   if(t.obj==='plot'){plantSeeds();return;}
   if(WAYS.includes(t.obj)){G.travelReq++;return;}
@@ -3015,7 +3346,7 @@ function stepSim(dt,IG,IS){
   if(G.scene||G.card){const press=IG.jumpP||IG.actP||IS.jumpP||IS.actP;if(G.scene){G.lineT+=dt;if(press||G.lineT>14)storyNext();}else{G.cardT+=dt;if(press&&G.cardT>1)G.card='';}return;}
   if(!G.ending)G.time+=dt;
   if(G.ending){IG=NOIN;IS=NOIN;}
-  const g=golem,s=sprite,ch1=inCh1(),ch2=inCh2(),ch3=inCh3(),ch4=inCh4();
+  const g=golem,s=sprite,ch1=inCh1(),ch2=inCh2(),ch3=inCh3(),ch4=inCh4(),ch5=inCh5();
   if(ch3)stepHeightsA(dt);
   if(ch4){stepFrostA(dt,IS);if(s.melting)IS=Object.assign({},IS,{mx:0,mz:0,jumpP:0});}
   for(const b of [g,s])if(b.frz>0)b.frz-=dt;
@@ -3043,6 +3374,7 @@ function stepSim(dt,IG,IS){
     if(!s.held&&s.onGround&&dxz(s.pos,g.pos)<3.2&&Math.abs(s.pos.y-g.pos.y)<.6){s.vel.y=5.5;s.onGround=false;}
     if(ch1&&g.ground===crack.col&&!crack.broken){crack.broken=true;crack.col.on=false;G.crackN++;}
     if(ch2&&g.ground===mine.crack.col&&!mine.crack.broken){mine.crack.broken=true;mine.crack.col.on=false;G.crackN++;}}
+  if(ch5)marshLand(g,landed,pounded,IG.jump);
   g.delta.subVectors(g.pos,g.prev);syncGolemCol();
   // ---- chapter 1 mechanisms ----
   if(ch1){
@@ -3076,12 +3408,14 @@ function stepSim(dt,IG,IS){
     s.vel.y-=GRAV*dt;if(s.gliding)s.vel.y=Math.max(s.vel.y,-1.6);
     if(ch3)rideWind(s,IS,dt);
     moveBody(s,dt,listFor(s));
+    if(ch5)marshLand(s,s.onGround&&!s.wasGround,false,IS.jump);
     s.coyote=s.onGround?.1:s.coyote-dt;s.thrownT-=dt;if(s.onGround)s.thrownT=0;
     s.airT=s.onGround?0:s.airT+dt;
   }
   if(ch2)stepMinesB(dt);
   if(ch3)stepHeightsB(dt);
   if(ch4)stepFrostB(dt);
+  if(ch5)stepMarshB(dt);
   if(ch1){
     // ---- runes ----
     for(const r of runes){
@@ -3110,7 +3444,7 @@ function stepSim(dt,IG,IS){
       if(b===g&&g.holding){g.holding=false;g.charging=false;s.held=false;placeAt(s,CP[s.cp].s);}
       if(b===g)syncGolemCol();
     }
-    if((ch2&&b.pos.y<-6)||(ch3&&b.pos.y<-15)||(ch4&&b.pos.y<-4)){ // a fall into a chasm or off an island: back to the last safe spot
+    if((ch2&&b.pos.y<-6)||(ch3&&b.pos.y<-15)||(ch4&&b.pos.y<-4)||(ch5&&b.pos.y<-5)){ // a fall into a chasm or off an island: back to the last safe spot
       const p=b.safe?[b.safe.x,b.safe.y+.05,b.safe.z]:curReg.spawn[b===g?'g':'s'];respawnAt(b,p);G.falls++;G.fallN++;G.lastFall=b===g?'g':'s';
       if(b===g&&g.holding){g.holding=false;g.charging=false;s.held=false;placeAt(s,[p[0]+.8,p[1],p[2]]);}
       if(b===g)syncGolemCol();
@@ -3133,7 +3467,7 @@ function applyDoorColliders(){
 function wellOn(b){const c=b.ground;if(c===TERR)return true;const m=Math.max(.35,b.hw*.5);return b.pos.x>c.min.x+m&&b.pos.x<c.max.x-m&&b.pos.z>c.min.z+m&&b.pos.z<c.max.z-m;}
 // back on safe ground after a fall: still, no slam or winding, and a moment before the keys move them again
 function respawnAt(b,p){placeAt(b,p);b.pound=false;b.winding=false;b.charging=false;b.frz=.5;b.airT=0;}
-const UNSAFE={seesaw:1,crack:1,golem:1,block:1,bridge:1,cart:1,lift:1,door:1,nest:1,gondola:1,thinice:1,iceblock:1,snowball:1};
+const UNSAFE={seesaw:1,crack:1,golem:1,block:1,bridge:1,cart:1,lift:1,door:1,nest:1,gondola:1,thinice:1,iceblock:1,snowball:1,shroom:1,plank:1};
 function chapterComplete(n){
   const P=PROG['ch'+n],first=!P.done;P.done=1;PROG.roots=Math.max(PROG.roots,n);G.endCh=n;
   if(!P.best||G.time<P.best)P.best=Math.round(G.time);G.firstClear=first;saveProgress();
@@ -3153,10 +3487,10 @@ function worldChecks(){
   tickDialogue(1/60);
   // walking through a gate together changes region
   const both=(p,r)=>dxz(g.pos,p)<r&&dxz(s.pos,p)<r;
-  if(reg==='vale')for(const gt of GATES){if(!gt.ready||gt.ch>4)continue;
-    if(dxz(g.pos,gt.pos)<2.6||dxz(s.pos,gt.pos)<2.6){if(both(gt.pos,11)){const sp={1:CP[0],2:MCP,3:HCP,4:FCP}[gt.ch];travel('ch'+gt.ch,sp.g,sp.s,Math.PI);}else if(G.chT<=0){G.waitN++;G.chT=4;}}}
-  const exitZ=reg==='ch3'||reg==='ch4'?9.3:5.3;
-  if((reg==='ch2'||reg==='ch3'||reg==='ch4')&&(g.pos.z>exitZ||s.pos.z>exitZ)&&Math.abs(g.pos.x)<5&&Math.abs(s.pos.x)<5){
+  if(reg==='vale')for(const gt of GATES){if(!gt.ready||gt.ch>5)continue;
+    if(dxz(g.pos,gt.pos)<2.6||dxz(s.pos,gt.pos)<2.6){if(both(gt.pos,11)){const sp={1:CP[0],2:MCP,3:HCP,4:FCP,5:KCP}[gt.ch];travel('ch'+gt.ch,sp.g,sp.s,Math.PI);}else if(G.chT<=0){G.waitN++;G.chT=4;}}}
+  const exitZ=reg==='ch3'||reg==='ch4'||reg==='ch5'?9.3:5.3;
+  if((reg==='ch2'||reg==='ch3'||reg==='ch4'||reg==='ch5')&&(g.pos.z>exitZ||s.pos.z>exitZ)&&Math.abs(g.pos.x)<5&&Math.abs(s.pos.x)<5){
     if(both(new V3(0,0,exitZ-.9),11)){const sp=valeSpotAtGate(+reg.slice(2));travel('vale',sp.g,sp.s,sp.yaw);}
     else{for(const b of [g,s])if(b.pos.z>5.3){b.pos.z=5.2;b.vel.z=Math.min(0,b.vel.z);}if(G.chT<=0){G.waitN++;G.chT=4;}}}
   if(reg==='ch1'&&(g.pos.z>5.3||s.pos.z>5.3)&&Math.abs(g.pos.x)<5&&Math.abs(s.pos.x)<5){
@@ -3311,6 +3645,7 @@ function updateAudio(dt){
   if(!AC)return;const t=AC.currentTime,focus=camTarget;
   let nearWater=0;
   if(G.region==='ch4')nearWater=0;
+  else if(G.region==='ch5')nearWater=marshMire(focus.x,focus.z)?.07:.03;
   else if(G.region==='ch3')nearWater=Math.max(0,1-Math.hypot(focus.x,focus.z+36)/16)*.1;
   else if(G.region==='ch1')nearWater=Math.max(0,1-Math.abs(focus.z+30)/14)*.12+Math.max(0,1-Math.abs(focus.z+56)/8)*.04*(focus.x<0?1:.4)+(focus.x<-14&&focus.z<-44&&focus.z>-66?.08:0);
   else if(G.region==='vale'&&VALE.wake>.5)nearWater=Math.max(0,1-riverDist(focus.x,focus.z)/18)*.11;
@@ -3333,6 +3668,7 @@ const SONGS={
   ch2:{root:146.8,bar:6,prog:[[0,7,15],[-4,3,12],[-2,5,14],[-5,2,10]],pent:[0,3,5,7,10,12,15]},
   ch3:{root:196.0,bar:3.8,prog:[[0,7,16],[2,9,18],[-3,7,16],[5,9,16]],pent:[0,2,4,7,9,12,14,16]},
   ch4:{root:233.1,bar:5.2,prog:[[0,7,14],[-2,5,12],[-5,4,11],[-7,5,12]],pent:[0,2,5,7,9,12,14]},
+  ch5:{root:164.8,bar:5.8,prog:[[0,7,15],[-4,3,12],[-2,5,10],[-7,3,12]],pent:[0,3,5,7,10,12,15]},
   title:{root:220.0,bar:5.5,prog:[[0,7,16],[5,12,16],[-3,7,12],[-5,7,14]],pent:[0,2,4,7,9,12]},
 };
 const semi=(f,n)=>f*Math.pow(2,n/12);
@@ -3344,7 +3680,7 @@ function pluck(f,t0,vol){const o=AC.createOscillator(),g=AC.createGain();o.type=
   g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(vol,t0+.01);g.gain.exponentialRampToValueAtTime(.0006,t0+1.6);o.connect(g);g.connect(musicBus);o.start(t0);o.stop(t0+1.7);}
 function updateMusic(now){
   if(!AC||!musicBus||muted||document.hidden||PROG.settings.music<=0)return;
-  const key=G.phase==='title'||G.phase==='brief'?'title':(G.region==='ch1'?'ch1':G.region==='ch2'?'ch2':G.region==='ch3'?'ch3':G.region==='ch4'?'ch4':'vale');
+  const key=G.phase==='title'||G.phase==='brief'?'title':(G.region==='ch1'?'ch1':G.region==='ch2'?'ch2':G.region==='ch3'?'ch3':G.region==='ch4'?'ch4':G.region==='ch5'?'ch5':'vale');
   if(key!==MUSIC.key){MUSIC.key=key;MUSIC.bar=0;MUSIC.next=Math.max(MUSIC.next,now+.3);}
   if(now<MUSIC.next-.25)return;
   const S=SONGS[key],t0=Math.max(now,MUSIC.next),ch=S.prog[MUSIC.bar%S.prog.length];
@@ -3442,6 +3778,18 @@ function runWatchers(){
     watch('fall4',G.fallN,()=>{SFX.splash();toast(nameOf(G.lastFall==='g'?'g':'s')+' fell. Back to safe ground');});
     watch('ending4',G.ending,v=>{if(v){SFX.swell();toast('The hearth roars and the lake begins to thaw!');celebrate();}});
   }
+  // ---- the Mushroom Marsh ----
+  if(G.region==='ch5'){
+    watch('bounce',G.bounceN||0,(v,o)=>{if(v>o)SFX.boing(0);});
+    watch('bigBounce',G.bigBounceN||0,(v,o)=>{if(v>o){SFX.boing(1);hint('slam5','A slam on a springy cap bounces the Giant much higher, and throws anyone else on the cap higher still.');}});
+    watch('dew',G.dewN||0,(v,o)=>{if(v>o){SFX.chime();toast(nameOf('s')+' collects a dewdrop');hint('dew','Sprite: carry the dewdrop to a seed-pod and press '+actKey('s')+' to water it.');}});
+    watch('grow',G.growN||0,(v,o)=>{if(v>o){SFX.chime();toast({stream:'The seed-pod bursts: a vine grows across the stream!',bridge:'A vine bridge grows across the ravine!',wilt:'The wilted mushroom stands up, springy again!',ladder:'Shelf fungi sprout up the stump!'}[G.lastGrow]||'Something grows!');}});
+    watch('wake5',G.wakeN||0,(v,o)=>{if(v>o&&G.lastWake==='root'){SFX.rumble(1.6);toast('The root cap in front of the Elder wakes up, springy!');}});
+    SPORES.forEach((e,i)=>watch('sp'+i,e.state,v=>{if(v==='carried'){SFX.chime();const n=SPORES.filter(x=>x.state!=='rest').length;toast('Glow spore found ('+n+'/3)');}if(v==='placed')SFX.place();}));
+    watch('kplaced',mks.placed,v=>{if(marshDone()||G.ending)return;if(v>=3)toast('All three spores glow around the Elder. Her root cap stirs…');else if(v>0)toast(v+' of 3 spores set');});
+    watch('fall5',G.fallN,()=>{SFX.splash();toast(nameOf(G.lastFall==='g'?'g':'s')+' fell. Back to safe ground');});
+    watch('ending5',G.ending,v=>{if(v){SFX.swell();toast('The Elder Mushroom wakes, and the whole marsh glows!');celebrate();}});
+  }
 }
 
 // ================= HUD helpers =================
@@ -3468,6 +3816,7 @@ function golemPrompt(){
   if(g.charging)return 'Release '+k+' to throw!';
   if(g.holding&&inCh3()&&heightsCogTarget())return k+': take the cog';
   if(g.holding&&inCh4()&&emberTarget())return k+': take the ember';
+  if(g.holding&&inCh5()&&sporeTarget())return k+': take the glow spore';
   if(g.holding)return 'Tap '+k+' for a high lob, or hold '+k+' for a long throw';
   if(g.pound)return 'Slam!';
   const ch1=G.region==='ch1';
@@ -3489,6 +3838,12 @@ function golemPrompt(){
     if(!ICEB.sunk&&dxz(g.pos,ICEB.pos)<2.4)return 'Walk into the ice block to send it sliding';
     if(g.icy)return 'Slippery! Slow to start, slow to stop';
   }
+  if(inCh5()){
+    if(g.runes>0&&dxz(g.pos,MK.ring)<3&&g.pos.y<1)return k+': set the spores at the Elder’s roots';
+    if(sporeTarget())return k+': take the glow spore';
+    if(g.onGround&&g.ground&&g.ground.kind==='shroom')return 'Springy! Jump, then '+k+' in mid-air to slam it';
+    if(!g.onGround&&!g.pound&&g.vel.y<0)for(const sh of SHROOMS)if(sh.awake&&dxz(g.pos,sh.pos)<sh.r+.8&&g.pos.y>sh.top-.2)return 'Hold '+jumpKey('g')+' as you land to bounce high';
+  }
   if(inCh3()){
     if(g.wading)return g.holding?'Wading. Deep water, but '+nameOf('s')+' is safe up top':'Wading through deep water';
   }
@@ -3508,8 +3863,10 @@ function spritePrompt(){
   if(s.held)return jumpKey('s')+': leap off. Or wait to be thrown';
   if(s.winding)return 'Keep holding '+actKey('s')+': winding the lift';
   if(s.melting)return 'Keep holding '+actKey('s')+': melting the ice ('+Math.round(s.melting.t*100)+'%)';
+  if(inCh5()&&!s.onGround&&s.vel.y<0)for(const sh of SHROOMS)if(sh.awake&&dxz(s.pos,sh.pos)<sh.r+.6&&s.pos.y>sh.top-.2)return 'Hold '+jumpKey('s')+' as you land to bounce high';
   const t=spriteTarget();if(t)return actKey('s')+': '+t.label.toLowerCase();
   if(inCh2()&&!G.ending)return actKey('s')+': light pulse';
+  if(inCh5()&&s.dew)return 'Carrying a dewdrop. Find a seed-pod';
   if(inCh3()&&!s.onGround&&windAt(s))return 'Hold '+jumpKey('s')+' to ride the wind';
   if(inCh3()&&s.onGround&&windAt(s))return 'Jump and hold '+jumpKey('s')+' to ride the wind up';
   if(!s.onGround&&!s.gliding&&s.vel.y<0)return 'Hold '+jumpKey('s')+' to glide';
@@ -3524,10 +3881,12 @@ function objectiveText(){
     if(!PROG.ch2.done)return 'The first root is awake. The gate to the Lantern Mines glows in the eastern hills, past the lookout: walk through it together for Chapter 2.';
     if(!PROG.ch3.done)return 'Two roots are awake. The gate to the Windmill Heights glows at the eastern edge of the Vale: walk through it together for Chapter 3.';
     if(!PROG.ch4.done)return 'Three roots are awake. The gate to the Frostmere Lake glows in the south-east of the Vale: walk through it together for Chapter 4.';
-    return 'Four roots are awake. Explore the Vale, plant seeds, or return to any chapter for what you missed. Chapter 5 arrives in a later update.';}
+    if(!PROG.ch5.done)return 'Four roots are awake. The gate to the Mushroom Marsh glows in the south-west of the Vale: walk through it together for Chapter 5.';
+    return 'Five roots are awake. Explore the Vale, plant seeds, or return to any chapter for what you missed. Chapter 6 arrives in a later update.';}
   if(inCh2())return mineObjective();
   if(inCh3())return heightsObjective();
   if(inCh4())return frostObjective();
+  if(inCh5())return marshObjective();
   if(G.ending)return 'The fountain wakes.';
   if(G.fountainOn)return 'The fountain runs again. Look for missed seeds, memory petals and secrets, or walk back through the south gate to the Vale.';
   if(!gate.open)return 'Open the north gate. Its lever is in a small room behind the east wall. Only the Sprite fits through the glowing gap.';
@@ -3544,11 +3903,11 @@ function updateHUD(dt){
   if(helpOpen)setText('helpGoal',obj);
   const cs=seedsFound()+'|'+countKeys(PROG.petals)+'|'+G.region;if(hudCache.cnt!==cs){if(hudCache.cnt)cntShowT=4;hudCache.cnt=cs;}
   objShowT-=dt;cntShowT-=dt;chipT+=dt;
-  const ch1=G.region==='ch1',ch2=G.region==='ch2',ch3=G.region==='ch3',ch4=G.region==='ch4';$('runeList').hidden=ch2?minesDone():ch3?heightsDone():ch4?frostDone():(!ch1||G.fountainOn);$('timerWrap').hidden=!ch1&&!ch2&&!ch3&&!ch4;
+  const ch1=G.region==='ch1',ch2=G.region==='ch2',ch3=G.region==='ch3',ch4=G.region==='ch4',ch5=G.region==='ch5';$('runeList').hidden=ch2?minesDone():ch3?heightsDone():ch4?frostDone():ch5?marshDone():(!ch1||G.fountainOn);$('timerWrap').hidden=!ch1&&!ch2&&!ch3&&!ch4&&!ch5;
   setText('regName',curReg?curReg.short:'');setText('seedCount',String(seedsFound()));setText('petalCount',countKeys(PROG.petals)+'/'+MEMS.length);
-  const rl=$('runeList');const list=ch2?LSTONES:ch3?COGS:ch4?EMBERS:runes,sig=G.region+list.map(r=>r.state).join();
+  const rl=$('runeList');const list=ch2?LSTONES:ch3?COGS:ch4?EMBERS:ch5?SPORES:runes,sig=G.region+list.map(r=>r.state).join();
   if(hudCache.runes!==sig){hudCache.runes=sig;rl.textContent='';for(const r of list){const d=document.createElement('div');const st=r.state==='carried'?'carried':r.state==='placed'?'placed':'';d.className=st;
-    d.textContent=(ch2||ch3||ch4?r.where:r.where.split(' ')[1].replace(/^./,c=>c.toUpperCase()))+(st==='carried'?' · carried':st==='placed'?' · set':'');d.title=r.where;rl.appendChild(d);}}
+    d.textContent=(ch2||ch3||ch4||ch5?r.where:r.where.split(' ')[1].replace(/^./,c=>c.toUpperCase()))+(st==='carried'?' · carried':st==='placed'?' · set':'');d.title=r.where;rl.appendChild(d);}}
   const inWW=ch1&&(golem.pos.z<-44||sprite.pos.z<-44)&&golem.pos.x>-11&&!port.open;$('plates').hidden=!inWW;
   if(inWW){$('plA').classList.toggle('on',plates[0].on);$('plB').classList.toggle('on',plates[1].on);$('latch').firstChild.style.width=(latch.t/1.1*100)+'%';}
   const m=Math.floor(G.time/60),s=Math.floor(G.time%60);setText('timer',m+':'+(s<10?'0':'')+s);
@@ -3571,6 +3930,7 @@ function updateHUD(dt){
   if(ch2){mineHints(mineG,mineS);return;}
   if(ch3){heightsHints(mineG,mineS);return;}
   if(ch4){frostHints(mineG,mineS);return;}
+  if(ch5){marshHints(mineG,mineS);return;}
   if(dxz(golem.pos,{x:SEESAW.x,z:SEESAW.z})<6.5||dxz(sprite.pos,{x:SEESAW.x,z:SEESAW.z})<6.5)hint('seesaw','Seesaw: the Sprite stands in the mint cup. The Giant jumps onto the orange end, and the Sprite flies.');
   if(!crack.broken&&dxz(golem.pos,{x:34.8,z:-1.2})<3){if(hintsShown.has('pound'))hint('crack','A cracked slab. A ground pound might break it.');else hint('pound','New: Ground Pound. Giant, jump and then press '+actKey('g')+' in mid-air to slam down. That cracked slab looks weak.');}
   if(stones.raised===false&&(dxz(sprite.pos,{x:-24.5,z:-55})<2.5||dxz(golem.pos,{x:-24.5,z:-55})<2.5))hint('island','Too far to jump. Giant: throw the Sprite to the island.');
@@ -3681,6 +4041,30 @@ function frostHints(mineG,mineS){
   if(frs.placed>=3&&dxz(g.pos,FR.hearth)<5)hint('lob4','Giant: lift the Sprite, face the hearth and tap '+actKey('g')+' for a high lob onto its roof.');
 }
 
+// ================= the Mushroom Marsh: goal, hints =================
+function marshObjective(){
+  const g=golem,s=sprite,P=id=>PODS.find(p=>p.id===id);
+  if(G.ending)return 'The Elder Mushroom wakes.';
+  if(marshDone())return 'The Elder is awake and the marsh glows again. Look for missed seeds, memory petals and secrets, or walk back out through the gate at Reed Landing.';
+  if(g.pos.z>-11)return 'The reed wall is too high to jump. Jump onto the glowing mushroom and hold '+jumpKey('g')+' (Sprite: '+jumpKey('s')+') as you land to bounce over.';
+  if(!P('stream').grown&&g.pos.z>-21)return 'The stream is too wide for the Giant. Sprite: collect a dewdrop from the white lily, then water the seed-pod by the stream ('+actKey('s')+').';
+  if(g.pos.z>-43)return 'Cross the Bounding Bog on the chain of mushrooms. Hold jump as you land on each one to bounce to the next.';
+  if(SPORES[0].state==='rest')return P('bridge').grown?'The vine bridge is across. Giant: cross to the east cliff and take the glow spore.':'A glow spore lies across the Vine Ravine, in the east. Sprite: take a dewdrop from the lily in the clearing and stand on the big mushroom by the cliff. Giant: slam it. Then water the seed-pod on the ledge.';
+  if(SPORES[1].state==='rest')return 'A glow spore is lost in Fog Hollow, in the west. Its boardwalk only rises near the Sprite’s light: stay close together.';
+  if(SPORES[2].state==='rest')return P('wilt').grown?'Giant: jump onto the mushroom below the shelf and slam it to bounce up. Take the spore.':'A glow spore sits on the shelf in the north-west of the clearing. Sprite: water the wilted mushroom below it. Giant: slam it to bounce up.';
+  if(mks.placed<3)return 'Giant: set the three glow spores at the roots of the Elder Mushroom, in the north.';
+  return 'The Elder’s bud is on top of her cap. Sprite: take a dewdrop from the lily and stand on the root cap. Giant: slam it to throw the Sprite up. Then water the bud.';
+}
+function marshHints(mineG,mineS){
+  const g=golem,s=sprite;
+  if(G.time>1.5&&G.time<3)hint('bounce','New: Springy mushrooms. Land on a glowing pink cap to bounce. Hold jump as you land to bounce high.');
+  if(dxz(s.pos,LILIES[0].pos)<3||dxz(g.pos,LILIES[0].pos)<3)hint('lily','Dew lilies: the Sprite can collect a dewdrop ('+actKey('s')+') and pour it on a seed-pod to make it grow.');
+  if(g.pos.z<-42&&g.pos.x>12&&g.pos.y<1&&SPORES[0].state==='rest')hint('ravine','Sprite: bring a dewdrop and stand on the big cap. Giant: jump on too and slam it. You both fly.');
+  if(g.pos.x<-11&&g.pos.z<-44&&g.pos.z>-68)hint('fog','Fog Hollow: the boardwalk only rises near the Sprite’s light. Sprite, lead the way. Giant, follow close behind.');
+  if(!PODS.find(p=>p.id==='wilt').grown&&dxz(g.pos,{x:-9,z:-55.6})<4)hint('wilt','This mushroom has wilted. A dewdrop might bring it back.');
+  if(mks.placed>=3&&dxz(g.pos,mks.root.pos)<5)hint('root5','Sprite: carry a dewdrop onto the root cap. Giant: jump on and slam it to send the Sprite onto the Elder’s cap.');
+}
+
 // ================= story: scenes, dialogue, memory cards =================
 // Narration says "the Giant" and "the Sprite"; dialogue uses the players' own names.
 const SCENES={
@@ -3726,7 +4110,16 @@ const SCENES={
   root4:{title:'The fourth root wakes',lines:[
     {text:'Far across the snow, the fourth root wakes, and the Frostmere Lake begins to thaw.',p:[[60,26,90],[70,22,80]],l:[[78,6,74],[78,8,74]]},
     {text:'Frost lilies open along the river, cool and bright.',p:[[-30,10,70],[0,8,66]],l:[[-20,0,54],[20,0,50]]},
-    {text:'Three roots still sleep. The gate to the Mushroom Marsh has begun to flicker. (Chapter 5 arrives in a later update.)',p:[[-30,30,40],[-50,34,40]],l:[[-78,6,74],[-78,8,74]]}]},
+    {text:'Three roots still sleep. The gate to the Mushroom Marsh, in the south-west of the Vale, has begun to glow.',p:[[-30,30,40],[-50,34,40]],l:[[-78,6,74],[-78,8,74]]}]},
+  ch5_intro:{title:'Chapter 5: The Mushroom Marsh',lines:[
+    {text:'The Mushroom Marsh once glowed from the inside, like a lantern made of moss. Since the Hush its light has dimmed, and its fog has thickened.',p:[[0,9,24],[0,12,8]],l:[[0,1,-10],[0,1,-30]]},
+    {text:'At its heart sleeps the Elder Mushroom. Her three glow spores drifted away into the marsh.',p:[[14,18,-66],[10,16,-72]],l:[[0,8,-90],[0,9,-90]]},
+    {text:'Bring the spores home and wake her, and the fifth root will wake.',p:[[-30,18,-40],[24,18,-50]],l:[[-36,0,-56],[30,0,-52]]},
+    {text:'The mushrooms here are springy. Land on one, and hold jump as you land.',p:[[0,5,14],[0,4,11]],l:[[4,1,-8],[4,1,-8]]}]},
+  root5:{title:'The fifth root wakes',lines:[
+    {text:'In the misty south-west, the fifth root wakes, and the Mushroom Marsh glows again.',p:[[-60,26,90],[-70,22,80]],l:[[-78,6,74],[-78,8,74]]},
+    {text:'Little blue mushrooms light up all across the Vale.',p:[[-40,12,40],[-20,10,30]],l:[[-60,0,20],[-30,0,10]]},
+    {text:'Two roots still sleep. The gate to the Clockwork Library has begun to flicker. (Chapter 6 arrives in a later update.)',p:[[-70,30,10],[-84,26,0]],l:[[-104,6,-8],[-104,8,-8]]}]},
 };
 function playScene(id){if(!SCENES[id])return;G.scene=id;G.line=0;G.lineT=0;PROG.seen[id]=1;saveSoon();}
 function storyNext(){const S=SCENES[G.scene];if(!S){G.scene='';return;}G.line++;G.lineT=0;if(G.line>=S.lines.length){const id=G.scene;G.scene='';G.line=0;camSnap=true;if(S.after)S.after();}}
@@ -3812,6 +4205,16 @@ const DLG={
   f8:{who:'g',text:'The old hearth. We used to sit by it, didn\u2019t we, {s}?'},
   f9:{who:'s',text:'Something glows behind that ice wall. Let me warm it.'},
   f10:{who:'s',text:'A little hut, frozen shut. I wonder who fished here.'},
+  k1:{who:'s',text:'Mushrooms as big as me! And so springy, {g}.'},
+  k2:{who:'g',text:'That seed-pod looks thirsty, {s}.'},
+  k3:{who:'s',text:'Hold jump as you land, {g}. Boing, boing, boing!'},
+  k4:{who:'g',text:'Three glow spores. The Elder will want them back.'},
+  k5:{who:'s',text:"If you slam that mushroom while I'm on it… up we go!"},
+  k6:{who:'g',text:'Too wide for me. Can you grow us a way across, {s}?'},
+  k7:{who:'s',text:"I can't see a thing in this fog. Stay close to my light, {g}."},
+  k8:{who:'g',text:'This one has wilted. A little water, maybe?'},
+  k9:{who:'s',text:"The Elder Mushroom. She's been asleep since the Hush."},
+  k10:{who:'s',text:'A hollow stump, and a seed-pod at its foot…'},
 };
 const fill=t=>t.replace(/\{g\}/g,nameOf('g')).replace(/\{s\}/g,nameOf('s'));
 let dlgPending=null;
@@ -3835,10 +4238,13 @@ const MEMS=[
   {id:'m12',where:'Chapter 4: the fishing hut',title:'Winter Fish',text:'One hard winter the Giant cut a hole in the lake for the Sprite to fish through. The Sprite caught nothing all day, and then one silver fish that she let go again.'},
   {id:'m13',where:'Chapter 4: the thin-ice islet',title:'Skating',text:'The Sprite skated in circles on the thin ice where the Giant could never follow. He stood at the shore and clapped every time she spun.'},
   {id:'m14',where:'Chapter 4: the great boulder',title:'The First Snowman',text:'They built a snowman together. The Giant rolled the body as tall as himself; the Sprite made a tiny head and stuck a single pine needle on it for a smile.'},
+  {id:'m15',where:'Chapter 5: the bog hummock',title:'Puddle Jumping',text:'After the spring rains the Sprite jumped in every puddle in the marsh. The Giant tried it once, and emptied the whole pond.'},
+  {id:'m16',where:'Chapter 5: the lost island',title:'Lost in the Fog',text:'One autumn the fog came down so thick the Giant could not see his own feet. The Sprite glowed all night, and he followed her light home, one careful step at a time.'},
+  {id:'m17',where:'Chapter 5: the hollow stump',title:'The Mushroom House',text:'They found a hollow stump with a mushroom for a roof. The Sprite lived in it for a whole summer. The Giant visited every day and knocked very, very gently.'},
 ];
 function drawMemory(c,id,W,H){
   const sky=c.createLinearGradient(0,0,0,H);
-  const pal={m0:['#ffd9a8','#f7a7a0'],m1:['#bfe3f2','#e6f3e0'],m2:['#9fb8c9','#d2dfe0'],m3:['#ffe7b8','#cfe9c8'],m4:['#c9d6e6','#f1f4f7'],m5:['#d9f0c4','#fff3cf'],m6:['#1f2a4a','#4a4f78'],m7:['#3a2c22','#5e4a38'],m8:['#141a2a','#2c3550'],m9:['#9fd0f2','#eaf6ff'],m10:['#ffe3b0','#d9efc7'],m11:['#7fbfe8','#e9f6ff'],m12:['#cfe2ee','#f4f9fc'],m13:['#bcd9ea','#eef7fb'],m14:['#dfe9f1','#ffffff']}[id]||['#bfe3f2','#e6f3e0'];
+  const pal={m0:['#ffd9a8','#f7a7a0'],m1:['#bfe3f2','#e6f3e0'],m2:['#9fb8c9','#d2dfe0'],m3:['#ffe7b8','#cfe9c8'],m4:['#c9d6e6','#f1f4f7'],m5:['#d9f0c4','#fff3cf'],m6:['#1f2a4a','#4a4f78'],m7:['#3a2c22','#5e4a38'],m8:['#141a2a','#2c3550'],m9:['#9fd0f2','#eaf6ff'],m10:['#ffe3b0','#d9efc7'],m11:['#7fbfe8','#e9f6ff'],m12:['#cfe2ee','#f4f9fc'],m13:['#bcd9ea','#eef7fb'],m14:['#dfe9f1','#ffffff'],m15:['#bcd6b8','#eef3df'],m16:['#9aa8a2','#d6dcd6'],m17:['#c9b8d8','#f1e9d6']}[id]||['#bfe3f2','#e6f3e0'];
   sky.addColorStop(0,pal[0]);sky.addColorStop(1,pal[1]);c.fillStyle=sky;c.fillRect(0,0,W,H);
   const hill=(y,col,amp,ph)=>{c.fillStyle=col;c.beginPath();c.moveTo(0,H);for(let x=0;x<=W;x+=8)c.lineTo(x,y+Math.sin(x/W*Math.PI*2*1.2+ph)*amp);c.lineTo(W,H);c.fill();};
   const giant=(x,y,s,kneel)=>{c.fillStyle='#8c7a6a';c.beginPath();c.ellipse(x,y-60*s*(kneel?.75:1),42*s,58*s*(kneel?.75:1),0,0,7);c.fill();c.beginPath();c.arc(x+(kneel?14*s:0),y-(kneel?112:128)*s,24*s,0,7);c.fill();
@@ -3878,6 +4284,12 @@ function drawMemory(c,id,W,H){
     if(id==='m12'){c.fillStyle='#2d4f63';c.beginPath();c.ellipse(W*.6,H*.86,20,8,0,0,7);c.fill();giant(W*.38,H*.95,.9,true);spr(W*.62,H*.74,.9);c.fillStyle='#d8e6ee';c.beginPath();c.ellipse(W*.7,H*.7,12,5,.3,0,7);c.fill();}
     else if(id==='m13'){c.strokeStyle='rgba(255,255,255,.9)';c.lineWidth=2;c.beginPath();c.ellipse(W*.6,H*.86,60,12,0,0,7);c.stroke();spr(W*.6,H*.78,.9);giant(W*.2,H*.92,.8);}
     else{c.fillStyle='#ffffff';c.beginPath();c.arc(W*.6,H*.76,40,0,7);c.fill();c.beginPath();c.arc(W*.6,H*.6,14,0,7);c.fill();giant(W*.36,H*.95,.9);spr(W*.68,H*.55,.8);}}
+  else if(id==='m15'||id==='m16'||id==='m17'){
+    const shroom=(x,y,r,h,col)=>{c.fillStyle='#efe3cc';c.fillRect(x-r*.18,y-h,r*.36,h);c.fillStyle=col;c.beginPath();c.ellipse(x,y-h,r,r*.45,0,Math.PI,0);c.fill();};
+    hill(H*.72,'#6f8a5c',10,1.8);c.fillStyle='#3f5a48';c.beginPath();c.ellipse(W*.5,H*.88,W*.46,H*.09,0,0,7);c.fill();
+    if(id==='m15'){c.fillStyle='#5f8fa6';for(const [x,y] of [[.3,.86],[.55,.9],[.75,.85]]){c.beginPath();c.ellipse(W*x,H*y,34,7,0,0,7);c.fill();}shroom(W*.15,H*.8,30,40,'#e2589c');spr(W*.55,H*.72,.9);giant(W*.78,H*.97,.8);}
+    else if(id==='m16'){c.fillStyle='rgba(230,236,232,.6)';for(let i=0;i<6;i++){c.beginPath();c.ellipse(hash2(i,1,16)*W,H*(.3+hash2(i,2,16)*.4),120,28,0,0,7);c.fill();}spr(W*.6,H*.66,1.1);giant(W*.4,H*.95,.85);c.fillStyle='rgba(230,236,232,.45)';c.fillRect(0,H*.4,W,H*.3);}
+    else{shroom(W*.55,H*.86,90,70,'#b5774a');c.fillStyle='#5a3f2c';c.fillRect(W*.55-50,H*.86-70,100,70);c.fillStyle='#f6d27a';c.fillRect(W*.55-10,H*.86-36,20,24);spr(W*.55,H*.86-46,.6);giant(W*.22,H*.97,.85,true);}}
   else if(id==='m8'){c.fillStyle='#0f1422';c.fillRect(0,H*.7,W,H*.3);const gr=c.createLinearGradient(0,0,W,0);gr.addColorStop(0,'rgba(255,210,120,0)');gr.addColorStop(.5,'rgba(255,220,140,1)');gr.addColorStop(1,'rgba(255,210,120,0)');
     c.strokeStyle=gr;c.lineWidth=6;c.beginPath();c.moveTo(0,H*.78);c.bezierCurveTo(W*.3,H*.62,W*.6,H*.9,W,H*.7);c.stroke();c.globalAlpha=.35;c.lineWidth=18;c.stroke();c.globalAlpha=1;
     giant(W*.32,H*.94,1,true);spr(W*.58,H*.5,1.2);}
@@ -3911,7 +4323,9 @@ function storySoFar(){
   else if(PROG.ch2.done)out.push(['Next','The gate to the Windmill Heights glows at the eastern edge of the Vale. Up there the Great Windmill is missing three cogs.']);
   if(PROG.ch4.done)out.push(['The Frostmere Lake','On the frozen lake they slid ice, rolled a snowball as big as a bridge and melted their way to three embers. The old hearth burns again, the lake is thawing, and frost lilies line the Vale\u2019s river.']);
   else if(PROG.ch3.done)out.push(['Next','The gate to the Frostmere Lake glows in the south-east of the Vale. Its old hearth needs three embers.']);
-  if(PROG.ch4.done)out.push(['Next','A fifth gate, to the Mushroom Marsh, has begun to flicker. Chapter 5 arrives in a later update.']);
+  if(PROG.ch5.done)out.push(['The Mushroom Marsh','In the misty marsh they bounced on giant mushrooms, grew vine bridges from seed-pods and found their way through the fog by the Sprite’s light. The Elder Mushroom woke, and little blue mushrooms glow all over the Vale.']);
+  else if(PROG.ch4.done)out.push(['Next','The gate to the Mushroom Marsh glows in the south-west of the Vale. The Elder Mushroom has lost her three glow spores.']);
+  if(PROG.ch5.done)out.push(['Next','A sixth gate, to the Clockwork Library, has begun to flicker. Chapter 6 arrives in a later update.']);
   return out;
 }
 let jTab='story';
@@ -3928,6 +4342,7 @@ function renderJournal(){
     if(PROG.ch2.best)add('Best time, Chapter 2',Math.floor(PROG.ch2.best/60)+' min '+(PROG.ch2.best%60)+' s');
     if(PROG.ch3.best)add('Best time, Chapter 3',Math.floor(PROG.ch3.best/60)+' min '+(PROG.ch3.best%60)+' s');
     if(PROG.ch4.best)add('Best time, Chapter 4',Math.floor(PROG.ch4.best/60)+' min '+(PROG.ch4.best%60)+' s');
+    if(PROG.ch5.best)add('Best time, Chapter 5',Math.floor(PROG.ch5.best/60)+' min '+(PROG.ch5.best%60)+' s');
     if(PROG.ch1.done)add('Lanterns lit, Chapter 2',countBits(PROG.ch2.lan|0)+' of '+LANTERNS.length);
     el.appendChild(st);}
   if(jTab==='mem'){const el=$('jMem');el.textContent='';
@@ -3946,7 +4361,7 @@ function buildValeMapImage(){const N=200,cv=document.createElement('canvas');cv.
   c.putImageData(im,0,0);valeMapImg=cv;}
 function drawMap(cv){
   const c=cv.getContext('2d'),W=cv.width,H=cv.height;c.clearRect(0,0,W,H);c.fillStyle='#e9e2d0';c.fillRect(0,0,W,H);
-  let x0,x1,z0,z1;if(G.region==='vale'){x0=-128;x1=128;z0=-128;z1=128;}else if(G.region==='ch2'){x0=-38;x1=78;z0=-88;z1=8;}else if(G.region==='ch3'){x0=-20;x1=64;z0=-92;z1=12;}else if(G.region==='ch4'){x0=-40;x1=34;z0=-86;z1=12;}else{x0=-44;x1=48;z0=-86;z1=8;}
+  let x0,x1,z0,z1;if(G.region==='vale'){x0=-128;x1=128;z0=-128;z1=128;}else if(G.region==='ch2'){x0=-38;x1=78;z0=-88;z1=8;}else if(G.region==='ch3'){x0=-20;x1=64;z0=-92;z1=12;}else if(G.region==='ch4'){x0=-40;x1=34;z0=-86;z1=12;}else if(G.region==='ch5'){x0=-48;x1=44;z0=-100;z1=12;}else{x0=-44;x1=48;z0=-86;z1=8;}
   const s=Math.min((W-40)/(x1-x0),(H-40)/(z1-z0)),ox=(W-(x1-x0)*s)/2,oz=(H-(z1-z0)*s)/2;
   const X=x=>ox+(x-x0)*s,Z=z=>oz+(z-z0)*s;
   if(G.region==='vale'){
@@ -3960,6 +4375,16 @@ function drawMap(cv){
     for(const g of GATES){c.fillStyle=g.ready?'#f2873a':'#8f9aa3';c.beginPath();c.arc(X(g.pos.x),Z(g.pos.z),7,0,7);c.fill();label(c,g.ch+' · '+g.name,X(g.pos.x),Z(g.pos.z)+(g.pos.z<0?-14:22),g.ready?'#c9621a':'#5c6b76');}
     for(const cv of CAVES){const r=caveRect(cv);c.fillStyle='#4b4038';c.fillRect(X(r.x0),Z(r.z0),(r.x1-r.x0)*s,(r.z1-r.z0)*s);label(c,cv.name,X(cv.x-cv.dir*4),Z(cv.z)-12,'#5c4636');}
     c.fillStyle='#8a6448';c.beginPath();c.arc(X(VALE.plot.x),Z(VALE.plot.z),6,0,7);c.fill();label(c,'Seed Garden',X(VALE.plot.x)-26,Z(VALE.plot.z)+4,'#5c6b76');
+  }else if(G.region==='ch5'){
+    c.fillStyle='#5f6f62';c.fillRect(X(x0),Z(z1),(x1-x0)*s,(z0-z1)*s);
+    for(const R of [MK.stream,MK.bog,MK.hollow]){c.fillStyle='#3f5a4a';c.fillRect(X(R.x0),Z(R.z0),(R.x1-R.x0)*s,(R.z1-R.z0)*s);}
+    for(const k of REG.ch5.colliders){if(!k.mesh||!k.on||k.surface!=='grass')continue;c.fillStyle=k.max.y>3?'#7fa262':'#9cbf7e';c.fillRect(X(k.min.x),Z(k.min.z),(k.max.x-k.min.x)*s,(k.max.z-k.min.z)*s);}
+    c.fillStyle='#7a6f62';c.fillRect(X(30),Z(-70),12*s,27*s);c.fillRect(X(13),Z(-70),7*s,8*s);c.fillRect(X(-12),Z(-64),6*s,6*s);c.fillStyle='#2c2622';c.fillRect(X(20),Z(-72),10*s,31*s);
+    for(const P of PODS)if(P.grown&&P.cols.length){for(const k of P.cols){c.fillStyle='#4f8a3c';c.fillRect(X(k.min.x),Z(k.min.z),(k.max.x-k.min.x)*s,(k.max.z-k.min.z)*s);}}
+    for(const sh of SHROOMS)if(sh.awake){c.fillStyle='#e2589c';c.beginPath();c.arc(X(sh.pos.x),Z(sh.pos.z),Math.max(3,sh.r*.8*s),0,7);c.fill();}
+    c.fillStyle='#9b86b0';c.beginPath();c.arc(X(0),Z(-90),7*s,0,7);c.fill();label(c,'Elder Mushroom',X(0),Z(-90)-7*s-6,'#f4f0ff');
+    label(c,'Reed Landing',X(0),Z(-2),'#f4f0ff');label(c,'Bounding Bog',X(0),Z(-34),'#f4f0ff');label(c,'Glowcap Clearing',X(4),Z(-53),'#f4f0ff');label(c,'Fog Hollow',X(-30),Z(-58),'#f4f0ff');label(c,'Vine Ravine',X(25),Z(-56),'#f4f0ff');label(c,'To the Vale',X(0),Z(11),'#7ff0cf');
+    for(const p of PETALS)if(p.reg==='ch5'&&PROG.petals[p.id]){c.fillStyle='#ff8fc0';c.beginPath();c.arc(X(p.pos.x),Z(p.pos.z),5,0,7);c.fill();}
   }else if(G.region==='ch4'){
     c.fillStyle='#dfe9ef';c.fillRect(X(x0),Z(z1),(x1-x0)*s,(z0-z1)*s);
     for(const k of REG.ch4.colliders){if(!k.mesh||!k.on)continue;const top=k.max.y;if(top>.05||top<-.05)continue;c.fillStyle=k.surface==='ice'?'#bfe0ee':'#ffffff';c.fillRect(X(k.min.x),Z(k.min.z),(k.max.x-k.min.x)*s,(k.max.z-k.min.z)*s);}
@@ -4035,7 +4460,7 @@ function openTravel(){
   if(mode==='online'&&role!=='host'){toast(nameOf(myRole==='g'?'s':'g')+' chooses where to travel');return;}
   openOverlay('scrTravel');const L=$('travelList');L.textContent='';
   for(const w of WAYS){if(!PROG.ws[w.id])continue;const b=document.createElement('button');b.className='btn';const here=w.reg===G.region&&(dxz(golem.pos,w.pos)<4||dxz(sprite.pos,w.pos)<4);
-    b.append(({vale:'The Vale: ',ch1:'Chapter 1: ',ch2:'Chapter 2: ',ch3:'Chapter 3: ',ch4:'Chapter 4: '}[w.reg]||'')+w.name);const sm=document.createElement('small');sm.textContent=here?'you are here':(w.reg===G.region?'this area':'another area');b.append(sm);
+    b.append(({vale:'The Vale: ',ch1:'Chapter 1: ',ch2:'Chapter 2: ',ch3:'Chapter 3: ',ch4:'Chapter 4: ',ch5:'Chapter 5: '}[w.reg]||'')+w.name);const sm=document.createElement('small');sm.textContent=here?'you are here':(w.reg===G.region?'this area':'another area');b.append(sm);
     b.disabled=here;b.onclick=()=>{closeOverlay();travelToWaystone(w.id);};L.appendChild(b);}
 }
 function refreshTitleSave(){
@@ -4101,6 +4526,17 @@ function frostHooks(){
     {id:'f6',x:-20,z:-46.6,r:4,cond:()=>!SNOWB.bridged},{id:'f7',x:-24,z:-49,r:4,cond:()=>!SNOWB.bridged&&SNOWB.r>.9},
     {id:'f8',x:0,z:-68,r:4},{id:'f9',x:-5,z:-76,r:4,cond:()=>EMBERS[2].state==='rest'},{id:'f10',x:13.5,z:-36,r:3}];
 }
+function marshHooks(){
+  REG.ch5.secrets=[
+    {id:'c5_hummock',name:'The bog hummock',test:b=>b.pos.x>10&&b.pos.x<14&&b.pos.z>-35.4&&b.pos.z<-31&&b.pos.y>1.4},
+    {id:'c5_island',name:'The lost island',test:b=>b.pos.x>-44&&b.pos.x<-40&&b.pos.z>-48&&b.pos.z<-44&&b.pos.y>-.2},
+    {id:'c5_stump',name:'The hollow stump',test:b=>b.pos.x>36&&b.pos.x<40&&b.pos.z>-64.4&&b.pos.z<-57.4&&b.pos.y>10.8}];
+  const P=id=>PODS.find(p=>p.id===id);
+  REG.ch5.talk=[
+    {id:'k1',x:2,z:-6,r:4},{id:'k2',x:1,z:-15.6,r:3,cond:()=>!P('stream').grown},{id:'k3',x:0,z:-23,r:4},
+    {id:'k4',x:2,z:-46,r:5,cond:()=>mks.placed<3},{id:'k5',x:16,z:-57,r:3.5,cond:()=>!P('bridge').grown},{id:'k6',x:19,z:-64,r:3,cond:()=>!P('bridge').grown&&golem.pos.y>6},
+    {id:'k7',x:-14,z:-50,r:3},{id:'k8',x:-9,z:-54,r:3,cond:()=>!P('wilt').grown},{id:'k9',x:0,z:-76,r:6},{id:'k10',x:35,z:-65,r:3,cond:()=>!P('ladder').grown}];
+}
 function countBits(n){let c=0;while(n){c+=n&1;n>>>=1;}return c;}
 
 // ================= camera: calm follow, quarter-turns with Q / R =================
@@ -4133,6 +4569,7 @@ function updateCamera(dt,t){
   if(G.region==='ch2'&&(G.ending||G.phase==='end')){want=19;_mid.set(GL.x,3.2,GL.z);}
   if(G.region==='ch3'&&(G.ending||G.phase==='end')){want=26;_mid.set(52,22,-80);}
   if(G.region==='ch4'&&(G.ending||G.phase==='end')){want=18;_mid.set(0,3,-72);}
+  if(G.region==='ch5'&&(G.ending||G.phase==='end')){want=26;_mid.set(0,8,-88);}
   if(G.region==='ch1'&&(golem.pos.y<-1.5||sprite.pos.y<-1.5)&&golem.pos.x>29&&sprite.pos.x>29)want=Math.min(want,13);
   if(dbgDist)want=dbgDist;
   const k=camSnap?1:1-Math.exp(-dt*4);
@@ -4204,6 +4641,7 @@ function nextBeaconTarget(){
   if(G.region==='ch2'){if(minesDone()||G.ending)return null;
     if(!mine.bar.broken&&!mine.sw.b)return MLEVERS[0].pos;
     if(!mine.lift.cw&&sprite.pos.y>5)return MLEVERS[1].pos;return null;}
+  if(G.region==='ch5'){if(marshDone()||G.ending)return null;if(mks.placed>=3&&sprite.dew&&sprite.pos.y>9)return MK.bud;return null;}
   if(G.region==='ch4'){if(frostDone()||G.ending)return null;if(frs.placed>=3&&sprite.pos.y>3)return MELTS.find(m=>m.id==='flue').pos;return null;}
   if(G.region==='ch3'){if(heightsDone()||G.ending)return null;if(!hts.b1.open&&sprite.pos.y>4)return HLEVERS[0].pos;if(COGS[1].state==='perched'&&sprite.pos.y>8)return COGS[1].pos;if(hts.placed>=3)return HLEVERS[2].pos;return null;}
   if(G.region!=='ch1'||G.fountainOn)return null;
@@ -4225,7 +4663,7 @@ function updateVisuals(dt,t){
   const pulse=.5+.5*Math.sin(t*3.2);
   for(const p of plates){p.mesh.position.y=p.on?-.04:0;p.ring.material.opacity=p.on?1:(port.open?.25:.35+.45*pulse);}
   for(const h of holeMarkers){h.icon.position.y=h.base+Math.sin(t*2)*.08;h.glow.material.opacity=.35+.3*pulse;}
-  const bt=G.phase==='play'?nextBeaconTarget():null,bcn=G.region==='ch2'&&mine.beacon?mine.beacon:G.region==='ch3'&&hts.beacon?hts.beacon:G.region==='ch4'&&frs.beacon?frs.beacon:W.beacon;bcn.visible=!!bt;if(bt){bcn.position.set(bt.x,bt.y+1.55+Math.abs(Math.sin(t*3))*.25,bt.z);}
+  const bt=G.phase==='play'?nextBeaconTarget():null,bcn=G.region==='ch2'&&mine.beacon?mine.beacon:G.region==='ch3'&&hts.beacon?hts.beacon:G.region==='ch4'&&frs.beacon?frs.beacon:G.region==='ch5'&&mks.beacon?mks.beacon:W.beacon;bcn.visible=!!bt;if(bt){bcn.position.set(bt.x,bt.y+1.55+Math.abs(Math.sin(t*3))*.25,bt.z);}
   block.mesh.position.set(block.pos.x,block.pos.y+.6,block.pos.z);
   // runes
   for(const r of runes){
@@ -4244,6 +4682,7 @@ function updateVisuals(dt,t){
   if(G.region==='ch2')updateMinesVis(dt,t);
   if(G.region==='ch3')updateHeightsVis(dt,t);
   if(G.region==='ch4')updateFrostVis(dt,t);
+  if(G.region==='ch5')updateMarshVis(dt,t);
   updateSeedInstances(t);updatePetals(t);updateWaystones(t);updateVale(dt,t);updateReal(dt,t);updateRings(dt);
   updateGreet(dt);updateGiant(dt,t);updateSpriteVis(dt,t);updateCrown();
   // ending: water and light
@@ -4425,7 +4864,8 @@ function packState(){
     m2:G.region==='ch2'?packMines():null,
     m3:G.region==='ch3'?packHeights():null,
     m4:G.region==='ch4'?packFrost():null,
-    pg:{r:PROG.roots,ws:Object.keys(PROG.ws).join(','),sd:Object.keys(PROG.seeds).join(','),pt:Object.keys(PROG.petals).join(','),se:Object.keys(PROG.secrets).join(','),pl:PROG.planted,sn:Object.keys(PROG.seen).join(','),c1:PROG.ch1.done,b1:PROG.ch1.best,c2:PROG.ch2.done,b2:PROG.ch2.best,l2:PROG.ch2.lan|0,d2:PROG.ch2.door|0,c3:PROG.ch3.done,b3:PROG.ch3.best,c4:PROG.ch4.done,b4:PROG.ch4.best}};
+    m5:G.region==='ch5'?packMarsh():null,
+    pg:{r:PROG.roots,ws:Object.keys(PROG.ws).join(','),sd:Object.keys(PROG.seeds).join(','),pt:Object.keys(PROG.petals).join(','),se:Object.keys(PROG.secrets).join(','),pl:PROG.planted,sn:Object.keys(PROG.seen).join(','),c1:PROG.ch1.done,b1:PROG.ch1.best,c2:PROG.ch2.done,b2:PROG.ch2.best,l2:PROG.ch2.lan|0,d2:PROG.ch2.door|0,c3:PROG.ch3.done,b3:PROG.ch3.best,c4:PROG.ch4.done,b4:PROG.ch4.best,c5:PROG.ch5.done,b5:PROG.ch5.best}};
 }
 // the Lantern Mines (only sent while the players are there)
 function packMines(){const C=mine.cart,L=mine.lift,B=mine.boulder,pa=G.pulseAt||[0,0,0];
@@ -4463,6 +4903,20 @@ function applyFrost(m){
   frs.placed=m[9]|0;frs.flue=!!m[10];
   if(Array.isArray(m[11])){const e=m[11];G.meltN=e[0]|0;G.lastMelt=String(e[1]||'').slice(0,8);G.slideN=e[2]|0;G.sinkN=e[3]|0;G.blockBackN=e[4]|0;G.snowN=e[5]|0;G.snowLostN=e[6]|0;}
   sprite.melting=m[12]>=0?MELTS[m[12]]||null:null;golem.icy=!!m[13];
+}
+// the Mushroom Marsh (only sent while the players are there)
+function packMarsh(){return [PODS.map(P=>P.grown?(P.t>=1?1:2+r2(P.t)):0),SHROOMS.map(sh=>sh.awake?1:0).join(''),SPORES.map(e=>ES.indexOf(e.state)),mks.placed,mks.bud?1:0,sprite.dew?1:0,
+  [G.bounceN|0,G.bigBounceN|0,G.dewN|0,G.growN|0,G.lastGrow||'',G.wakeN|0,G.lastWake||''],SHROOMS.map(sh=>r2(sh.sq)),G.ch.bounces|0];}
+function applyMarsh(m){
+  if(!Array.isArray(m))return;
+  if(Array.isArray(m[0]))m[0].forEach((v,i)=>{const P=PODS[i];if(!P)return;v=+v||0;P.grown=v>0;P.t=v===1?1:v>=2?v-2:0;for(const c of P.cols)c.on=P.t>=1;});
+  if(typeof m[1]==='string')SHROOMS.forEach((sh,i)=>{const a=m[1][i]==='1';if(sh.sleep){sh.awake=a;sh.col.on=a;sh.sleep.on=!a;if(a&&sh.grow<1)sh.grow=Math.min(1,sh.grow+.05);}});
+  if(Array.isArray(m[2]))m[2].forEach((k,i)=>{if(SPORES[i])SPORES[i].state=ES[k]||'rest';});
+  mks.placed=m[3]|0;mks.bud=!!m[4];sprite.dew=m[5]?1:0;
+  if(Array.isArray(m[6])){const e=m[6];G.bounceN=e[0]|0;G.bigBounceN=e[1]|0;G.dewN=e[2]|0;G.growN=e[3]|0;G.lastGrow=String(e[4]||'').slice(0,8);G.wakeN=e[5]|0;G.lastWake=String(e[6]||'').slice(0,8);}
+  if(Array.isArray(m[7]))m[7].forEach((q,i)=>{if(SHROOMS[i])SHROOMS[i].sq=Math.max(SHROOMS[i].sq,+q||0);});
+  G.ch.bounces=m[8]|0;
+  mks.budT=approach(mks.budT,mks.bud?1:0,1/150);
 }
 function applyMines(m){
   if(!Array.isArray(m))return;const C=mine.cart,L=mine.lift,B=mine.boulder;
@@ -4504,7 +4958,8 @@ function applyState(st){
   if(G.region==='ch2'&&st.m2)applyMines(st.m2);
   if(G.region==='ch3'&&st.m3)applyHeights(st.m3);
   if(G.region==='ch4'&&st.m4)applyFrost(st.m4);
-  if(st.pg&&typeof st.pg==='object'){const p=st.pg;PROG.roots=clamp(p.r|0,0,7);PROG.ws=keySet(p.ws);PROG.seeds=keySet(p.sd);PROG.petals=keySet(p.pt);PROG.secrets=keySet(p.se);PROG.planted=p.pl|0;PROG.seen=keySet(p.sn);PROG.ch1.done=p.c1?1:0;PROG.ch1.best=p.b1|0;PROG.ch2.done=p.c2?1:0;PROG.ch2.best=p.b2|0;PROG.ch2.lan=p.l2|0;PROG.ch2.door=p.d2|0;PROG.ch3.done=p.c3?1:0;PROG.ch3.best=p.b3|0;PROG.ch4.done=p.c4?1:0;PROG.ch4.best=p.b4|0;}
+  if(G.region==='ch5'&&st.m5)applyMarsh(st.m5);
+  if(st.pg&&typeof st.pg==='object'){const p=st.pg;PROG.roots=clamp(p.r|0,0,7);PROG.ws=keySet(p.ws);PROG.seeds=keySet(p.sd);PROG.petals=keySet(p.pt);PROG.secrets=keySet(p.se);PROG.planted=p.pl|0;PROG.seen=keySet(p.sn);PROG.ch1.done=p.c1?1:0;PROG.ch1.best=p.b1|0;PROG.ch2.done=p.c2?1:0;PROG.ch2.best=p.b2|0;PROG.ch2.lan=p.l2|0;PROG.ch2.door=p.d2|0;PROG.ch3.done=p.c3?1:0;PROG.ch3.best=p.b3|0;PROG.ch4.done=p.c4?1:0;PROG.ch4.best=p.b4|0;PROG.ch5.done=p.c5?1:0;PROG.ch5.best=p.b5|0;}
   G.placed=st.pl|0;G.ending=!!st.en;G.endT=+st.et||0;G.falls=st.f|0;G.lastFall=st.lf==='g'?'g':'s';G.fallN=st.fn|0;G.throws=st.th|0;G.pick=st.pk|0;G.useN=st.us|0;
 }
 function guestSmooth(dt){
@@ -4583,23 +5038,24 @@ function togglePause(){
   if(chatOpen){closeChat();return;}
   const open=$('scrPause').hidden;
   if(open){G.paused=mode==='local';$('pauseEyebrow').textContent=(mode==='local'?'Paused':'Menu (the game keeps running online)')+' · '+curReg.name;$('pauseObj').textContent=objectiveText();
-    const boss=mode!=='online'||role==='host',inCh=/^ch[1-4]$/.test(G.region);$('bRestart').hidden=!boss||!inCh;$('bToVale').hidden=!boss||!inCh;$('scrPause').hidden=false;}
+    const boss=mode!=='online'||role==='host',inCh=/^ch[1-5]$/.test(G.region);$('bRestart').hidden=!boss||!inCh;$('bToVale').hidden=!boss||!inCh;$('scrPause').hidden=false;}
   else{G.paused=false;$('scrPause').hidden=true;}
 }
 function toTitle(){if(mode==='online'){leaveOnline();if(role!=='host'){const st=PROG.settings;PROG=freshProgress();loadProgress();PROG.settings=st;}}
   G.scene='';G.card='';closeOverlay();refreshTitleSave();mode=null;G.phase='title';G.paused=false;clearChat();partnerName='';partnerHere=false;names.g=names.s='';show('scrTitle');}
 function showEnd(){
-  const dl=$('endStats');dl.textContent='';const m=Math.floor(G.time/60),s=Math.floor(G.time%60),n=G.region==='ch4'?4:G.region==='ch3'?3:G.region==='ch2'?2:1,reg='ch'+n;
+  const dl=$('endStats');dl.textContent='';const m=Math.floor(G.time/60),s=Math.floor(G.time%60),n=G.region==='ch5'?5:G.region==='ch4'?4:G.region==='ch3'?3:G.region==='ch2'?2:1,reg='ch'+n;
   const add=(a,b)=>{const dt=document.createElement('dt');dt.textContent=a;const dd=document.createElement('dd');dd.textContent=b;dl.append(dt,dd);};
   add('Time',m+' min '+s+' s');add('Golden seeds',seedsFoundIn(reg)+' of '+seedsIn(reg).length);
   const pc=PETALS.filter(p=>p.reg===reg);add('Memory petals',pc.filter(p=>PROG.petals[p.id]).length+' of '+pc.length);add('Secrets',REG[reg].secrets.filter(x=>PROG.secrets[x.id]).length+' of '+REG[reg].secrets.length);
   if(n===1){add(nameOf('s')+' thrown',G.throws+' times');add('Seesaw launches',String(G.ch.launches));}
   else if(n===2){add('Lanterns lit',countBits(mine.lan)+' of '+LANTERNS.length);add('Light pulses',String(G.ch.pulses|0));add(nameOf('s')+' thrown',G.throws+' times');}
+  else if(n===5){add('Mushroom bounces',String(G.ch.bounces|0));add(nameOf('s')+' thrown',G.throws+' times');}
   else{add(nameOf('s')+' thrown',G.throws+' times');}
   add('Falls',String(G.falls));
-  $('endEyebrow').textContent=['','Chapter 1 · The Sunken Garden','Chapter 2 · The Lantern Mines','Chapter 3 · The Windmill Heights','Chapter 4 · The Frostmere Lake'][n];$('endTitle').textContent=['','The fountain wakes','The Great Lantern wakes','The Great Windmill turns','The lake thaws'][n];
-  $('endLede').textContent=nameOf('g')+' and '+nameOf('s')+[,' woke the fountain together. Far away, under the Vale, the first root stirs.',' lit the Great Lantern together. Deep under the hills, the second root wakes.',' set the Great Windmill turning. High above the clouds, the third root wakes.',' lit the old hearth again. The Frostmere Lake thaws, and the fourth root wakes.'][n];
-  $('bEndMenu').firstChild.textContent=['','Keep exploring the garden ','Keep exploring the mines ','Keep exploring the heights ','Keep exploring the lake '][n];
+  $('endEyebrow').textContent=['','Chapter 1 · The Sunken Garden','Chapter 2 · The Lantern Mines','Chapter 3 · The Windmill Heights','Chapter 4 · The Frostmere Lake','Chapter 5 · The Mushroom Marsh'][n];$('endTitle').textContent=['','The fountain wakes','The Great Lantern wakes','The Great Windmill turns','The lake thaws','The Elder wakes'][n];
+  $('endLede').textContent=nameOf('g')+' and '+nameOf('s')+[,' woke the fountain together. Far away, under the Vale, the first root stirs.',' lit the Great Lantern together. Deep under the hills, the second root wakes.',' set the Great Windmill turning. High above the clouds, the third root wakes.',' lit the old hearth again. The Frostmere Lake thaws, and the fourth root wakes.',' woke the Elder Mushroom. The marsh glows again, and the fifth root wakes.'][n];
+  $('bEndMenu').firstChild.textContent=['','Keep exploring the garden ','Keep exploring the mines ','Keep exploring the heights ','Keep exploring the lake ','Keep exploring the marsh '][n];
   const boss=mode!=='online'||role==='host';$('bAgain').hidden=!boss;$('bEndMenu').hidden=!boss;$('endWait').hidden=boss;show('scrEnd');
 }
 $('bLocal').onclick=()=>{initAudio();mode='local';myRole='g';role=null;clearChat();resetLevel();openBrief();};
@@ -4619,7 +5075,7 @@ $('codeIn').addEventListener('keydown',e=>{if(e.key==='Enter')$('bJoin').click()
 $('bBegin').onclick=()=>{initAudio();if(mode==='local')startPlay();else if(role==='host'&&findPartner())startPlay();};
 $('bBriefBack').onclick=toTitle;
 $('bResume').onclick=togglePause;
-$('bRestart').onclick=()=>{$('scrPause').hidden=true;if(G.region==='ch1')resetLevel();else if(G.region==='ch2')resetMines();else if(G.region==='ch3')resetHeights();else if(G.region==='ch4')resetFrost();G.paused=false;resetWatch();};
+$('bRestart').onclick=()=>{$('scrPause').hidden=true;if(G.region==='ch1')resetLevel();else if(G.region==='ch2')resetMines();else if(G.region==='ch3')resetHeights();else if(G.region==='ch4')resetFrost();else if(G.region==='ch5')resetMarsh();G.paused=false;resetWatch();};
 $('bToVale').onclick=()=>{$('scrPause').hidden=true;G.paused=false;returnToVale();};
 $('bJournal').onclick=()=>openJournal('story');$('bMapP').onclick=openMap;$('bSettings').onclick=openSettings;$('bSettingsT').onclick=()=>{initAudio();openSettings();};
 $('bMute').onclick=()=>setMuted(!muted);
@@ -4713,9 +5169,10 @@ async function boot(){const tb=performance.now();
     const tb2=performance.now();buildMines();curBuild='';BOOTMS.ch2=Math.round(performance.now()-tb2);
     const tb3=performance.now();buildHeights();curBuild='';BOOTMS.ch3=Math.round(performance.now()-tb3);
     const tb4=performance.now();buildFrost();curBuild='';BOOTMS.ch4=Math.round(performance.now()-tb4);
-    storyHooks();heightsHooks();frostHooks();
+    const tb5=performance.now();buildMarsh();curBuild='';BOOTMS.ch5=Math.round(performance.now()-tb5);
+    storyHooks();heightsHooks();frostHooks();marshHooks();
     buildGolem();buildSprite();initAmbientParticles();
-    enterRegion('ch1');resetLevel();enterRegion('ch2');resetMines();enterRegion('ch3');resetHeights();enterRegion('ch4');resetFrost();enterRegion('vale');resetCaves();
+    enterRegion('ch1');resetLevel();enterRegion('ch2');resetMines();enterRegion('ch3');resetHeights();enterRegion('ch4');resetFrost();enterRegion('ch5');resetMarsh();enterRegion('vale');resetCaves();
     const sp=startSpot();placeAt(golem,sp.g);placeAt(sprite,sp.s);
   }
   catch(e){console.error(e);fail('Something went wrong while building the Vale: '+e.message);return;}
@@ -4733,7 +5190,7 @@ async function boot(){const tb=performance.now();
 window.__bs={get PROG(){return PROG;},REG,travel,travelToWaystone,seesaw,crack,stones,SEEDS,PETALS,WAYS,GATES,VALE,playScene,skipScene,storyNext,valeH,saveProgress,eraseProgress,openMap,closeOverlay,get overlay(){return overlayOpen;},
   G,golem,sprite,get block(){return block;},runes,gate,bridge,port,plates,levers,get crank(){return crank;},latch,stepSim,resetLevel,startLocal:()=>{mode='local';resetLevel();startPlay();},NOIN,W,fadeables,camera,
   get camYaw(){return camYaw;},rotateCam,set dbgDist(v){dbgDist=v;},advance:(sec)=>{let n=performance.now();for(let i=0;i<sec*60;i++){n+=1000/60;tick(n);}},get models(){return MODELS;},set bot(v){BOT=v;},get bot(){return BOT;},
-  get ch1(){return {CP,F,SEESAW,POOL,CELLAR,levers,crank,runes,plates,stones,crack,exitGate,W,ORCH,TOWER,PAV,stair,pav};},get colliders(){return colliders;},get curReg(){return curReg;},get greet(){return GREET;},get perch(){return PERCH;},get caves(){return {CAVES,VCAVE,VLEVERS};},get ch2(){return {mine,MCP,GL,LANTERNS,CRYST,MLEVERS,LSTONES,WINCH_B,WINCH_T,MINE,lightPulse,resetMines,BSTATES};},get ch3(){return {hts,HCP,HT,WHEEL,POND,WINDS,VANES,COGS,HLEVERS,HBRIDGES,ISLES,resetHeights,windAt,wheelWind,heightsH};},get ch4(){return {frs,FCP,FR,MELTS,EMBERS,THIN,get ICEB(){return ICEB;},get SNOWB(){return SNOWB;},resetFrost,meltTarget};},packState,applyState,get renderer(){return renderer;},BOOTMS,scene,travelReq:()=>G.travelReq};
+  get ch1(){return {CP,F,SEESAW,POOL,CELLAR,levers,crank,runes,plates,stones,crack,exitGate,W,ORCH,TOWER,PAV,stair,pav};},get colliders(){return colliders;},get curReg(){return curReg;},get greet(){return GREET;},get perch(){return PERCH;},get caves(){return {CAVES,VCAVE,VLEVERS};},get ch2(){return {mine,MCP,GL,LANTERNS,CRYST,MLEVERS,LSTONES,WINCH_B,WINCH_T,MINE,lightPulse,resetMines,BSTATES};},get ch3(){return {hts,HCP,HT,WHEEL,POND,WINDS,VANES,COGS,HLEVERS,HBRIDGES,ISLES,resetHeights,windAt,wheelWind,heightsH};},get ch4(){return {frs,FCP,FR,MELTS,EMBERS,THIN,get ICEB(){return ICEB;},get SNOWB(){return SNOWB;},resetFrost,meltTarget};},get ch5(){return {mks,KCP,MK,SHROOMS,PODS,LILIES,SPORES,PLANKS,resetMarsh,marshTarget};},packState,applyState,get renderer(){return renderer;},BOOTMS,scene,travelReq:()=>G.travelReq};
 boot();
 
 })();
