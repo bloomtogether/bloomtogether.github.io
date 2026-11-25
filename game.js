@@ -451,10 +451,10 @@ function syncBlock(){const b=block,c=block.col;c.min.set(b.pos.x-b.hw,b.pos.y,b.
 // One save per laptop. Online, the host's save is the one that counts; the guest mirrors it while playing.
 const SAVE_KEY='bs_save_v1';
 const DEFAULT_SETTINGS={music:.55,sfx:.8,camMotion:'full',reduceFlash:false,shake:false};
-function freshProgress(){return {v:1,roots:0,ws:{vale_meadow:1},seeds:{},petals:{},secrets:{},planted:0,seen:{},ch1:{done:0,best:0},ch2:{done:0,best:0,lan:0,door:0},settings:Object.assign({},DEFAULT_SETTINGS)};}
+function freshProgress(){return {v:1,roots:0,ws:{vale_meadow:1},seeds:{},petals:{},secrets:{},planted:0,seen:{},ch1:{done:0,best:0},ch2:{done:0,best:0,lan:0,door:0},ch3:{done:0,best:0},settings:Object.assign({},DEFAULT_SETTINGS)};}
 let PROG=freshProgress();
 function loadProgress(){try{const t=localStorage.getItem(SAVE_KEY);if(!t)return;const o=JSON.parse(t);if(!o||o.v!==1)return;
-  const f=freshProgress();PROG=Object.assign(f,o);PROG.settings=Object.assign({},DEFAULT_SETTINGS,o.settings||{});PROG.ch1=Object.assign(f.ch1,o.ch1||{});PROG.ch2=Object.assign(f.ch2,o.ch2||{});}catch(e){}}
+  const f=freshProgress();PROG=Object.assign(f,o);PROG.settings=Object.assign({},DEFAULT_SETTINGS,o.settings||{});PROG.ch1=Object.assign(f.ch1,o.ch1||{});PROG.ch2=Object.assign(f.ch2,o.ch2||{});PROG.ch3=Object.assign(f.ch3,o.ch3||{});}catch(e){}}
 let saveT=0;
 function saveProgress(){if(mode==='online'&&role!=='host')return;try{localStorage.setItem(SAVE_KEY,JSON.stringify(PROG));}catch(e){}}
 function saveSoon(){saveT=.6;}
@@ -633,8 +633,8 @@ function valeColor(x,z,h,out){
 const VALE={wake:0,wakeT:0,river:null,foliage:[],ground:null,tree:null,roots:[],leaf:null,blossom:null,beds:[],gates:[]};
 const GATES=[];
 // chapters built so far; a gate opens once the chapter before it is complete
-function chapterOpens(n){return n===2;}
-function gateReady(n){return n===1||(n===2&&!!PROG.ch1.done);}
+function chapterOpens(n){return n===2||n===3;}
+function gateReady(n){return n===1||(n===2&&!!PROG.ch1.done)||(n===3&&!!PROG.ch2.done);}
 const CHAPTERS=[
   {n:1,name:'The Sunken Garden',ready:true},{n:2,name:'The Lantern Mines'},{n:3,name:'The Windmill Heights'},{n:4,name:'The Frostmere Lake'},
   {n:5,name:'The Mushroom Marsh'},{n:6,name:'The Clockwork Library'},{n:7,name:'The Sunstone Desert'}];
@@ -727,7 +727,7 @@ function buildVale(){
   for(let k=0;k<6;k++){const a=k/6*6.28;ruin(VALE_HILL.x+Math.cos(a)*6,VALE_HILL.z+Math.sin(a)*6,2.4+(k%2)*1.4,.45,k%3===0);}
   box(VALE_HILL.x-1.6,VALE_HILL.x+1.6,hy-1,hy+.35,VALE_HILL.z-1.6,VALE_HILL.z+1.6,REAL.ready?stoneReal():M.pave,{fade:false,surface:'stone'});
   buildCaves();
-  buildValeLamps();
+  buildValeLamps();buildValePinwheels();
   // ---------- forests (batched) ----------
   buildValeForest();
   if(REAL.ready){GRASS=newGrassField(grassAllowed,valeH,()=>VALE.wake);buildGrass(GRASS);if(VALE.veinTex)GRASS.mat.uniforms.uVein.value=VALE.veinTex;}else buildValeTufts();
@@ -797,7 +797,7 @@ function updateVale(dt,t){
   VALE.roots.forEach((r,i)=>{if(r.vein){const u=r.material.uniforms;u.uT.value=t;u.uOn.value=approach(u.uOn.value,i<PROG.roots?(PROG.settings.reduceFlash?.6:1):0,dt*.6);if(GRASS&&GRASS.mat)GRASS.mat.uniforms.uRootOn.value[i]=u.uOn.value;return;}const on=i<PROG.roots,em=r.material.emissive;if(on){em.set('#1fb3a3');r.material.emissiveIntensity=PROG.settings.reduceFlash?.35:.3+.15*Math.sin(t*1.5+i);}else r.material.emissiveIntensity=0;});
   VALE.treeLight.intensity=PROG.roots>0?.6:0;
   const planted=Math.floor(PROG.planted/5);VALE.beds.forEach((g,i)=>g.visible=i<planted);
-  updateValeLamps(dt);
+  updateValeLamps(dt);updateValePinwheels(dt);
   for(const g of GATES){g.ready=gateReady(g.ch);const ready=g.ready;g.bar.on=!ready;if(g.labOpen){g.labOpen.visible=ready;g.lab.visible=!ready;}
     const flicker=!ready&&g.ch===PROG.roots+1; // the next sealed gate flickers faintly
     g.veil.visible=ready||flicker;if(ready)g.veil.material.opacity=PROG.settings.reduceFlash?.3:.26+.1*Math.sin(t*1.6);
@@ -1176,6 +1176,7 @@ function realifyProp(root){root.traverse(o=>{if(!o.isMesh)return;const n=o.mater
 function updateReal(dt,t){
   updateForests(dt);
   if(G.region==='ch1'){updateGrass(GRASS_CH1,t);return;}
+  if(G.region==='ch3'){updateGrass(GRASS_CH3,t);return;}
   if(G.region!=='vale')return;
   updateGrass(GRASS,t);
   if(REAL.water){REAL.water.visible=VALE.wake>.02;REAL.water.position.y=lerp(RIVER_WATER-.7,RIVER_WATER,VALE.wake);const sh=REAL.water.material.userData.sh;if(sh)sh.uniforms.uT.value=t;}
@@ -2088,6 +2089,355 @@ function applyLook(r){
   for(const rn of runes)rn.light.visible=r.id==='ch1';if(W.fLight)W.fLight.visible=r.id==='ch1';if(VALE.treeLight)VALE.treeLight.visible=r.id==='vale';
 }
 
+// ================= Chapter 3: The Windmill Heights =================
+// Islands floating above a sea of cloud. New: wind. Rising winds and wind currents carry the Sprite when it
+// spreads its wings (hold jump); the Giant is too heavy to fly but wades through deep water with the Sprite on its head.
+// The route, south to north:
+//  Landing Isle (ride a rising wind to the lever that lowers the bridge) -> Wading Isle (the Giant wades the deep pond
+//  with the Sprite on its head; cog 1 lies in the pond) -> Sail Terrace (the Giant turns two sails to steer the wind
+//  from the Wind Gate: the right one lifts the Sprite to cog 2 on a pillar, it nudges the cog down; with both sails
+//  edge-on the wind turns the windmill wheel) -> ride a wheel platform up to the High Orchard -> the Giant throws the
+//  Sprite into a wind current over the gap; on the far islet it lowers a bridge (cog 3) -> the Great Windmill: set the
+//  three cogs, the Sprite rides the tower's rising wind up to the balcony and releases the brake.
+// Optional: the cloud nest under the Landing Isle, the grotto behind the pond's waterfall, the windmill's rooftop.
+const HCP={g:[-1.5,0,4.5],s:[1.5,0,4.5]};
+const HT={gate:new V3(0,0,8.5),gear:new V3(52,13,-79.4),winchB:null};
+const WHEEL={cx:38,cy:7.6,cz:-63,R:6.5,hang:1.1,a:0,w:0,gond:[],g:null};
+const POND={x0:-10,x1:10,z0:-44,z1:-28,y:-.05,grotto:{x0:-14,x1:-10,z0:-39,z1:-33}};
+const hts={b1:null,b2:null,placed:0,brake:false,sails:0,fx:0};
+const WINDS=[],VANES=[],COGS=[],HLEVERS=[],HBRIDGES=[];
+const HM={};
+const inCh3=()=>G.region==='ch3';
+
+function heightsMats(){
+  const R=REAL.ready,lam=c=>new THREE.MeshLambertMaterial({color:c});
+  HM.rock=R?rockMat('isleRock','#a89c88'):lam('#9c8f7c');HM.under=R?rockMat('isleUnder','#8d8170'):lam('#7f7465');
+  HM.bed=R?rockMat('pondBed','#7c7a62'):lam('#6f6c55');HM.stone=R?stoneMat('railStone','#e8e0d2'):M.stone;
+  TILE.set(HM.rock,4);TILE.set(HM.under,5);TILE.set(HM.bed,3);TILE.set(HM.stone,2.4);
+  HM.hedge=new THREE.MeshLambertMaterial({color:'#4f7d3a'});
+  HM.sail=new THREE.MeshLambertMaterial({color:'#f3ead6',side:THREE.DoubleSide});
+  HM.brass=new THREE.MeshStandardMaterial({color:'#d9a441',roughness:.35,metalness:.6});
+  // wind streaks: soft vertical lines that scroll along the wind
+  const cv=document.createElement('canvas');cv.width=64;cv.height=256;const c=cv.getContext('2d');c.clearRect(0,0,64,256);
+  for(let i=0;i<18;i++){const x=hash2(i,1,5)*64,y=hash2(i,2,5)*256,l=40+hash2(i,3,5)*90,g=c.createLinearGradient(0,y,0,y+l);g.addColorStop(0,'rgba(255,255,255,0)');g.addColorStop(.5,'rgba(255,255,255,'+(.35+hash2(i,4,5)*.5)+')');g.addColorStop(1,'rgba(255,255,255,0)');
+    c.fillStyle=g;c.fillRect(x,y,1.5+hash2(i,5,5)*2,l);c.fillRect(x,y-256,1.5+hash2(i,5,5)*2,l);}
+  HM.streak=new THREE.CanvasTexture(cv);HM.streak.wrapS=HM.streak.wrapT=THREE.RepeatWrapping;
+  // clouds: soft lumps for the cloud sea far below
+  const cc=document.createElement('canvas');cc.width=cc.height=256;const x=cc.getContext('2d'),im=x.createImageData(256,256);
+  for(let j=0;j<256;j++)for(let i=0;i<256;i++){const n=fbm(i/256*4,j/256*4,4,4,71);const a=smooth(.42,.72,n);const k=(j*256+i)*4;im.data[k]=im.data[k+1]=im.data[k+2]=255;im.data[k+3]=Math.round(a*235);}
+  x.putImageData(im,0,0);HM.cloud=new THREE.CanvasTexture(cc);HM.cloud.wrapS=HM.cloud.wrapT=THREE.RepeatWrapping;HM.cloud.repeat.set(5,5);
+}
+// an island floor: grass on top, rock below, a rough cone of rock hanging underneath
+const ISLES=[];
+function isle(xa,xb,za,zb,y,depth,cone){
+  const x0=Math.min(xa,xb),x1=Math.max(xa,xb),z0=Math.min(za,zb),z1=Math.max(za,zb);
+  box(x0,x1,y-.4,y,z0,z1,M.ground,{cast:false,fade:false,surface:'grass'});
+  box(x0,x1,y-(depth||3),y-.4,z0,z1,HM.rock,{cast:false,fade:false,collide:false});
+  if(cone!==false){const r=Math.min(x1-x0,z1-z0)*.5,h=Math.max(6,r*1.4);const m=new THREE.Mesh(REAL.ready?realRockGeo(r*.92,h,r*.92,x0+z0):lowPoly(r*.92,h,r*.92,1,x0|0,.3),HM.under);
+    m.rotation.x=Math.PI;m.scale.set((x1-x0)/(2*r),1,(z1-z0)/(2*r));m.position.set((x0+x1)/2,y-(depth||3)-h*(REAL.ready?.55:1)+.3,(z0+z1)/2);ROOT.add(m);} // hangs below, dome down
+  ISLES.push({x0,x1,z0,z1,y});
+}
+function rail(xa,xb,za,zb,y){box(xa,xb,y||0,(y||0)+.6,za,zb,HM.stone,{fade:false,cast:true,surface:'stone'});}
+// the height of the ground on an island (for grass and trees)
+function heightsH(x,z){let best=-99;for(const s of ISLES)if(x>s.x0&&x<s.x1&&z>s.z0&&z<s.z1&&s.y>best)best=s.y;return best;}
+
+// ---------- wind ----------
+function windMat(){const t=HM.streak.clone();t.needsUpdate=true;t.repeat.set(3,1.5);return new THREE.MeshBasicMaterial({map:t,color:'#e9fbff',transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,fog:true});}
+function addUpdraft(id,x,z,r,y0,y1,on){
+  const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r*1.15,y1-y0,20,1,true),windMat());m.position.set(x,(y0+y1)/2,z);m.renderOrder=3;ROOT.add(m);
+  const base=new THREE.Mesh(new THREE.RingGeometry(r*.4,r*1.1,24),new THREE.MeshBasicMaterial({color:'#dff8ff',transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));
+  base.rotation.x=-Math.PI/2;base.position.set(x,y0+.04,z);ROOT.add(base);
+  const w={id,kind:'up',x,z,r,y0,y1,on,m,base,k:0};WINDS.push(w);return w;
+}
+function addFlow(id,x0,x1,z,y0,y1,dx,on){
+  const r=(y1-y0)/2,L=Math.abs(x1-x0),m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,L,20,1,true),windMat());m.rotation.z=Math.PI/2;m.position.set((x0+x1)/2,(y0+y1)/2,z);m.renderOrder=3;ROOT.add(m);
+  const w={id,kind:'flow',x0:Math.min(x0,x1),x1:Math.max(x0,x1),z,r,y0,y1,dx,dz:0,on,m,base:null,k:0};WINDS.push(w);return w;
+}
+function windAt(b){
+  for(const w of WINDS){if(!w.on())continue;
+    if(w.kind==='up'){if(Math.hypot(b.pos.x-w.x,b.pos.z-w.z)<w.r&&b.pos.y>w.y0-.6&&b.pos.y<w.y1+.4)return w;}
+    else if(b.pos.x>w.x0&&b.pos.x<w.x1&&Math.abs(b.pos.z-w.z)<w.r+.2&&b.pos.y>w.y0-.3&&b.pos.y<w.y1+.3)return w;}
+  return null;
+}
+// the Sprite spreads its wings (holds jump) in the wind and is carried; without wings a rising wind only slows its fall
+function rideWind(s,IS,dt){
+  const w=windAt(s);s.wind=w?w.id:'';if(!w||s.onGround)return;
+  if(!IS.jump){if(w.kind==='up')s.vel.y=Math.max(s.vel.y,-2.4);return;}
+  s.gliding=true;
+  if(w.kind==='up'){const top=w.y1-.5;s.vel.y=s.pos.y<top?approach(s.vel.y,6.2,32*dt):approach(s.vel.y,0,30*dt);}
+  else{s.vel.x=approach(s.vel.x,w.dx*6.5,24*dt);s.vel.z=approach(s.vel.z,(w.z-s.pos.z)*2,10*dt);s.vel.y=approach(s.vel.y,(((w.y0+w.y1)/2)-s.pos.y)*1.5,14*dt);s.thrownT=0;}
+}
+// the wind from the Wind Gate blows east along the terrace until the first sail that faces it
+function windStopX(){let x=1e9;for(const v of VANES)if(v.catch&&v.x<x)x=v.x;return x;}
+const vaneLifts=v=>v.catch&&windStopX()===v.x;
+const wheelWind=()=>windStopX()>1e8;
+
+// ---------- sails (the Giant turns their capstans) ----------
+function addVane(i,x,z,catching){
+  const v={i,x,z,catch:catching,t:+catching,col:null,g:null,cap:null,capPos:new V3(x,0,-58.6)};
+  const g=new THREE.Group();g.position.set(x,0,z);ROOT.add(g);v.g=g;
+  const post=new THREE.Mesh(new THREE.CylinderGeometry(.16,.2,5.4,10),M.wood);post.position.y=2.7;post.castShadow=true;g.add(post);
+  const sail=new THREE.Group();g.add(sail);v.sail=sail;
+  const cloth=new THREE.Mesh(new THREE.PlaneGeometry(3,3.8,6,6),HM.sail);const p=cloth.geometry.attributes.position;for(let k=0;k<p.count;k++){const u=p.getX(k);p.setZ(k,.25*Math.cos(u/1.5*Math.PI/2));}cloth.geometry.computeVertexNormals();
+  cloth.position.y=2.6;cloth.castShadow=true;sail.add(cloth);
+  for(const y of [.7,4.5]){const b=new THREE.Mesh(new THREE.BoxGeometry(3.1,.1,.1),M.wood);b.position.y=y;sail.add(b);}
+  box(x-.2,x+.2,0,5.4,z-.2,z+.2,null);
+  v.col=box(0,1,.6,4.6,0,1,null,{surface:'wood'});setVaneCol(v);
+  // the capstan, south of the sail, with a rope running to it
+  const cg=new THREE.Group();cg.position.copy(v.capPos);ROOT.add(cg);
+  const drum=new THREE.Mesh(new THREE.CylinderGeometry(.42,.48,.9,12),M.wood);drum.position.y=.45;cg.add(drum);
+  for(let k=0;k<4;k++){const bar=new THREE.Mesh(new THREE.BoxGeometry(1.7,.09,.09),M.iron);bar.position.y=.82;bar.rotation.y=k*Math.PI/4;cg.add(bar);}
+  v.cap=cg;box(x-.5,x+.5,0,.9,-59.1,-58.1,null,{surface:'wood'});
+  VANES.push(v);return v;
+}
+function setVaneCol(v){const c=v.col;if(v.catch){c.min.set(v.x-.12,.6,v.z-1.5);c.max.set(v.x+.12,4.6,v.z+1.5);}else{c.min.set(v.x-1.5,.6,v.z-.12);c.max.set(v.x+1.5,4.6,v.z+.12);}}
+function turnVane(v){v.catch=!v.catch;setVaneCol(v);for(const b of [golem,sprite])if(!(b===sprite&&sprite.held))depenetrate(b,v.col);syncGolemCol();G.vaneN=(G.vaneN||0)+1;}
+
+// ---------- drawbridges ----------
+function addDrawbridge(id,x0,x1,z0,z1,y,axis){ // axis 'z': hinged at z1 (the near side), 'x': hinged at x0
+  const B={id,open:false,t:0,axis,col:null,piv:new THREE.Group()};
+  if(axis==='z'){B.piv.position.set((x0+x1)/2,y,z1);const L=z1-z0;for(let i=0;i<5;i++){const w=(x1-x0)/5;box(x0-(x0+x1)/2+i*w+.02,x0-(x0+x1)/2+(i+1)*w-.02,-.28,0,-L,0,M.wood,{parent:B.piv,collide:false});}
+    for(const z of [-L*.2,-L*.5,-L*.8])box(-(x1-x0)/2-.05,(x1-x0)/2+.05,-.34,-.24,z,z+.18,M.iron,{parent:B.piv,collide:false});}
+  else{B.piv.position.set(x0,y,(z0+z1)/2);const L=x1-x0;for(let i=0;i<5;i++){const w=(z1-z0)/5;box(0,L,-.28,0,z0-(z0+z1)/2+i*w+.02,z0-(z0+z1)/2+(i+1)*w-.02,M.wood,{parent:B.piv,collide:false});}
+    for(const x of [L*.2,L*.5,L*.8])box(x,x+.18,-.34,-.24,-(z1-z0)/2-.05,(z1-z0)/2+.05,M.iron,{parent:B.piv,collide:false});}
+  ROOT.add(B.piv);B.col=box(x0,x1,y-.3,y,z0,z1,null,{kind:'bridge',surface:'wood'});B.col.on=false;
+  HBRIDGES.push(B);return B;
+}
+function hlever(x,y,z,id,rot){const l=makeLever(x,z,rot||0,id,y);l.ch3=true;HLEVERS.push(l);return l;}
+
+// ---------- cogs (the chapter's three root stones) ----------
+function cogMesh(){const g=new THREE.Group();const disc=new THREE.Mesh(new THREE.CylinderGeometry(.3,.3,.14,16),HM.brass);disc.rotation.x=Math.PI/2;g.add(disc);
+  for(let k=0;k<8;k++){const t=new THREE.Mesh(new THREE.BoxGeometry(.14,.12,.14),HM.brass);const a=k/8*Math.PI*2;t.position.set(Math.cos(a)*.34,Math.sin(a)*.34,0);t.rotation.z=a;g.add(t);}
+  const hub=new THREE.Mesh(new THREE.CylinderGeometry(.09,.09,.2,10),M.iron);hub.rotation.x=Math.PI/2;g.add(hub);g.traverse(o=>{if(o.isMesh)o.castShadow=true;});return g;}
+function addCog(i,x,y,z,state,where){const m=cogMesh();ROOT.add(m);
+  const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:TEX.glow,color:'#ffd86a',transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:.6}));glow.scale.set(1.5,1.5,1);ROOT.add(glow);
+  COGS.push({i,pos:new V3(x,y,z),home:new V3(x,y,z),home0:state,state,m,glow,where,vel:new V3(),hw:.25,h:.3,kind:'cog',stepH:.1,onGround:false});}
+const cogReach=(g,c)=>dxz(g.pos,c.pos)<1.9&&c.pos.y-g.pos.y>-.9&&c.pos.y-g.pos.y<2.2;
+
+// ================= build =================
+function buildHeights(){
+  curBuild='ch3';
+  const R=beginRegion('ch3',{name:'Chapter 3: The Windmill Heights',short:'Windmill Heights',chapter:3,fog:[80,330],fogReal:[90,420],spawn:HCP,
+    hazard:b=>b===sprite&&!sprite.held&&inPond(b.pos.x,b.pos.z)&&b.pos.y<POND.y-.12});
+  heightsMats();
+  // ---------- the Landing Isle ----------
+  isle(-12,12,10,-12,0,4);
+  {const g=prop('gate');if(REAL.ready)realifyProp(g);g.position.set(0,-.05,8.5);g.rotation.y=Math.PI;g.scale.setScalar(.82);ROOT.add(g);
+    const gm=[];g.traverse(o=>{if(o.isMesh)gm.push(o);});if(gm.length)markFadeGroup(gm);
+    for(const s of [-1,1])box(s>0?2.62:-4.3,s>0?4.3:-2.62,0,6.5,7.3,9.7,null,{surface:'stone'});
+    const veil=new THREE.Mesh(new THREE.PlaneGeometry(5.2,7.6),new THREE.MeshBasicMaterial({color:'#7ff0cf',transparent:true,opacity:.28,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}));
+    veil.position.set(0,3.9,8.9);ROOT.add(veil);hts.veil=veil;
+    const lab=labelSprite('The Vale','Walk through together','#1fb3a3');lab.scale.set(4.4,1.4,1);lab.position.set(0,9,8.6);ROOT.add(lab);invis(-5,5,0,12,11,12);}
+  rail(-12,-4.3,9.4,10);rail(4.3,12,9.4,10);rail(-12.4,-12,10,-12);rail(12,12.4,10,6);rail(12,12.4,0,-12);rail(-12,-1.8,-11.6,-12);rail(1.8,12,-11.6,-12);
+  addWaystone('ch3_landing','Landing Isle',-7,0,5,Math.PI);
+  // the first rising wind, and the ledge with the bridge lever
+  addUpdraft('tut',7,-4,1.2,0,7.2,()=>true);
+  box(8.6,11.8,0,5.5,-6,-10,HM.rock,{surface:'stone'});box(8.56,11.84,5.5,5.62,-5.96,-10.04,M.ground,{collide:false,fade:false});
+  hlever(10.6,5.5,-8.6,'b1',Math.PI/2);
+  hts.b1=addDrawbridge('b1',-1.6,1.6,-22,-12,0,'z');
+  // the cloud nest below the east edge (only wings get there and back)
+  box(17.5,21,-6.4,-6,1,5,M.ground,{kind:'nest',fade:false,cast:false,surface:'grass'});box(17.5,21,-8,-6.4,1,5,HM.rock,{collide:false,fade:false});
+  {const m=new THREE.Mesh(REAL.ready?realRockGeo(1.8,3,1.8,7):lowPoly(1.8,3,1.8,1,7,.3),HM.under);m.rotation.x=Math.PI;m.position.set(19.25,-8-(REAL.ready?1.65:3)+.2,3);ROOT.add(m);}
+  addUpdraft('nest',19.25,3,1.2,-6,5.4,()=>true);
+
+  // ---------- the Wading Isle ----------
+  const P=POND;
+  isle(-14,14,-22,-28,0,4);isle(-14,14,-44,-50,0,4);
+  box(-14,-10,-.4,0,-28,-33,M.ground,{fade:false,cast:false});box(-14,-10,-.4,0,-39,-44,M.ground,{fade:false,cast:false});box(10,14,-.4,0,-28,-44,M.ground,{fade:false,cast:false});
+  box(-14,14,-4,-1.6,-28,-44,HM.rock,{collide:false,fade:false,cast:false});box(10,14,-1.6,-.4,-28,-44,HM.rock,{collide:false,fade:false,cast:false});
+  box(-14,-10,-1.6,-.4,-28,-33,HM.rock,{collide:false,fade:false,cast:false});box(-14,-10,-1.6,-.4,-39,-44,HM.rock,{collide:false,fade:false,cast:false});
+  {const m=new THREE.Mesh(REAL.ready?realRockGeo(13,10,13,3):lowPoly(13,10,13,1,3,.3),HM.under);m.rotation.x=Math.PI;m.scale.set(1.1,1,1.1);m.position.set(0,-4-(REAL.ready?5.5:10)+.3,-36);ROOT.add(m);}
+  // the pond: stepped banks down to a bed 1.2 m deep, a pedestal in the middle with the first cog
+  for(const [za,zb,y] of [[-28,-29,-.4],[-29,-30,-.8],[-42,-43,-.8],[-43,-44,-.4]])box(P.x0,P.x1,-1.6,y,za,zb,HM.bed,{fade:false,cast:false,surface:'stone'});
+  box(P.x0,P.x1,-1.6,-1.2,-30,-42,HM.bed,{fade:false,cast:false,surface:'stone'});
+  box(-.6,.6,-1.2,-.6,-36.6,-35.4,HM.stone,{fade:false,surface:'stone'});
+  addCog(0,0,-.6,-36,'rest','Pond');
+  // hedges keep everyone from walking around the pond; the west hedge hides a grotto behind a waterfall
+  const G0=P.grotto;
+  box(-14,-10,0,3,-28,-33,HM.hedge,{surface:'grass'});box(-14,-10,0,3,-39,-44,HM.hedge,{surface:'grass'});box(10,14,0,3,-28,-44,HM.hedge,{surface:'grass'});
+  box(G0.x0,G0.x1,-1.6,-1.2,G0.z0,G0.z1,HM.bed,{fade:false,cast:false,surface:'stone'});
+  box(G0.x0-.6,G0.x0,-1.6,3,G0.z0-.4,G0.z1+.4,HM.rock,{fade:false});box(G0.x0,G0.x1,1.6,3,G0.z0,G0.z1,HM.rock,{fade:true});
+  box(G0.x0,G0.x1,-1.6,3,G0.z0-.4,G0.z0,HM.rock,{fade:true});box(G0.x0,G0.x1,-1.6,3,G0.z1,G0.z1+.4,HM.rock,{fade:true});
+  {const fallM=new THREE.MeshBasicMaterial({map:(()=>{const t=HM.streak.clone();t.needsUpdate=true;t.repeat.set(4,1);return t;})(),color:'#eaffff',transparent:true,opacity:.55,depthWrite:false,side:THREE.DoubleSide});
+    const fall=new THREE.Mesh(new THREE.PlaneGeometry(G0.z1-G0.z0,3),fallM);fall.rotation.y=Math.PI/2;fall.position.set(G0.x1+.05,1.45,(G0.z0+G0.z1)/2);ROOT.add(fall);hts.fall=fallM;}
+  {const w=new THREE.Mesh(new THREE.PlaneGeometry(P.x1-G0.x0,P.z1-P.z0),M.water);w.rotation.x=-Math.PI/2;w.position.set((G0.x0+P.x1)/2,P.y,(P.z0+P.z1)/2);ROOT.add(w);}
+  for(let i=0;i<10;i++){const x=lerp(P.x0+1,P.x1-1,hash2(i,1,61)),z=lerp(P.z0+1,P.z1-1,hash2(i,2,61));if(Math.abs(x)<2.5)continue;const pad=new THREE.Mesh(new THREE.CircleGeometry(.4+hash2(i,3,61)*.3,10),M.leaf2);pad.rotation.x=-Math.PI/2;pad.position.set(x,P.y+.02,z);ROOT.add(pad);}
+  rail(-14.4,-14,-22,-28);rail(14,14.4,-22,-28);rail(-14.4,-14,-44,-50);rail(14,14.4,-44,-50);rail(-14,-2,-22,-22.4);rail(2,14,-22,-22.4);rail(-14,-2,-49.6,-50);rail(2,14,-49.6,-50);
+  // a stone bridge on to the terrace
+  box(-2,2,-.5,0,-50,-54,HM.stone,{fade:false,cast:false,surface:'stone'});rail(-2.3,-2,-50,-54);rail(2,2.3,-50,-54);
+
+  // ---------- the Sail Terrace ----------
+  isle(-16,30,-54,-70,0,4);isle(30,42,-54,-61.6,0,4,false);
+  rail(-16,-2,-54,-54.4);rail(2,42,-54,-54.4);rail(42,42.4,-54,-61.6);rail(-16,20,-69.6,-70);
+  // the Wind Gate: an old stone arch the wind pours out of
+  {const S=HM.stone;box(-16.6,-15.4,0,6,-60.4,-61.4,S,{fade:false});box(-16.6,-15.4,0,6,-64.6,-65.6,S,{fade:false});box(-16.8,-15.2,6,7,-60.2,-65.8,S,{fade:false});
+    box(-19,-16.6,0,7,-58,-68,HM.rock,{fade:false});
+    const t=HM.streak.clone();t.needsUpdate=true;t.repeat.set(8,1);
+    const gust=new THREE.Mesh(new THREE.CylinderGeometry(1.7,1.7,1,18,1,true),new THREE.MeshBasicMaterial({map:t,color:'#f1fdff',transparent:true,opacity:.22,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));
+    gust.rotation.z=Math.PI/2;gust.position.set(0,2.4,-63);gust.renderOrder=3;ROOT.add(gust);hts.gust=gust;}
+  addVane(0,2,-63,true);addVane(1,14,-63,false);
+  addUpdraft('v0',3.4,-63,1.2,0,8.2,()=>vaneLifts(VANES[0]));addUpdraft('v1',15.4,-63,1.2,0,10.4,()=>vaneLifts(VANES[1]));
+  box(2.2,4.6,0,7,-64.6,-67,HM.rock,{surface:'stone'});box(2.16,4.64,7,7.1,-64.56,-67.04,M.ground,{collide:false,fade:false});     // a ledge (seeds)
+  box(14.2,16.6,0,9,-64.6,-67,HM.rock,{surface:'stone'});box(14.16,16.64,9,9.1,-64.56,-67.04,M.ground,{collide:false,fade:false});   // the pillar with the second cog
+  addCog(1,15.4,9,-65.8,'perched','Sail pillar');
+
+  // ---------- the windmill wheel: four level platforms on the ends of its sails ----------
+  {const W=WHEEL;W.g=new THREE.Group();W.g.position.set(W.cx,W.cy,W.cz-.3);ROOT.add(W.g);
+    const hub=new THREE.Mesh(new THREE.CylinderGeometry(.9,.9,.8,16),M.wood);hub.rotation.x=Math.PI/2;W.g.add(hub);
+    for(let k=0;k<4;k++){const arm=new THREE.Group();arm.rotation.z=k*Math.PI/2;W.g.add(arm);
+      const spar=new THREE.Mesh(new THREE.BoxGeometry(W.R,.3,.3),M.wood);spar.position.x=W.R/2;arm.add(spar);
+      const cloth=new THREE.Mesh(new THREE.PlaneGeometry(W.R*.8,1.6),HM.sail);cloth.position.set(W.R*.5,.9,-.05);arm.add(cloth);}
+    const tower=new THREE.Mesh(new THREE.CylinderGeometry(1,1.6,W.cy+12,10),HM.stone);tower.position.set(W.cx,(W.cy-12)/2,W.cz-3.2);ROOT.add(tower);
+    const axle=new THREE.Mesh(new THREE.CylinderGeometry(.3,.3,3,8),M.iron);axle.rotation.x=Math.PI/2;axle.position.set(W.cx,W.cy,W.cz-1.8);ROOT.add(axle);
+    for(let k=0;k<4;k++){const g=new THREE.Group();ROOT.add(g);
+      const deck=new THREE.Mesh(boxGeo(2.4,.25,2.4,1.6,0,0,0),M.wood);deck.position.y=-.125;deck.castShadow=deck.receiveShadow=true;g.add(deck);
+      for(const sx of [-1,1]){const rail=new THREE.Mesh(new THREE.BoxGeometry(.06,.06,2.4),M.iron);rail.position.set(sx*1.15,.7,0);g.add(rail);
+        const rod=new THREE.Mesh(new THREE.BoxGeometry(.05,W.hang,.05),M.iron);rod.position.set(sx*.5,W.hang/2,0);g.add(rod);}
+      const col=box(0,1,0,1,0,1,null,{kind:'gondola',surface:'wood'});W.gond.push({g,col,k,x:0,y:0});}
+    placeGondolas();}
+
+  // ---------- the High Orchard ----------
+  isle(20,60,-64.3,-90,13,4);
+  rail(20,36.8,-64.3,-64.7);rail(39.2,60,-64.3,-64.7);rail(59.6,60,-64.3,-90);rail(20,60,-89.6,-90);rail(20,20.4,-64.3,-79.6);rail(20,20.4,-82.8,-90);
+  addWaystone('ch3_orchard','High Orchard',24,13,-71,Math.PI/2);
+  // the far islet, the wind current over the gap, the bridge the Sprite lowers
+  isle(2,10,-77,-85,13,4);rail(1.6,2,-77,-85);rail(2,10,-76.6,-77);rail(2,10,-85,-85.4);
+  addFlow('gap',19.6,8,-81.2,15,18.2,-1,()=>true);
+  hts.b2=addDrawbridge('b2',10,20,-82.4,-80,13,'x');
+  hlever(8.8,13,-78.2,'b2',0);
+  addCog(2,5,13,-81.2,'rest','Far islet');
+  // the Great Windmill: a stone tower, a gearbox at its foot, a balcony with the brake, sails on its east face
+  {const S=HM.stone;box(49,55,13,28,-81,-87,S,{surface:'stone'});
+    // a little roof on four posts over the rooftop (a lookout)
+    const roofM=new THREE.MeshLambertMaterial({color:'#9c5534'});const cap=new THREE.Mesh(new THREE.ConeGeometry(2.6,1.8,4),roofM);cap.position.set(52,31.3,-84);cap.rotation.y=Math.PI/4;ROOT.add(cap);
+    for(const [x,z] of [[50,-82],[54,-82],[50,-86],[54,-86]])box(x-.12,x+.12,28.2,30.4,z-.12,z+.12,M.wood,{fade:false,cast:true});
+    box(49.6,54.4,28,28.2,-81.6,-86.4,M.wood,{fade:false,surface:'wood'});
+    box(50,54,13,14.2,-80.2,-81,M.wood,{surface:'wood'});
+    for(let k=0;k<3;k++){const m=cogMesh();m.position.set(51+k,13.75,-80.1);m.visible=false;ROOT.add(m);(hts.sockets=hts.sockets||[]).push(m);}
+    box(50.3,53.7,24.7,25,-79.4,-81,M.wood,{surface:'wood'});rail(50.3,53.7,25,-79.4,-79.6);
+    hlever(52,25,-80.3,'brake',0);
+    const sails=new THREE.Group();sails.position.set(55.4,25.2,-84);ROOT.add(sails);hts.sailsG=sails;
+    for(let k=0;k<4;k++){const arm=new THREE.Group();arm.rotation.x=k*Math.PI/2;sails.add(arm);const spar=new THREE.Mesh(new THREE.BoxGeometry(.3,9,.3),M.wood);spar.position.y=4.5;arm.add(spar);
+      const cloth=new THREE.Mesh(new THREE.PlaneGeometry(1.8,7),HM.sail);cloth.rotation.y=Math.PI/2;cloth.position.set(.05,5,.9);arm.add(cloth);}}
+  addUpdraft('tower',52,-77.9,1.2,13,30.5,()=>hts.placed>=3);
+  // ---------- the cloud sea far below ----------
+  {const m=new THREE.Mesh(new THREE.PlaneGeometry(900,900),new THREE.MeshBasicMaterial({map:HM.cloud,transparent:true,opacity:.95,depthWrite:false,color:'#ffffff'}));m.rotation.x=-Math.PI/2;m.position.set(20,-26,-40);m.renderOrder=-1;ROOT.add(m);hts.clouds=m;
+    const under=new THREE.Mesh(new THREE.PlaneGeometry(900,900),new THREE.MeshBasicMaterial({color:'#dbe8f0'}));under.rotation.x=-Math.PI/2;under.position.set(20,-34,-40);ROOT.add(under);}
+
+  // ---------- collectibles ----------
+  const S=[[-4,0,2],[6,0,4],[-8,0,-6],[3,0,-9],[10,5.5,-6.8],
+    [18.3,-6,1.8],[20.2,-6,1.8],[19.2,-6,4.4],
+    [-6,0,-25],[6,0,-25],[0,-1.2,-32],[4,-1.2,-39],[-6,0,-47],[6,0,-47],
+    [-12,-1.2,-34.4],[-12,-1.2,-37.6],
+    [-10,0,-58],[-6,0,-68],[8,0,-56],[22,0,-57],[26,0,-68],[2.8,7,-65.2],[4,7,-65.2],[3.4,7,-66.4],
+    [34,0,-56],[40,0,-56],
+    [26,13,-74],[32,13,-86],[40,13,-70],[44,13,-80],[58,13,-68],[58,13,-88],[36,13,-78],[48,13,-72],
+    [3.5,13,-78.5],[3.5,13,-83.8],[8,13,-84],
+    [51.2,25,-79.8],[52.8,25,-79.8],[52,28.2,-85.6]];
+  S.forEach(([x,y,z],i)=>addSeed('c3s'+i,x,y,z));
+  addPetal('m9',18.2,-6,3.8);addPetal('m10',-12.8,-1.2,-36);addPetal('m11',52,28.2,-84);
+  // orchard trees and grass on the islands (realistic look only)
+  if(REAL.ready){
+    ROOT.traverse(o=>{if(o.isMesh&&o.material===M.ground&&!o.geometry.attributes.color){const n=o.geometry.attributes.position.count;o.geometry.setAttribute('color',new THREE.Float32BufferAttribute(new Float32Array(n*3),3));}});
+    // small orchard trees (like the Sunken Garden's orchard): big canopies over the paths cost a lot to draw
+    const trees=[[-9,-8],[-9,7],[9,6],[-11,-25],[11,-47],[-13,-57],[-13,-68],[24,-88],[30,-87],[42,-88],[58,-66],[58,-88],[26,-76],[36,-84],[44,-70]].map(([x,z],i)=>[x,z,.17+hash2(i,4,9)*.04]);
+    buildRealForest(trees,{h:(x,z)=>Math.max(0,heightsH(x,z))});
+    for(const [x,z,sc] of trees){const y=heightsH(x,z),r=1.6*sc;box(x-r,x+r,y,y+4,z-r,z+r,null,{surface:'wood'});}
+    GRASS_CH3=newGrassField(heightsGrass,(x,z)=>heightsH(x,z),()=>1);buildGrass(GRASS_CH3);}
+  hts.beacon=makeBeacon();
+  endRegion(R);
+  buildSeedInstances('ch3');
+}
+let GRASS_CH3=null;
+function inPond(x,z){const P=POND,G0=P.grotto;return (x>P.x0&&x<P.x1&&z>P.z0&&z<P.z1)||(x>G0.x0&&x<G0.x1&&z>G0.z0&&z<G0.z1);}
+function heightsGrass(x,z){const h=heightsH(x,z);if(h<-50)return 0;if(inPond(x,z))return 0;
+  if(Math.abs(x)<5&&z>4&&z<11)return 0;if(h>12&&x>48&&x<56&&z<-78&&z>-88)return 0;
+  for(const v of VANES)if(Math.hypot(x-v.x,z-v.z)<2||Math.hypot(x-v.capPos.x,z-v.capPos.z)<1.2)return 0;
+  return h>12?.6:.75;}
+
+// ================= state =================
+function placeGondolas(){const W=WHEEL;for(const q of W.gond){const a=W.a+q.k*Math.PI/2,x=W.cx+W.R*Math.cos(a),y=W.cy+W.R*Math.sin(a)-W.hang;q.x=x;q.y=y;
+  q.col.min.set(x-1.2,y-.25,W.cz-1.2);q.col.max.set(x+1.2,y,W.cz+1.2);}}
+function resetHeights(){
+  const done=!!PROG.ch3.done;
+  G.time=0;G.falls=0;G.throws=0;G.ending=false;G.endT=0;G.fallN=0;G.pick=0;G.useN=0;
+  for(const B of HBRIDGES){B.open=done;B.t=+done;B.col.on=done;}
+  VANES[0].catch=!done;VANES[1].catch=false;for(const v of VANES){v.t=+v.catch;setVaneCol(v);}
+  WHEEL.a=-Math.PI/2;WHEEL.w=0;placeGondolas();
+  for(const c of COGS){c.state=done?'placed':c.home0;c.pos.copy(c.home);c.vel.set(0,0,0);}
+  hts.placed=done?3:0;hts.brake=done;hts.sails=+done;
+  for(const l of HLEVERS){l.pulled=l.id==='b1'?hts.b1.open:l.id==='b2'?hts.b2.open:hts.brake;l.t=+l.pulled;}
+  golem.runes=0;golem.holding=false;golem.charging=false;golem.pound=false;sprite.held=false;
+  placeAt(golem,HCP.g);placeAt(sprite,HCP.s);golem.yaw=sprite.yaw=Math.PI;hintsShown.clear();camSnap=true;
+}
+function heightsDone(){return !!PROG.ch3.done;}
+const onPedestalCog=()=>COGS[0];
+// ---- the Giant: take a cog (even with the Sprite on its head), set the cogs, turn a capstan ----
+function heightsCogTarget(){const g=golem;for(const c of COGS)if((c.state==='rest'||c.state==='free')&&cogReach(g,c))return c;return null;}
+function golemHeightsAction(){
+  const g=golem;
+  if(g.runes>0&&dxz(g.pos,HT.gear)<3&&Math.abs(g.pos.y-13)<1){for(const c of COGS)if(c.state==='carried'){c.state='placed';hts.placed++;}g.runes=0;return true;}
+  const c=heightsCogTarget();if(c){c.state='carried';g.runes++;G.pick++;return true;}
+  for(const v of VANES)if(dxz(g.pos,v.capPos)<2&&g.pos.y<1){turnVane(v);return true;}
+  return false;
+}
+function pullHeightsLever(l){l.pulled=true;if(l.id==='b1')hts.b1.open=true;else if(l.id==='b2')hts.b2.open=true;
+  else if(l.id==='brake'&&hts.placed>=3&&!G.ending&&!heightsDone()){hts.brake=true;G.ending=true;G.endT=0;chapterComplete(3);}}
+// ---- per step: before the characters move (the wheel carries its riders) ----
+function stepHeightsA(dt){
+  const W=WHEEL,riders=[golem,sprite].filter(b=>!(b===sprite&&sprite.held)&&b.onGround&&b.ground&&b.ground.kind==='gondola');
+  const before=riders.map(b=>{const q=W.gond.find(q=>q.col===b.ground);return [b,q,q.x,q.y];});
+  W.w=approach(W.w,wheelWind()?.24:0,dt*.12);W.a+=W.w*dt;placeGondolas();
+  for(const [b,q,x,y] of before){b.pos.x+=q.x-x;b.pos.y+=q.y-y;if(b===golem)syncGolemCol();}
+  if(W.w>.01)for(const q of W.gond)for(const b of [golem,sprite]){if(b===sprite&&sprite.held)continue;if(b.ground!==q.col&&ov(b,q.col)){depenetrate(b,q.col);if(b===golem)syncGolemCol();}}
+}
+// ---- per step: after they move ----
+function stepHeightsB(dt){
+  for(const B of HBRIDGES){B.t=approach(B.t,B.open?1:0,dt/2.4);const on=B.t>=.97;if(on&&!B.col.on)liftOnto(B.col);B.col.on=on;}
+  for(const v of VANES)v.t=approach(v.t,v.catch?1:0,dt/.6);
+  for(const l of HLEVERS)l.t=approach(l.t,l.pulled?1:0,dt/.35);
+  for(const c of COGS){if(c.state!=='free')continue;c.vel.y-=GRAV*dt;const dr=Math.exp(-(c.onGround?7:.4)*dt);c.vel.x*=dr;c.vel.z*=dr;moveBody(c,dt,listFor(c).filter(k=>k.kind!=='golem'));
+    if(c.pos.y<-15){c.state=c.home0;c.pos.copy(c.home);c.vel.set(0,0,0);}}
+  hts.sails=approach(hts.sails,hts.brake||heightsDone()?1:0,dt/3);
+}
+
+// ================= visuals =================
+function updateHeightsVis(dt,t){
+  const rf=PROG.settings.reduceFlash;
+  for(const w of WINDS){const on=w.on();w.k=approach(w.k,on?1:0,dt*1.5);w.m.visible=w.k>.01;w.m.material.opacity=w.k*(rf?.16:.26);
+    w.m.material.map.offset.y-=dt*(w.kind==='up'?.9:1.2)*(w.kind==='flow'?w.dx:1);if(w.base){w.base.material.opacity=w.k*.35;w.base.visible=w.k>.01;}
+    if(on&&!rf&&Math.random()<dt*(w.kind==='up'?7:6)){if(w.kind==='up'){const a=Math.random()*6.28,r=Math.random()*w.r;emit(w.x+Math.cos(a)*r,w.y0+.3,w.z+Math.sin(a)*r,0,4+Math.random()*2,0,.95,1,.9,.07,(w.y1-w.y0)/5.5,0,.1);}
+      else{const y=lerp(w.y0,w.y1,Math.random());emit(w.dx>0?w.x0:w.x1,y,w.z+(Math.random()-.5)*w.r*1.6,w.dx*6,0,0,.95,1,.9,.07,(w.x1-w.x0)/6,0,.1);}}}
+  // the gust from the Wind Gate stops at the first sail facing it
+  const stop=Math.min(windStopX()-.3,46),gx0=-15.5,len=stop-gx0;hts.gust.scale.set(1,len,1);hts.gust.position.x=gx0+len/2;hts.gust.material.map.offset.y+=dt*1.4;
+  if(!rf&&Math.random()<dt*10)emit(gx0+Math.random()*len*.3,.8+Math.random()*3,-63+(Math.random()-.5)*2.6,7,0,0,.95,1,.92,.07,len/7,0,.05);
+  for(const v of VANES){v.sail.rotation.y=lerp(0,Math.PI/2,smooth(0,1,v.t));v.cap.rotation.y=v.t*Math.PI*1.5;}
+  const W=WHEEL;W.g.rotation.z=W.a;for(const q of W.gond)q.g.position.set(q.x,q.y,W.cz);
+  for(const B of HBRIDGES){const k=1.45*(1-B.t);if(B.axis==='z')B.piv.rotation.x=k;else B.piv.rotation.z=k;}
+  for(const l of HLEVERS)l.handle.rotation.z=lerp(-.7,.7,l.t);
+  for(const c of COGS){const vis=c.state==='rest'||c.state==='perched'||c.state==='free';c.m.visible=vis;c.glow.visible=vis&&c.state!=='free';
+    if(vis){const y=c.pos.y+(c.state==='free'?.3:.5+Math.sin(t*1.8+c.i)*.07);c.m.position.set(c.pos.x,y,c.pos.z);c.m.rotation.y=t*.9+c.i;c.glow.position.set(c.pos.x,y,c.pos.z);c.glow.material.opacity=rf?.5:.45+.2*Math.sin(t*2.4);}}
+  (hts.sockets||[]).forEach((m,i)=>{m.visible=i<hts.placed;m.rotation.z=hts.sails*t*2*(i%2?-1:1);});
+  hts.sailsG.rotation.x-=dt*hts.sails*.8;
+  hts.clouds.material.map.offset.x+=dt*.004;hts.fall.map.offset.y+=dt*1.6;hts.veil.material.opacity=rf?.24:.2+.1*Math.sin(t*1.6);
+  if(G.ending&&Math.random()<dt*30){const a=Math.random()*6.28;emit(52+Math.cos(a)*4,24+Math.random()*4,-84+Math.sin(a)*4,Math.cos(a)*2,1+Math.random(),Math.sin(a)*2,1,.95,.7,.08,1.6,.3,.2);}
+}
+
+// ================= the Vale: pinwheels spin on the hills once the third root wakes =================
+function buildValePinwheels(){
+  VALE.pins=[];const spots=[[-40,38],[40,40],[-56,-10],[58,-14],[-24,-62],[26,-58],[-70,60],[70,60]];
+  const mat=new THREE.MeshLambertMaterial({color:'#f2873a',side:THREE.DoubleSide}),mat2=new THREE.MeshLambertMaterial({color:'#fff3d6',side:THREE.DoubleSide});
+  const postG=new THREE.CylinderGeometry(.06,.08,2.4,6);postG.translate(0,1.2,0);const posts=new THREE.InstancedMesh(postG,M.wood,spots.length);ROOT.add(posts);
+  const m4=new THREE.Matrix4();
+  spots.forEach(([x,z],i)=>{const y=valeH(x,z);m4.makeTranslation(x,y,z);posts.setMatrixAt(i,m4);
+    const g=new THREE.Group();g.position.set(x,y+2.4,z);g.rotation.y=Math.atan2(-x,-z);ROOT.add(g);
+    for(let k=0;k<4;k++){const b=new THREE.Mesh(new THREE.PlaneGeometry(.7,.28),k%2?mat:mat2);b.position.set(Math.cos(k*Math.PI/2)*.36,Math.sin(k*Math.PI/2)*.36,0);b.rotation.z=k*Math.PI/2+.4;g.add(b);}
+    g.visible=false;VALE.pins.push(g);});
+  posts.visible=false;VALE.pinPosts=posts;
+}
+function updateValePinwheels(dt){if(!VALE.pins)return;const on=PROG.roots>=3&&!(G.scene==='root3'&&G.line<1);VALE.pinPosts.visible=on;
+  VALE.pins.forEach((g,i)=>{g.visible=on;g.rotation.z+=dt*(2.5+i*.3);});}
+
 // ================= characters =================
 const golem={kind:'golem',pos:new V3(),vel:new V3(),hw:.6,h:2.3,stepH:.45,yaw:Math.PI,onGround:false,coyote:0,holding:false,charging:false,charge:0,runes:0,cp:0,pushing:false,anim:0,prev:new V3(),delta:new V3(),stepSound:0,walk:0};
 const sprite={kind:'sprite',pos:new V3(),vel:new V3(),hw:.14,h:.4,stepH:.14,yaw:Math.PI,onGround:false,coyote:0,held:false,gliding:false,thrownT:0,cp:0,walk:0,anim:0,airT:0};
@@ -2310,6 +2660,7 @@ function travel(reg,g,s,yaw){
   if(from!==reg){enterRegion(reg);G.regionN++;for(const k in talked)delete talked[k];}
   if(reg==='ch1'&&from!=='ch1'){resetLevel();G.ch={seeds:seedsFoundIn('ch1'),petals:0,secrets:0,launches:0};}
   if(reg==='ch2'&&from!=='ch2'){G.ch={seeds:seedsFoundIn('ch2'),petals:0,secrets:0,launches:0,pulses:0};resetMines();}
+  if(reg==='ch3'&&from!=='ch3'){G.ch={seeds:seedsFoundIn('ch3'),petals:0,secrets:0,launches:0,pulses:0};resetHeights();}
   golem.holding=false;golem.charging=false;golem.pound=false;sprite.held=false;
   if(g)placeAt(golem,g);if(s)placeAt(sprite,s);if(yaw!=null)golem.yaw=sprite.yaw=yaw;
   golem.safe=null;sprite.safe=null;syncGolemCol();camSnap=true;CAVECAM.c=null;camYawT=Math.round(camYawT/(Math.PI*2))*Math.PI*2;
@@ -2317,8 +2668,10 @@ function travel(reg,g,s,yaw){
   if(reg==='vale'&&!PROG.seen.prologue)playScene('prologue');
   else if(reg==='vale'&&PROG.roots>=1&&!PROG.seen.root1)playScene('root1');
   else if(reg==='vale'&&PROG.roots>=2&&!PROG.seen.root2)playScene('root2');
+  else if(reg==='vale'&&PROG.roots>=3&&!PROG.seen.root3)playScene('root3');
   else if(reg==='ch1'&&!PROG.seen.ch1_intro)playScene('ch1_intro');
   else if(reg==='ch2'&&!PROG.seen.ch2_intro)playScene('ch2_intro');
+  else if(reg==='ch3'&&!PROG.seen.ch3_intro)playScene('ch3_intro');
 }
 // just inside the Vale in front of a chapter's gate, facing the Heart Tree
 function valeSpotAtGate(n){
@@ -2342,6 +2695,7 @@ function golemAction(){
     for(const r of runes){if((r.state==='rest'||r.state==='free')&&dxz(g.pos,r.pos)<1.9){const dy=r.pos.y-g.pos.y;if(dy>-.7&&dy<2.2){r.state='carried';g.runes++;G.pick++;return;}}}
   }
   if(inCh2()&&golemMineAction())return;
+  if(inCh3()&&golemHeightsAction())return;
   if(!sprite.held&&dxz(g.pos,sprite.pos)<1.75){const dy=sprite.pos.y-g.pos.y;if(dy>-.7&&dy<2.75){sprite.held=true;g.holding=true;sprite.vel.set(0,0,0);sprite.gliding=false;G.pick++;return;}}
   if(G.region==='vale'&&plotNear(g)&&seedsToPlant()>=5){plantSeeds();return;}
   if(nearWaystone(g)){G.travelReq++;return;}
@@ -2372,6 +2726,10 @@ function spriteTarget(){
       else if(!l.pulled)consider(l,l.pos,l.id==='cw'?'Free the counterweight':'Open the iron door');}
     if(mine.lift.cw)consider('winch',WINCH_T,'Hold to wind the lift');
   }
+  if(inCh3()){
+    for(const l of HLEVERS)if(!l.pulled&&(l.id!=='brake'||hts.placed>=3))consider(l,l.pos,l.id==='brake'?'Release the brake':'Pull the lever (lower the bridge)');
+    for(const c of COGS)if(c.state==='perched')consider(c,c.pos,'Nudge the cog off the pillar');
+  }
   if(!best){const w=nearWaystone(s,2.4);if(w)best={obj:w,label:'Travel from the waystone'};}
   if(!best&&G.region==='vale'&&plotNear(s)&&seedsToPlant()>=5)best={obj:'plot',label:'Plant 5 golden seeds'};
   return best;
@@ -2380,6 +2738,8 @@ function spriteAction(){
   const t=spriteTarget();if(!t){if(inCh2())lightPulse();return;}G.useN++;
   if(t.obj==='winch'){sprite.winding=true;return;}
   if(t.obj.mine){pullMineLever(t.obj);return;}
+  if(t.obj.ch3){pullHeightsLever(t.obj);return;}
+  if(t.obj.kind==='cog'){const c=t.obj;c.state='free';c.pos.y+=.05;c.vel.set(0,3.2,5.2);c.onGround=false;G.nudgeN=(G.nudgeN||0)+1;return;}
   if(t.obj==='plot'){plantSeeds();return;}
   if(WAYS.includes(t.obj)){G.travelReq++;return;}
   if(t.obj.vale){pullValeLever(t.obj);return;}
@@ -2397,17 +2757,19 @@ function stepSim(dt,IG,IS){
   if(G.scene||G.card){const press=IG.jumpP||IG.actP||IS.jumpP||IS.actP;if(G.scene){G.lineT+=dt;if(press||G.lineT>14)storyNext();}else{G.cardT+=dt;if(press&&G.cardT>1)G.card='';}return;}
   if(!G.ending)G.time+=dt;
   if(G.ending){IG=NOIN;IS=NOIN;}
-  const g=golem,s=sprite,ch1=inCh1(),ch2=inCh2();
+  const g=golem,s=sprite,ch1=inCh1(),ch2=inCh2(),ch3=inCh3();
+  if(ch3)stepHeightsA(dt);
   for(const b of [g,s])if(b.frz>0)b.frz-=dt;
   if(g.frz>0)IG=Object.assign({},IG,{mx:0,mz:0,jumpP:0,actP:0});if(s.frz>0)IS=Object.assign({},IS,{mx:0,mz:0,jumpP:0,actP:0});
   if(ch2){stepMinesA(dt,IG,IS);if(g.winding)IG=Object.assign({},IG,{mx:0,mz:0,jumpP:0});if(s.winding)IS=Object.assign({},IS,{mx:0,mz:0,jumpP:0});}
   g.prev.copy(g.pos);
   // ---- golem ----
   g.airT=g.onGround?0:(g.airT||0)+dt;
-  if(IG.actP){if(g.holding){g.charging=true;g.charge=0;}else if(!g.onGround&&g.airT>.12&&!g.pound){g.pound=true;g.vel.set(0,-17,0);}else golemAction();}
+  if(IG.actP){if(g.holding&&!(ch3&&heightsCogTarget())){g.charging=true;g.charge=0;}else if(g.holding)golemAction();else if(!g.onGround&&g.airT>.12&&!g.pound){g.pound=true;g.vel.set(0,-17,0);}else golemAction();}
   if(g.charging){g.charge=Math.min(1,g.charge+dt/.8);if(!IG.act)throwSprite();}
   {const len=Math.hypot(IG.mx,IG.mz),k=len>1?1/len:1,mx=g.pound?0:IG.mx*k,mz=g.pound?0:IG.mz*k;
-   const spd=GOLEM.speed*(g.holding?.8:1)*(g.charging?.35:1)*(g.pushing?.6:1);g.pushing=false;
+   g.wading=ch3&&g.pos.y<-.3&&inPond(g.pos.x,g.pos.z);
+   const spd=GOLEM.speed*(g.holding?.8:1)*(g.charging?.35:1)*(g.pushing?.6:1)*(g.wading?.6:1);g.pushing=false;
    const acc=(g.onGround?16:6)*dt*GOLEM.speed;
    if(g.pound){g.vel.x=g.vel.z=0;}else{g.vel.x=approach(g.vel.x,mx*spd,acc);g.vel.z=approach(g.vel.z,mz*spd,acc);}
    if(len>.15&&!g.pound)g.yaw=angLerp(g.yaw,Math.atan2(mx,mz),1-Math.exp(-dt*9));
@@ -2452,11 +2814,13 @@ function stepSim(dt,IG,IS){
     else if(!s.onGround&&Math.hypot(s.vel.x,s.vel.z)>1)s.yaw=angLerp(s.yaw,Math.atan2(s.vel.x,s.vel.z),1-Math.exp(-dt*8));
     if(IS.jumpP&&s.coyote>0){s.vel.y=SPR.jumpV;s.coyote=0;G.hopN=(G.hopN||0)+1;}
     s.vel.y-=GRAV*dt;if(s.gliding)s.vel.y=Math.max(s.vel.y,-1.6);
+    if(ch3)rideWind(s,IS,dt);
     moveBody(s,dt,listFor(s));
     s.coyote=s.onGround?.1:s.coyote-dt;s.thrownT-=dt;if(s.onGround)s.thrownT=0;
     s.airT=s.onGround?0:s.airT+dt;
   }
   if(ch2)stepMinesB(dt);
+  if(ch3)stepHeightsB(dt);
   if(ch1){
     // ---- runes ----
     for(const r of runes){
@@ -2485,7 +2849,7 @@ function stepSim(dt,IG,IS){
       if(b===g&&g.holding){g.holding=false;g.charging=false;s.held=false;placeAt(s,CP[s.cp].s);}
       if(b===g)syncGolemCol();
     }
-    if(ch2&&b.pos.y<-6){ // a fall into a chasm: back to the last safe spot
+    if((ch2&&b.pos.y<-6)||(ch3&&b.pos.y<-15)){ // a fall into a chasm or off an island: back to the last safe spot
       const p=b.safe?[b.safe.x,b.safe.y+.05,b.safe.z]:curReg.spawn[b===g?'g':'s'];respawnAt(b,p);G.falls++;G.fallN++;G.lastFall=b===g?'g':'s';
       if(b===g&&g.holding){g.holding=false;g.charging=false;s.held=false;placeAt(s,[p[0]+.8,p[1],p[2]]);}
       if(b===g)syncGolemCol();
@@ -2508,7 +2872,7 @@ function applyDoorColliders(){
 function wellOn(b){const c=b.ground;if(c===TERR)return true;const m=b.hw*.5;return b.pos.x>c.min.x+m&&b.pos.x<c.max.x-m&&b.pos.z>c.min.z+m&&b.pos.z<c.max.z-m;}
 // back on safe ground after a fall: still, no slam or winding, and a moment before the keys move them again
 function respawnAt(b,p){placeAt(b,p);b.pound=false;b.winding=false;b.charging=false;b.frz=.5;b.airT=0;}
-const UNSAFE={seesaw:1,crack:1,golem:1,block:1,bridge:1,cart:1,lift:1,door:1};
+const UNSAFE={seesaw:1,crack:1,golem:1,block:1,bridge:1,cart:1,lift:1,door:1,nest:1,gondola:1};
 function chapterComplete(n){
   const P=PROG['ch'+n],first=!P.done;P.done=1;PROG.roots=Math.max(PROG.roots,n);G.endCh=n;
   if(!P.best||G.time<P.best)P.best=Math.round(G.time);G.firstClear=first;saveProgress();
@@ -2528,14 +2892,15 @@ function worldChecks(){
   tickDialogue(1/60);
   // walking through a gate together changes region
   const both=(p,r)=>dxz(g.pos,p)<r&&dxz(s.pos,p)<r;
-  if(reg==='vale')for(const gt of GATES){if(!gt.ready||gt.ch>2)continue;
-    if(dxz(g.pos,gt.pos)<2.6||dxz(s.pos,gt.pos)<2.6){if(both(gt.pos,11)){if(gt.ch===1)travel('ch1',CP[0].g,CP[0].s,Math.PI);else travel('ch2',MCP.g,MCP.s,Math.PI);}else if(G.chT<=0){G.waitN++;G.chT=4;}}}
-  if(reg==='ch2'&&(g.pos.z>5.3||s.pos.z>5.3)&&Math.abs(g.pos.x)<5&&Math.abs(s.pos.x)<5){
-    if(both(new V3(0,0,4.4),11)){const sp=valeSpotAtGate(2);travel('vale',sp.g,sp.s,sp.yaw);}
+  if(reg==='vale')for(const gt of GATES){if(!gt.ready||gt.ch>3)continue;
+    if(dxz(g.pos,gt.pos)<2.6||dxz(s.pos,gt.pos)<2.6){if(both(gt.pos,11)){const sp={1:CP[0],2:MCP,3:HCP}[gt.ch];travel('ch'+gt.ch,sp.g,sp.s,Math.PI);}else if(G.chT<=0){G.waitN++;G.chT=4;}}}
+  const exitZ=reg==='ch3'?9.3:5.3;
+  if((reg==='ch2'||reg==='ch3')&&(g.pos.z>exitZ||s.pos.z>exitZ)&&Math.abs(g.pos.x)<5&&Math.abs(s.pos.x)<5){
+    if(both(new V3(0,0,exitZ-.9),11)){const sp=valeSpotAtGate(reg==='ch3'?3:2);travel('vale',sp.g,sp.s,sp.yaw);}
     else{for(const b of [g,s])if(b.pos.z>5.3){b.pos.z=5.2;b.vel.z=Math.min(0,b.vel.z);}if(G.chT<=0){G.waitN++;G.chT=4;}}}
   if(reg==='ch1'&&(g.pos.z>5.3||s.pos.z>5.3)&&Math.abs(g.pos.x)<5&&Math.abs(s.pos.x)<5){
     if(both(exitGate.pos,11)){const z=-100.5;travel('vale',[-1.6,valeH(-1.6,z),z],[1.6,valeH(1.6,z),z],0);}
-    else{for(const b of [g,s])if(b.pos.z>5.3){b.pos.z=5.2;b.vel.z=Math.min(0,b.vel.z);}if(G.chT<=0){G.waitN++;G.chT=4;}}}
+    else{for(const b of [g,s])if(b.pos.z>exitZ){b.pos.z=exitZ-.1;b.vel.z=Math.min(0,b.vel.z);}if(G.chT<=0){G.waitN++;G.chT=4;}}}
   G.chT-=1/60;
 }
 
@@ -2684,10 +3049,11 @@ function applyVolumes(){if(!AC)return;const st=PROG.settings;sfxBus.gain.value=s
 function updateAudio(dt){
   if(!AC)return;const t=AC.currentTime,focus=camTarget;
   let nearWater=0;
-  if(G.region==='ch1')nearWater=Math.max(0,1-Math.abs(focus.z+30)/14)*.12+Math.max(0,1-Math.abs(focus.z+56)/8)*.04*(focus.x<0?1:.4)+(focus.x<-14&&focus.z<-44&&focus.z>-66?.08:0);
+  if(G.region==='ch3')nearWater=Math.max(0,1-Math.hypot(focus.x,focus.z+36)/16)*.1;
+  else if(G.region==='ch1')nearWater=Math.max(0,1-Math.abs(focus.z+30)/14)*.12+Math.max(0,1-Math.abs(focus.z+56)/8)*.04*(focus.x<0?1:.4)+(focus.x<-14&&focus.z<-44&&focus.z>-66?.08:0);
   else if(G.region==='vale'&&VALE.wake>.5)nearWater=Math.max(0,1-riverDist(focus.x,focus.z)/18)*.11;
   amb.water.g.gain.setTargetAtTime(G.phase==='play'?nearWater:0,t,.4);
-  amb.wind.g.gain.setTargetAtTime(G.region==='ch2'&&G.phase==='play'?.018:(G.phase==='play'||G.phase==='title'?.05+Math.sin(t*.13)*.02:.02),t,.8);
+  amb.wind.g.gain.setTargetAtTime(G.region==='ch3'&&G.phase==='play'?.09+Math.sin(t*.21)*.03:G.region==='ch2'&&G.phase==='play'?.018:(G.phase==='play'||G.phase==='title'?.05+Math.sin(t*.13)*.02:.02),t,.8);
   amb.glide.g.gain.setTargetAtTime(sprite.gliding&&G.phase==='play'?.04:0,t,.05);
   const ch2=G.region==='ch2'&&G.phase==='play',moving=ch2&&((mine.cart&&mine.cart.moved>0)||(mine.lift&&mine.lift.moving)||mine.boulder.st==='roll');
   amb.grind.g.gain.setTargetAtTime(golem.pushVis>0||moving?(mine.boulder.st==='roll'&&ch2?.45:.25):0,t,.08);
@@ -2703,6 +3069,7 @@ const SONGS={
   vale:{root:196.0,bar:4.8,prog:[[0,7,16],[-3,4,12],[-7,5,12],[-5,2,11]],pent:[0,2,4,7,9,12,14,16]},
   ch1:{root:174.6,bar:4.2,prog:[[0,7,14,16],[5,9,16],[-3,4,12],[2,9,14]],pent:[0,2,4,7,9,12,14]},
   ch2:{root:146.8,bar:6,prog:[[0,7,15],[-4,3,12],[-2,5,14],[-5,2,10]],pent:[0,3,5,7,10,12,15]},
+  ch3:{root:196.0,bar:3.8,prog:[[0,7,16],[2,9,18],[-3,7,16],[5,9,16]],pent:[0,2,4,7,9,12,14,16]},
   title:{root:220.0,bar:5.5,prog:[[0,7,16],[5,12,16],[-3,7,12],[-5,7,14]],pent:[0,2,4,7,9,12]},
 };
 const semi=(f,n)=>f*Math.pow(2,n/12);
@@ -2714,7 +3081,7 @@ function pluck(f,t0,vol){const o=AC.createOscillator(),g=AC.createGain();o.type=
   g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(vol,t0+.01);g.gain.exponentialRampToValueAtTime(.0006,t0+1.6);o.connect(g);g.connect(musicBus);o.start(t0);o.stop(t0+1.7);}
 function updateMusic(now){
   if(!AC||!musicBus||muted||document.hidden||PROG.settings.music<=0)return;
-  const key=G.phase==='title'||G.phase==='brief'?'title':(G.region==='ch1'?'ch1':G.region==='ch2'?'ch2':'vale');
+  const key=G.phase==='title'||G.phase==='brief'?'title':(G.region==='ch1'?'ch1':G.region==='ch2'?'ch2':G.region==='ch3'?'ch3':'vale');
   if(key!==MUSIC.key){MUSIC.key=key;MUSIC.bar=0;MUSIC.next=Math.max(MUSIC.next,now+.3);}
   if(now<MUSIC.next-.25)return;
   const S=SONGS[key],t0=Math.max(now,MUSIC.next),ch=S.prog[MUSIC.bar%S.prog.length];
@@ -2784,6 +3151,19 @@ function runWatchers(){
     watch('fall2',G.fallN,()=>{SFX.splash();toast(nameOf(G.lastFall==='g'?'g':'s')+' fell into the dark. Back to safe ground');});
     watch('ending2',G.ending,v=>{if(v){SFX.swell();toast('The Great Lantern wakes!');celebrate();}});
   }
+  // ---- the Windmill Heights ----
+  if(G.region==='ch3'){
+    watch('vane',G.vaneN||0,(v,o)=>{if(v>o){SFX.creak();toast(wheelWind()?'Both sails edge-on: the wind reaches the windmill wheel':VANES.some(vaneLifts)?'A sail catches the wind and sends it rising':'The sails turn');}});
+    watch('hb1',hts.b1.open,v=>{if(v){SFX.clunk();SFX.creak();toast('The bridge lowers!');celebrate();}});
+    watch('hb2',hts.b2.open,v=>{if(v){SFX.clunk();SFX.creak();toast('The bridge to the orchard lowers!');celebrate();}});
+    watch('nudge',G.nudgeN||0,(v,o)=>{if(v>o)SFX.click();});
+    watch('wheel',wheelWind(),v=>{if(v&&!heightsDone())toast('The windmill wheel starts to turn. Ride a platform up!');});
+    COGS.forEach((c,i)=>watch('cog'+i,c.state,v=>{if(v==='carried'){SFX.chime();const n=COGS.filter(x=>x.state==='carried'||x.state==='placed').length;toast('Cog found ('+n+'/3)');}if(v==='placed')SFX.place();}));
+    watch('hplaced',hts.placed,v=>{if(heightsDone()||G.ending)return;if(v>=3)toast('All three cogs are set. Wind rushes up the tower!');else if(v>0)toast(v+' of 3 cogs set');});
+    watch('sw3',sprite.wind||'',(v,o)=>{if(v&&!o)SFX.hop();});
+    watch('fall3',G.fallN,()=>{SFX.splash();toast(nameOf(G.lastFall==='g'?'g':'s')+' fell off the island. Back to safe ground');});
+    watch('ending3',G.ending,v=>{if(v){SFX.swell();toast('The Great Windmill turns!');celebrate();}});
+  }
 }
 
 // ================= HUD helpers =================
@@ -2808,6 +3188,7 @@ function golemPrompt(){
   const g=golem,k=actKey('g');
   if(G.ending)return '';
   if(g.charging)return 'Release '+k+' to throw!';
+  if(g.holding&&inCh3()&&heightsCogTarget())return k+': take the cog';
   if(g.holding)return 'Tap '+k+' for a high lob, or hold '+k+' for a long throw';
   if(g.pound)return 'Slam!';
   const ch1=G.region==='ch1';
@@ -2816,6 +3197,12 @@ function golemPrompt(){
     if(g.runes>0&&dxz(g.pos,GL.sock)<3.4&&Math.abs(g.pos.y-.4)<1)return k+': set the lantern stones in the Great Lantern';
     for(const st of LSTONES)if(st.state==='rest'&&stoneReach(g,st))return k+': take the lantern stone';
     if(dxz(g.pos,WINCH_B)<2.2&&Math.abs(g.pos.y)<1)return 'Hold '+k+': wind the lift up';
+  }
+  if(inCh3()){
+    if(g.runes>0&&dxz(g.pos,HT.gear)<3&&Math.abs(g.pos.y-13)<1)return k+': set the cogs in the gearbox';
+    if(heightsCogTarget())return k+': take the cog';
+    for(const v of VANES)if(dxz(g.pos,v.capPos)<2&&g.pos.y<1)return k+': turn the sail ('+(v.catch?'to edge-on':'to face the wind')+')';
+    if(g.wading)return g.holding?'Wading. Deep water, but '+nameOf('s')+' is safe up top':'Wading through deep water';
   }
   if(ch1&&g.runes>0&&dxz(g.pos,F)<4.7)return k+': set the rune stones in the fountain';
   if(ch1)for(const r of runes)if((r.state==='rest'||r.state==='free')&&dxz(g.pos,r.pos)<1.9){const dy=r.pos.y-g.pos.y;if(dy>-.7&&dy<2.2)return k+': take the rune stone';}
@@ -2834,6 +3221,8 @@ function spritePrompt(){
   if(s.winding)return 'Keep holding '+actKey('s')+': winding the lift';
   const t=spriteTarget();if(t)return actKey('s')+': '+t.label.toLowerCase();
   if(inCh2()&&!G.ending)return actKey('s')+': light pulse';
+  if(inCh3()&&!s.onGround&&windAt(s))return 'Hold '+jumpKey('s')+' to ride the wind';
+  if(inCh3()&&s.onGround&&windAt(s))return 'Jump and hold '+jumpKey('s')+' to ride the wind up';
   if(!s.onGround&&!s.gliding&&s.vel.y<0)return 'Hold '+jumpKey('s')+' to glide';
   if(G.region==='ch1'&&!G.fountainOn&&G.placed>=3&&dxz(s.pos,W.spout)<4)return 'Get onto the spout at the top of the fountain';
   if(G.region==='ch1'&&seesaw.tilt<0&&Math.abs(s.pos.x-(SEESAW.x+2.7))<1.6&&Math.abs(s.pos.z-SEESAW.z)<1.4)return 'Stand in the mint cup, then wait for the Giant';
@@ -2844,8 +3233,10 @@ function objectiveText(){
     if(!PROG.ch1.done)return 'Explore the Vale. When you are ready, walk through the glowing North Gate together to enter Chapter 1: The Sunken Garden.';
     if(seedsToPlant()>=5)return 'You have '+seedsToPlant()+' golden seeds to plant. Bring them to the Seed Garden by the Meadow waystone.';
     if(!PROG.ch2.done)return 'The first root is awake. The gate to the Lantern Mines glows in the eastern hills, past the lookout: walk through it together for Chapter 2.';
-    return 'Two roots are awake. Explore the Vale, plant seeds, or return to the Sunken Garden and the Lantern Mines for what you missed. Chapter 3 arrives in a later update.';}
+    if(!PROG.ch3.done)return 'Two roots are awake. The gate to the Windmill Heights glows at the eastern edge of the Vale: walk through it together for Chapter 3.';
+    return 'Three roots are awake. Explore the Vale, plant seeds, or return to any chapter for what you missed. Chapter 4 arrives in a later update.';}
   if(inCh2())return mineObjective();
+  if(inCh3())return heightsObjective();
   if(G.ending)return 'The fountain wakes.';
   if(G.fountainOn)return 'The fountain runs again. Look for missed seeds, memory petals and secrets, or walk back through the south gate to the Vale.';
   if(!gate.open)return 'Open the north gate. Its lever is in a small room behind the east wall. Only the Sprite fits through the glowing gap.';
@@ -2862,11 +3253,11 @@ function updateHUD(dt){
   if(helpOpen)setText('helpGoal',obj);
   const cs=seedsFound()+'|'+countKeys(PROG.petals)+'|'+G.region;if(hudCache.cnt!==cs){if(hudCache.cnt)cntShowT=4;hudCache.cnt=cs;}
   objShowT-=dt;cntShowT-=dt;chipT+=dt;
-  const ch1=G.region==='ch1',ch2=G.region==='ch2';$('runeList').hidden=ch2?minesDone():(!ch1||G.fountainOn);$('timerWrap').hidden=!ch1&&!ch2;
+  const ch1=G.region==='ch1',ch2=G.region==='ch2',ch3=G.region==='ch3';$('runeList').hidden=ch2?minesDone():ch3?heightsDone():(!ch1||G.fountainOn);$('timerWrap').hidden=!ch1&&!ch2&&!ch3;
   setText('regName',curReg?curReg.short:'');setText('seedCount',String(seedsFound()));setText('petalCount',countKeys(PROG.petals)+'/'+MEMS.length);
-  const rl=$('runeList');const list=ch2?LSTONES:runes,sig=G.region+list.map(r=>r.state).join();
+  const rl=$('runeList');const list=ch2?LSTONES:ch3?COGS:runes,sig=G.region+list.map(r=>r.state).join();
   if(hudCache.runes!==sig){hudCache.runes=sig;rl.textContent='';for(const r of list){const d=document.createElement('div');const st=r.state==='carried'?'carried':r.state==='placed'?'placed':'';d.className=st;
-    d.textContent=(ch2?r.where:r.where.split(' ')[1].replace(/^./,c=>c.toUpperCase()))+(st==='carried'?' · carried':st==='placed'?' · set':'');d.title=r.where;rl.appendChild(d);}}
+    d.textContent=(ch2||ch3?r.where:r.where.split(' ')[1].replace(/^./,c=>c.toUpperCase()))+(st==='carried'?' · carried':st==='placed'?' · set':'');d.title=r.where;rl.appendChild(d);}}
   const inWW=ch1&&(golem.pos.z<-44||sprite.pos.z<-44)&&golem.pos.x>-11&&!port.open;$('plates').hidden=!inWW;
   if(inWW){$('plA').classList.toggle('on',plates[0].on);$('plB').classList.toggle('on',plates[1].on);$('latch').firstChild.style.width=(latch.t/1.1*100)+'%';}
   const m=Math.floor(G.time/60),s=Math.floor(G.time%60);setText('timer',m+':'+(s<10?'0':'')+s);
@@ -2879,7 +3270,7 @@ function updateHUD(dt){
   if(hintT>0){hintT-=dt;if(hintT<=0)$('hint').style.opacity=0;}
   const mineG=mode==='local'||myRole==='g',mineS=mode==='local'||myRole==='s';
   // the Giant at a lever: only the Sprite's small hands can pull one
-  if(mineG){for(const l of (G.region==='vale'?VLEVERS:inCh1()?levers:inCh2()?MLEVERS:[]))if(!(l.pulled&&l.id!=='switch')&&dxz(golem.pos,l.pos)<2.4&&Math.abs(golem.pos.y-l.pos.y)<1.6&&dxz(sprite.pos,l.pos)>1.6){hint('glever','Only the Sprite can pull levers. Bring the Sprite here and press '+actKey('s')+'.');break;}}
+  if(mineG){for(const l of (G.region==='vale'?VLEVERS:inCh1()?levers:inCh2()?MLEVERS:inCh3()?HLEVERS:[]))if(!(l.pulled&&l.id!=='switch')&&dxz(golem.pos,l.pos)<2.4&&Math.abs(golem.pos.y-l.pos.y)<1.6&&dxz(sprite.pos,l.pos)>1.6){hint('glever','Only the Sprite can pull levers. Bring the Sprite here and press '+actKey('s')+'.');break;}}
   if(G.region==='vale'){
     {const E=CAVES[1];if(mineS&&!VCAVE.echo.raised&&(sprite.pos.x-E.x)*E.dir>2.2&&inCave(sprite.pos.x,sprite.pos.z,0)===E)hint('echolever','Sprite: pull the lever at the back of the cave ('+actKey('s')+'). It raises steps for the Giant.');}
     if(mineS&&!VCAVE.grotto.open&&inCave(sprite.pos.x,sprite.pos.z,4)===CAVES[0])hint('grotto','Sprite: slip under the stone door, then pull the lever inside to lift it for the Giant.');
@@ -2887,6 +3278,7 @@ function updateHUD(dt){
     if(mineG||mineS){if(plotNear(golem)||plotNear(sprite))hint('plot','Seed Garden: every 5 golden seeds you plant here grow into flowers. Your garden shows your progress.');}
     return;}
   if(ch2){mineHints(mineG,mineS);return;}
+  if(ch3){heightsHints(mineG,mineS);return;}
   if(dxz(golem.pos,{x:SEESAW.x,z:SEESAW.z})<6.5||dxz(sprite.pos,{x:SEESAW.x,z:SEESAW.z})<6.5)hint('seesaw','Seesaw: the Sprite stands in the mint cup. The Giant jumps onto the orange end, and the Sprite flies.');
   if(!crack.broken&&dxz(golem.pos,{x:34.8,z:-1.2})<3){if(hintsShown.has('pound'))hint('crack','A cracked slab. A ground pound might break it.');else hint('pound','New: Ground Pound. Giant, jump and then press '+actKey('g')+' in mid-air to slam down. That cracked slab looks weak.');}
   if(stones.raised===false&&(dxz(sprite.pos,{x:-24.5,z:-55})<2.5||dxz(golem.pos,{x:-24.5,z:-55})<2.5))hint('island','Too far to jump. Giant: throw the Sprite to the island.');
@@ -2941,6 +3333,37 @@ function mineHints(mineG,mineS){
   if(mineS&&dxz(s.pos,{x:-9.5,z:-27})<3.5)hint('hole2','Sprite: the glowing gap in the wall is just your size.');
 }
 
+// ================= the Windmill Heights: goal, hints =================
+function heightsObjective(){
+  const g=golem,s=sprite;
+  if(G.ending)return 'The Great Windmill turns.';
+  if(heightsDone())return 'The Great Windmill turns again and water climbs to the orchards. Look for missed seeds, memory petals and secrets, or walk back out through the gate on the Landing Isle.';
+  if(!hts.b1.open)return 'The bridge to the next island is raised. Its lever is up on the high ledge. Sprite: jump into the rising wind and hold '+jumpKey('s')+' to ride it up.';
+  if(COGS[0].state==='rest')return 'The pond is too deep for the Sprite. Giant: lift the Sprite onto your head and wade across. A cog lies on a stone in the middle: take it as you pass.';
+  if(COGS[1].state!=='carried'&&COGS[1].state!=='placed'){
+    if(COGS[1].state==='free')return 'The cog fell from the pillar. Giant: pick it up.';
+    return 'Steer the wind from the Wind Gate. Giant: turn the sails at their capstans. When only the far sail faces the wind, it rises beside the cog pillar: Sprite, ride it up and nudge the cog down.';}
+  if(g.pos.y<11&&!wheelWind())return 'Turn both sails edge-on so the wind reaches the windmill wheel, then ride one of its platforms up to the High Orchard.';
+  if(g.pos.y<11)return 'Ride a windmill platform up to the High Orchard together: step on as one comes level with the deck, step off at the top.';
+  if(COGS[2].state==='rest'){if(!hts.b2.open)return 'The last cog is on the islet across the gap. Giant: throw the Sprite into the wind current over the gap (Sprite: hold '+jumpKey('s')+'). Then pull the lever for the bridge.';
+    return 'Cross the bridge to the islet and take the last cog.';}
+  if(hts.placed<3)return 'Giant: set the cogs in the gearbox at the foot of the Great Windmill.';
+  return 'Sprite: ride the rising wind up the windmill tower (hold '+jumpKey('s')+') and release the brake on the balcony.';
+}
+function heightsHints(mineG,mineS){
+  const g=golem,s=sprite;
+  if(G.time>1.5&&G.time<3)hint('wind','New: Wind. Sprite, in a rising wind or a wind current, hold '+jumpKey('s')+' to spread your wings and ride it.');
+  if(!hts.b1.open&&dxz(s.pos,{x:7,z:-4})<3)hint('tut3','Sprite: jump into the rising wind and keep holding '+jumpKey('s')+'. At the top, steer onto the ledge.');
+  if(COGS[0].state==='rest'&&(g.pos.z<-26&&g.pos.z>-30||s.pos.z<-26&&s.pos.z>-30))hint('wade','New: Wading. The Giant can wade through deep water; the Sprite can\'t swim. Giant: pick up the Sprite with '+actKey('g')+' and walk in.');
+  if(COGS[1].state==='perched'&&(g.pos.z<-55&&g.pos.y<1))hint('sails','The sails steer the wind. Giant: turn them at the capstans with '+actKey('g')+'. A sail facing the wind sends it rising, and blocks it for anything further along.');
+  if(COGS[1].state==='perched'&&s.pos.y>8.5&&s.pos.x>13&&s.pos.x<17)hint('nudge','Sprite: nudge the cog off the pillar with '+actKey('s')+'.');
+  if(COGS[1].state!=='perched'&&!wheelWind()&&g.pos.x>20&&g.pos.y<1)hint('wheelwind','The windmill wheel is still. Turn both sails edge-on so the wind can reach it.');
+  if(wheelWind()&&g.pos.x>28&&g.pos.y<1)hint('ride','Step onto a platform when it comes level with the deck. Step off at the top onto the High Orchard.');
+  if(COGS[2].state==='rest'&&!hts.b2.open&&g.pos.y>12&&g.pos.x<26)hint('gapthrow','Giant: lift the Sprite, face the islet and throw it into the wind current. Sprite: hold '+jumpKey('s')+' and ride it across.');
+  if(hts.placed>=3&&!G.ending&&dxz(s.pos,{x:52,z:-77.9})<5)hint('tower','Sprite: jump into the rising wind by the gearbox and hold '+jumpKey('s')+' all the way up. Land on the balcony.');
+  if(mineS&&s.pos.x>11&&s.pos.z>0&&s.pos.z<6&&s.pos.y>-.5&&s.pos.y<1)hint('nest','Something glints on a little rock below the edge. Only wings could get down there and back.');
+}
+
 // ================= story: scenes, dialogue, memory cards =================
 // Narration says "the Giant" and "the Sprite"; dialogue uses the players' own names.
 const SCENES={
@@ -2968,7 +3391,16 @@ const SCENES={
   root2:{title:'The second root wakes',lines:[
     {text:'Deep under the eastern hills, the second root wakes.',p:[[96,30,-34],[88,24,-50]],l:[[78,6,-72],[78,9,-72]]},
     {text:'One by one, lanterns flicker on along the Vale\u2019s old paths.',p:[[-10,9,78],[8,8,50]],l:[[0,1.5,48],[0,1.5,16]]},
-    {text:'Five roots still sleep. The gate to the Windmill Heights has begun to flicker. (Chapter 3 arrives in a later update.)',p:[[60,30,34],[72,34,16]],l:[[104,6,-8],[104,8,-8]]}]},
+    {text:'Five roots still sleep. The gate to the Windmill Heights, at the eastern edge of the Vale, has begun to glow.',p:[[60,30,34],[72,34,16]],l:[[104,6,-8],[104,8,-8]]}]},
+  ch3_intro:{title:'Chapter 3: The Windmill Heights',lines:[
+    {text:'The Windmill Heights float above the clouds. Long ago their windmills pumped water all the way up to the orchards.',p:[[0,10,26],[8,14,16]],l:[[0,2,-10],[10,6,-40]]},
+    {text:'Since the Hush the wind still blows, but nothing catches it. The Great Windmill\u2019s gearbox lies empty.',p:[[30,24,-50],[34,26,-60]],l:[[52,20,-84],[52,22,-84]]},
+    {text:'Find its three cogs, set them in place and free the brake, and the third root will wake.',p:[[-6,14,-40],[20,18,-56]],l:[[0,0,-36],[14,6,-66]]},
+    {text:'The wind is strong up here. Spread your wings, little one, and let it carry you.',p:[[0,5,14],[0,4,11]],l:[[0,1.2,4],[0,1.2,4]]}]},
+  root3:{title:'The third root wakes',lines:[
+    {text:'High above the eastern clouds, the third root wakes.',p:[[80,30,12],[92,26,0]],l:[[104,8,-8],[104,10,-8]]},
+    {text:'Little windmills start to spin on the Vale\u2019s hills.',p:[[-26,14,64],[-8,12,44]],l:[[-40,4,38],[0,4,12]]},
+    {text:'Four roots still sleep. The gate to the Frostmere Lake has begun to flicker. (Chapter 4 arrives in a later update.)',p:[[30,30,30],[12,34,22]],l:[[78,6,74],[78,8,74]]}]},
 };
 function playScene(id){if(!SCENES[id])return;G.scene=id;G.line=0;G.lineT=0;PROG.seen[id]=1;saveSoon();}
 function storyNext(){const S=SCENES[G.scene];if(!S){G.scene='';return;}G.line++;G.lineT=0;if(G.line>=S.lines.length){const id=G.scene;G.scene='';G.line=0;camSnap=true;if(S.after)S.after();}}
@@ -3032,6 +3464,18 @@ const DLG={
   mi12:{who:'s',text:"There's a path across, hidden in the dark. Follow my light, {g}."},
   mi13:{who:'s',text:'Someone lived down here. Look: a tiny bed of moss, just my size.'},
   mi14:{who:'g',text:'That was close, {s}. Too close.'},
+  h1:{who:'s',text:"So much sky! {g}, don't look down.",next:'h2'},
+  h2:{who:'g',text:"I never look down, {s}. I'm a rock. Rocks sink."},
+  h3:{who:'s',text:'That wind is rising! If I spread my wings in it…'},
+  h4:{who:'g',text:"Too deep for you, {s}. Climb up. I'll wade."},
+  h5:{who:'s',text:'There, on the stone in the middle! A cog. Grab it, {g}.'},
+  h6:{who:'s',text:'The wind pours out of that old gate. The sails could steer it.'},
+  h7:{who:'g',text:'If I turn the near sail aside, the wind reaches the far one.'},
+  h8:{who:'s',text:'The big wheel is turning! We can ride it up, {g}.'},
+  h9:{who:'g',text:'The cog is over there. Into the wind you go, {s}.'},
+  h10:{who:'s',text:'Behind the waterfall… a hidden room! Wade in, {g}.'},
+  h11:{who:'s',text:'The gearbox is empty. Three cogs, and the Great Windmill turns again.'},
+  h12:{who:'g',text:"You're flying, {s}. Really flying."},
 };
 const fill=t=>t.replace(/\{g\}/g,nameOf('g')).replace(/\{s\}/g,nameOf('s'));
 let dlgPending=null;
@@ -3049,10 +3493,13 @@ const MEMS=[
   {id:'m6',where:'Chapter 2: the lamp room',title:'Little Lanterns',text:'The young tree was afraid of the dark. Every night the Sprite sat in its branches and glowed, and the Giant carved little crystal lanterns so she could rest.'},
   {id:'m7',where:'Chapter 2: the crystal cellar',title:'Tunnels for the Roots',text:'When the roots grew deep, the Giant dug tunnels ahead of them so they would never lose their way. The Sprite walked in front, lighting every turn.'},
   {id:'m8',where:'Chapter 2: the far crystal island',title:'The First Glow',text:'One night a root shone for the very first time, a thread of light running through the dark. The Sprite cheered so loudly the whole mountain echoed, and the Giant laughed until the tunnels shook.'},
+  {id:'m9',where:'Chapter 3: the cloud nest',title:'Naming Clouds',text:'On lazy afternoons they lay on the hill and named the clouds. The Sprite saw dragons and boats. The Giant only ever saw rocks, and said so, every single time.'},
+  {id:'m10',where:'Chapter 3: behind the waterfall',title:'Carrying Water',text:'Every morning the Giant carried water up the hill to the young tree, one careful bucket at a time, until the Sprite drew a windmill in the mud and said, \u201cLet the wind carry it.\u201d'},
+  {id:'m11',where:'Chapter 3: the windmill rooftop',title:'The Windiest Day',text:'On the windiest day of the year the Sprite let the wind lift her higher than the tree. Far below, the Giant held his breath until she came back down.'},
 ];
 function drawMemory(c,id,W,H){
   const sky=c.createLinearGradient(0,0,0,H);
-  const pal={m0:['#ffd9a8','#f7a7a0'],m1:['#bfe3f2','#e6f3e0'],m2:['#9fb8c9','#d2dfe0'],m3:['#ffe7b8','#cfe9c8'],m4:['#c9d6e6','#f1f4f7'],m5:['#d9f0c4','#fff3cf'],m6:['#1f2a4a','#4a4f78'],m7:['#3a2c22','#5e4a38'],m8:['#141a2a','#2c3550']}[id]||['#bfe3f2','#e6f3e0'];
+  const pal={m0:['#ffd9a8','#f7a7a0'],m1:['#bfe3f2','#e6f3e0'],m2:['#9fb8c9','#d2dfe0'],m3:['#ffe7b8','#cfe9c8'],m4:['#c9d6e6','#f1f4f7'],m5:['#d9f0c4','#fff3cf'],m6:['#1f2a4a','#4a4f78'],m7:['#3a2c22','#5e4a38'],m8:['#141a2a','#2c3550'],m9:['#9fd0f2','#eaf6ff'],m10:['#ffe3b0','#d9efc7'],m11:['#7fbfe8','#e9f6ff']}[id]||['#bfe3f2','#e6f3e0'];
   sky.addColorStop(0,pal[0]);sky.addColorStop(1,pal[1]);c.fillStyle=sky;c.fillRect(0,0,W,H);
   const hill=(y,col,amp,ph)=>{c.fillStyle=col;c.beginPath();c.moveTo(0,H);for(let x=0;x<=W;x+=8)c.lineTo(x,y+Math.sin(x/W*Math.PI*2*1.2+ph)*amp);c.lineTo(W,H);c.fill();};
   const giant=(x,y,s,kneel)=>{c.fillStyle='#8c7a6a';c.beginPath();c.ellipse(x,y-60*s*(kneel?.75:1),42*s,58*s*(kneel?.75:1),0,0,7);c.fill();c.beginPath();c.arc(x+(kneel?14*s:0),y-(kneel?112:128)*s,24*s,0,7);c.fill();
@@ -3079,6 +3526,14 @@ function drawMemory(c,id,W,H){
   else if(id==='m7'){c.fillStyle='#2a2019';c.beginPath();c.moveTo(0,H*.25);c.bezierCurveTo(W*.4,H*.15,W*.6,H*.35,W,H*.22);c.lineTo(W,0);c.lineTo(0,0);c.fill();
     c.fillStyle='#4a3a2c';c.beginPath();c.ellipse(W*.5,H*.62,W*.44,H*.24,0,0,7);c.fill();c.strokeStyle='#d9b04a';c.lineWidth=4;c.beginPath();c.moveTo(0,H*.7);c.bezierCurveTo(W*.25,H*.6,W*.4,H*.72,W*.62,H*.64);c.stroke();
     giant(W*.7,H*.9,.95,true);spr(W*.84,H*.5,.9);}
+  else if(id==='m9'){c.fillStyle='rgba(255,255,255,.9)';for(const [x,y,r] of [[.2,.2,40],[.27,.18,30],[.6,.3,50],[.7,.26,36],[.82,.15,28]]){c.beginPath();c.arc(W*x,H*y,r,0,7);c.fill();}
+    hill(H*.72,'#8fc46e',16,1.2);c.fillStyle='#8c7a6a';c.beginPath();c.ellipse(W*.42,H*.8,70,22,0,0,7);c.fill();c.beginPath();c.arc(W*.33,H*.78,20,0,7);c.fill();spr(W*.56,H*.76,.8);}
+  else if(id==='m10'){hill(H*.6,'#a3cf84',22,.6);hill(H*.86,'#8a6a4c',6,1.6);c.strokeStyle='#5a4632';c.lineWidth=4;
+    c.beginPath();c.moveTo(W*.7,H*.86);c.lineTo(W*.7,H*.66);c.moveTo(W*.62,H*.6);c.lineTo(W*.78,H*.72);c.moveTo(W*.78,H*.6);c.lineTo(W*.62,H*.72);c.stroke();
+    c.fillStyle='#7aa7c7';c.fillRect(W*.24,H*.78,22,20);giant(W*.32,H*.94,.9);spr(W*.74,H*.58,.9);}
+  else if(id==='m11'){c.fillStyle='rgba(255,255,255,.85)';for(let i=0;i<8;i++){c.beginPath();c.ellipse(hash2(i,1,9)*W,hash2(i,2,9)*H*.5,40+hash2(i,3,9)*40,14,0,0,7);c.fill();}
+    hill(H*.86,'#93c070',8,2.2);c.strokeStyle='#7a5a3c';c.lineWidth=4;c.beginPath();c.moveTo(W*.3,H*.88);c.lineTo(W*.3,H*.74);c.stroke();c.fillStyle='#6cbf52';c.beginPath();c.arc(W*.3,H*.72,16,0,7);c.fill();
+    giant(W*.42,H*.97,.6);spr(W*.66,H*.2,1.1);}
   else if(id==='m8'){c.fillStyle='#0f1422';c.fillRect(0,H*.7,W,H*.3);const gr=c.createLinearGradient(0,0,W,0);gr.addColorStop(0,'rgba(255,210,120,0)');gr.addColorStop(.5,'rgba(255,220,140,1)');gr.addColorStop(1,'rgba(255,210,120,0)');
     c.strokeStyle=gr;c.lineWidth=6;c.beginPath();c.moveTo(0,H*.78);c.bezierCurveTo(W*.3,H*.62,W*.6,H*.9,W,H*.7);c.stroke();c.globalAlpha=.35;c.lineWidth=18;c.stroke();c.globalAlpha=1;
     giant(W*.32,H*.94,1,true);spr(W*.58,H*.5,1.2);}
@@ -3108,7 +3563,9 @@ function storySoFar(){
   else out.push(['Now','The north gate glows. The first root runs under the Sunken Garden, where three rune stones wait to be set in a dry fountain.']);
   if(PROG.ch2.done)out.push(['The Lantern Mines','Deep under the eastern hills they found three lantern stones and lit the Great Lantern. The second root woke, and lanterns came on along the Vale\u2019s paths.']);
   else if(PROG.ch1.done)out.push(['Next','The gate to the Lantern Mines glows in the eastern hills. Somewhere in the dark, three lantern stones wait to light the Great Lantern.']);
-  if(PROG.ch2.done)out.push(['Next','A third gate, to the Windmill Heights, has begun to flicker. Chapter 3 arrives in a later update.']);
+  if(PROG.ch3.done)out.push(['The Windmill Heights','High above the clouds they found three cogs, rode the wind and freed the Great Windmill\u2019s brake. The third root woke, and little windmills spin on the Vale\u2019s hills.']);
+  else if(PROG.ch2.done)out.push(['Next','The gate to the Windmill Heights glows at the eastern edge of the Vale. Up there the Great Windmill is missing three cogs.']);
+  if(PROG.ch3.done)out.push(['Next','A fourth gate, to the Frostmere Lake, has begun to flicker. Chapter 4 arrives in a later update.']);
   return out;
 }
 let jTab='story';
@@ -3123,6 +3580,7 @@ function renderJournal(){
     add('Roots awake',PROG.roots+' of 7');add('Golden seeds found',seedsFound()+' (planted '+PROG.planted+')');add('Memory petals',countKeys(PROG.petals)+' of '+MEMS.length);add('Secrets',countKeys(PROG.secrets)+' of '+Object.values(REG).reduce((a,r)=>a+r.secrets.length,0));add('Waystones',countKeys(PROG.ws)+' of '+WAYS.length);
     if(PROG.ch1.best)add('Best time, Chapter 1',Math.floor(PROG.ch1.best/60)+' min '+(PROG.ch1.best%60)+' s');
     if(PROG.ch2.best)add('Best time, Chapter 2',Math.floor(PROG.ch2.best/60)+' min '+(PROG.ch2.best%60)+' s');
+    if(PROG.ch3.best)add('Best time, Chapter 3',Math.floor(PROG.ch3.best/60)+' min '+(PROG.ch3.best%60)+' s');
     if(PROG.ch1.done)add('Lanterns lit, Chapter 2',countBits(PROG.ch2.lan|0)+' of '+LANTERNS.length);
     el.appendChild(st);}
   if(jTab==='mem'){const el=$('jMem');el.textContent='';
@@ -3141,7 +3599,7 @@ function buildValeMapImage(){const N=200,cv=document.createElement('canvas');cv.
   c.putImageData(im,0,0);valeMapImg=cv;}
 function drawMap(cv){
   const c=cv.getContext('2d'),W=cv.width,H=cv.height;c.clearRect(0,0,W,H);c.fillStyle='#e9e2d0';c.fillRect(0,0,W,H);
-  let x0,x1,z0,z1;if(G.region==='vale'){x0=-128;x1=128;z0=-128;z1=128;}else if(G.region==='ch2'){x0=-38;x1=78;z0=-88;z1=8;}else{x0=-44;x1=48;z0=-86;z1=8;}
+  let x0,x1,z0,z1;if(G.region==='vale'){x0=-128;x1=128;z0=-128;z1=128;}else if(G.region==='ch2'){x0=-38;x1=78;z0=-88;z1=8;}else if(G.region==='ch3'){x0=-20;x1=64;z0=-92;z1=12;}else{x0=-44;x1=48;z0=-86;z1=8;}
   const s=Math.min((W-40)/(x1-x0),(H-40)/(z1-z0)),ox=(W-(x1-x0)*s)/2,oz=(H-(z1-z0)*s)/2;
   const X=x=>ox+(x-x0)*s,Z=z=>oz+(z-z0)*s;
   if(G.region==='vale'){
@@ -3155,6 +3613,17 @@ function drawMap(cv){
     for(const g of GATES){c.fillStyle=g.ready?'#f2873a':'#8f9aa3';c.beginPath();c.arc(X(g.pos.x),Z(g.pos.z),7,0,7);c.fill();label(c,g.ch+' · '+g.name,X(g.pos.x),Z(g.pos.z)+(g.pos.z<0?-14:22),g.ready?'#c9621a':'#5c6b76');}
     for(const cv of CAVES){const r=caveRect(cv);c.fillStyle='#4b4038';c.fillRect(X(r.x0),Z(r.z0),(r.x1-r.x0)*s,(r.z1-r.z0)*s);label(c,cv.name,X(cv.x-cv.dir*4),Z(cv.z)-12,'#5c4636');}
     c.fillStyle='#8a6448';c.beginPath();c.arc(X(VALE.plot.x),Z(VALE.plot.z),6,0,7);c.fill();label(c,'Seed Garden',X(VALE.plot.x)-26,Z(VALE.plot.z)+4,'#5c6b76');
+  }else if(G.region==='ch3'){
+    c.fillStyle='#cfe3f0';c.fillRect(X(x0),Z(z1),(x1-x0)*s,(z0-z1)*s);
+    for(const I of ISLES.slice().sort((a,b)=>a.y-b.y)){c.fillStyle=I.y>10?'#7fae5c':I.y<-1?'#9fc283':'#95c46f';c.fillRect(X(I.x0),Z(I.z0),(I.x1-I.x0)*s,(I.z1-I.z0)*s);}
+    c.fillStyle='#6fb6cf';c.fillRect(X(POND.x0),Z(POND.z0),(POND.x1-POND.x0)*s,(POND.z1-POND.z0)*s);
+    for(const B of HBRIDGES){const b=B.col;c.fillStyle=B.open?'#b98a5a':'rgba(185,138,90,.35)';c.fillRect(X(b.min.x),Z(b.min.z),(b.max.x-b.min.x)*s,(b.max.z-b.min.z)*s);}
+    c.fillStyle='#c9bfae';c.fillRect(X(-2),Z(-54),4*s,4*s);
+    c.strokeStyle='#8a6448';c.lineWidth=3;c.beginPath();c.arc(X(WHEEL.cx),Z(WHEEL.cz),WHEEL.R*s,0,7);c.stroke();
+    c.fillStyle='#8a7a66';c.fillRect(X(49),Z(-87),6*s,6*s);label(c,'Great Windmill',X(52),Z(-88)-6,'#243039');
+    for(const w of WINDS){if(!w.on())continue;c.fillStyle='rgba(255,255,255,.75)';if(w.kind==='up'){c.beginPath();c.arc(X(w.x),Z(w.z),Math.max(3,w.r*s),0,7);c.fill();}else c.fillRect(X(w.x0),Z(w.z)-2,(w.x1-w.x0)*s,4);}
+    label(c,'Landing Isle',X(0),Z(-1),'#243039');label(c,'Wading Isle',X(0),Z(-47),'#243039');label(c,'Sail Terrace',X(-4),Z(-72),'#243039');label(c,'High Orchard',X(40),Z(-76),'#243039');label(c,'To the Vale',X(0),Z(11),'#118a6f');
+    for(const p of PETALS)if(p.reg==='ch3'&&PROG.petals[p.id]){c.fillStyle='#ff8fc0';c.beginPath();c.arc(X(p.pos.x),Z(p.pos.z),5,0,7);c.fill();}
   }else if(G.region==='ch2'){
     c.fillStyle='#1c2128';c.fillRect(X(x0),Z(z1),(x1-x0)*s,(z0-z1)*s);
     const cols=REG.ch2.colliders.filter(k=>k.mesh);
@@ -3211,7 +3680,7 @@ function openTravel(){
   if(mode==='online'&&role!=='host'){toast(nameOf(myRole==='g'?'s':'g')+' chooses where to travel');return;}
   openOverlay('scrTravel');const L=$('travelList');L.textContent='';
   for(const w of WAYS){if(!PROG.ws[w.id])continue;const b=document.createElement('button');b.className='btn';const here=w.reg===G.region&&(dxz(golem.pos,w.pos)<4||dxz(sprite.pos,w.pos)<4);
-    b.append(({vale:'The Vale: ',ch1:'Chapter 1: ',ch2:'Chapter 2: '}[w.reg]||'')+w.name);const sm=document.createElement('small');sm.textContent=here?'you are here':(w.reg===G.region?'this area':'another area');b.append(sm);
+    b.append(({vale:'The Vale: ',ch1:'Chapter 1: ',ch2:'Chapter 2: ',ch3:'Chapter 3: '}[w.reg]||'')+w.name);const sm=document.createElement('small');sm.textContent=here?'you are here':(w.reg===G.region?'this area':'another area');b.append(sm);
     b.disabled=here;b.onclick=()=>{closeOverlay();travelToWaystone(w.id);};L.appendChild(b);}
 }
 function refreshTitleSave(){
@@ -3254,6 +3723,18 @@ function storyHooks(){
     {id:'mi11',x:-8,z:-62.5,r:6,cond:()=>golem.pos.y<1},{id:'mi12',x:-21,z:-58.4,r:3.6,cond:()=>LSTONES[2].state==='rest'},{id:'mi13',x:-13.5,z:-27,r:3},
     {id:'mi14',x:13.75,z:-67,r:2.5,cond:()=>mine.wall.broken&&mine.boulder.st!=='idle'}];
 }
+function heightsHooks(){
+  REG.ch3.secrets=[
+    {id:'c3_nest',name:'The cloud nest',test:b=>b.pos.x>17.5&&b.pos.x<21&&b.pos.z>1&&b.pos.z<5&&b.pos.y<-5&&b.pos.y>-6.5},
+    {id:'c3_grotto',name:'Behind the waterfall',test:b=>b.pos.x<-10.4&&b.pos.x>-14&&b.pos.z<-33&&b.pos.z>-39},
+    {id:'c3_roof',name:'The windmill rooftop',test:b=>b.pos.x>49&&b.pos.x<55&&b.pos.z<-81&&b.pos.z>-87&&b.pos.y>27.5}];
+  REG.ch3.talk=[
+    {id:'h1',x:0,z:3,r:5},{id:'h3',x:7,z:-4,r:4,cond:()=>!hts.b1.open},{id:'h4',x:0,z:-26,r:5,cond:()=>COGS[0].state==='rest'},
+    {id:'h5',x:0,z:-31,r:4,cond:()=>COGS[0].state==='rest'&&sprite.held},{id:'h6',x:-10,z:-60,r:6},{id:'h7',x:5,z:-60,r:5,cond:()=>COGS[1].state==='perched'},
+    {id:'h8',x:34,z:-58,r:5,cond:()=>wheelWind()&&!heightsDone()},{id:'h9',x:22,z:-81,r:4,cond:()=>COGS[2].state==='rest'&&golem.pos.y>12},
+    {id:'h10',x:-9,z:-36,r:3,cond:()=>!PROG.secrets.c3_grotto},{id:'h11',x:52,z:-78,r:6,cond:()=>hts.placed<3&&golem.pos.y>12},
+    {id:'h12',x:52,z:-77.9,r:2.5,cond:()=>sprite.pos.y>19}];
+}
 function countBits(n){let c=0;while(n){c+=n&1;n>>>=1;}return c;}
 
 // ================= camera: calm follow, quarter-turns with Q / R =================
@@ -3284,6 +3765,7 @@ function updateCamera(dt,t){
   _mid.y+=vale?.9+camLift:.4;
   if(G.region==='ch1'&&(G.ending||G.phase==='end')){want=16;_mid.set(F.x,2.2,F.z);}
   if(G.region==='ch2'&&(G.ending||G.phase==='end')){want=19;_mid.set(GL.x,3.2,GL.z);}
+  if(G.region==='ch3'&&(G.ending||G.phase==='end')){want=26;_mid.set(52,22,-80);}
   if(G.region==='ch1'&&(golem.pos.y<-1.5||sprite.pos.y<-1.5)&&golem.pos.x>29&&sprite.pos.x>29)want=Math.min(want,13);
   if(dbgDist)want=dbgDist;
   const k=camSnap?1:1-Math.exp(-dt*4);
@@ -3355,6 +3837,7 @@ function nextBeaconTarget(){
   if(G.region==='ch2'){if(minesDone()||G.ending)return null;
     if(!mine.bar.broken&&!mine.sw.b)return MLEVERS[0].pos;
     if(!mine.lift.cw&&sprite.pos.y>5)return MLEVERS[1].pos;return null;}
+  if(G.region==='ch3'){if(heightsDone()||G.ending)return null;if(!hts.b1.open&&sprite.pos.y>4)return HLEVERS[0].pos;if(COGS[1].state==='perched'&&sprite.pos.y>8)return COGS[1].pos;if(hts.placed>=3)return HLEVERS[2].pos;return null;}
   if(G.region!=='ch1'||G.fountainOn)return null;
   if(!gate.open)return levers[0].pos;
   if(!bridge.open)return crank.pos;
@@ -3374,7 +3857,7 @@ function updateVisuals(dt,t){
   const pulse=.5+.5*Math.sin(t*3.2);
   for(const p of plates){p.mesh.position.y=p.on?-.04:0;p.ring.material.opacity=p.on?1:(port.open?.25:.35+.45*pulse);}
   for(const h of holeMarkers){h.icon.position.y=h.base+Math.sin(t*2)*.08;h.glow.material.opacity=.35+.3*pulse;}
-  const bt=G.phase==='play'?nextBeaconTarget():null,bcn=G.region==='ch2'&&mine.beacon?mine.beacon:W.beacon;bcn.visible=!!bt;if(bt){bcn.position.set(bt.x,bt.y+1.55+Math.abs(Math.sin(t*3))*.25,bt.z);}
+  const bt=G.phase==='play'?nextBeaconTarget():null,bcn=G.region==='ch2'&&mine.beacon?mine.beacon:G.region==='ch3'&&hts.beacon?hts.beacon:W.beacon;bcn.visible=!!bt;if(bt){bcn.position.set(bt.x,bt.y+1.55+Math.abs(Math.sin(t*3))*.25,bt.z);}
   block.mesh.position.set(block.pos.x,block.pos.y+.6,block.pos.z);
   // runes
   for(const r of runes){
@@ -3391,6 +3874,7 @@ function updateVisuals(dt,t){
   for(const r of runes)if(G.region!=='ch1')r.light.intensity=0;
   if(G.region==='ch1')updateOrchardVis();
   if(G.region==='ch2')updateMinesVis(dt,t);
+  if(G.region==='ch3')updateHeightsVis(dt,t);
   updateSeedInstances(t);updatePetals(t);updateWaystones(t);updateVale(dt,t);updateReal(dt,t);updateRings(dt);
   updateGreet(dt);updateGiant(dt,t);updateSpriteVis(dt,t);updateCrown();
   // ending: water and light
@@ -3570,13 +4054,28 @@ function packState(){
     x:[r2(seesaw.tilt),crack.broken?1:0,stones.raised?1:0,r2(stones.t),levers[2]&&levers[2].pulled?1:0,golem.pound?1:0,r2(golem.airT||0),stair.raised?1:0,r2(stair.t),pav.open?1:0,r2(pav.t),VCAVE.grotto.open?1:0,r2(VCAVE.grotto.t),VCAVE.echo.raised?1:0,r2(VCAVE.echo.t),pav.lit?1:0],
     ch:[G.ch.seeds,G.ch.petals,G.ch.secrets,G.ch.launches,G.ch.pulses|0],
     m2:G.region==='ch2'?packMines():null,
-    pg:{r:PROG.roots,ws:Object.keys(PROG.ws).join(','),sd:Object.keys(PROG.seeds).join(','),pt:Object.keys(PROG.petals).join(','),se:Object.keys(PROG.secrets).join(','),pl:PROG.planted,sn:Object.keys(PROG.seen).join(','),c1:PROG.ch1.done,b1:PROG.ch1.best,c2:PROG.ch2.done,b2:PROG.ch2.best,l2:PROG.ch2.lan|0,d2:PROG.ch2.door|0}};
+    m3:G.region==='ch3'?packHeights():null,
+    pg:{r:PROG.roots,ws:Object.keys(PROG.ws).join(','),sd:Object.keys(PROG.seeds).join(','),pt:Object.keys(PROG.petals).join(','),se:Object.keys(PROG.secrets).join(','),pl:PROG.planted,sn:Object.keys(PROG.seen).join(','),c1:PROG.ch1.done,b1:PROG.ch1.best,c2:PROG.ch2.done,b2:PROG.ch2.best,l2:PROG.ch2.lan|0,d2:PROG.ch2.door|0,c3:PROG.ch3.done,b3:PROG.ch3.best}};
 }
 // the Lantern Mines (only sent while the players are there)
 function packMines(){const C=mine.cart,L=mine.lift,B=mine.boulder,pa=G.pulseAt||[0,0,0];
   return [mine.lan,CRYST.map(c=>r2(c.t)),r2(C.s),C.br,mine.sw.b?1:0,mine.bar.broken?1:0,r2(L.t),L.cw?1:0,BSTATES.indexOf(B.st),r2(B.x),r2(B.y),r2(B.rot),mine.wall.broken?1:0,
     LSTONES.map(x=>RS.indexOf(x.state)),mine.placed,mine.door.open?1:0,r2(mine.door.t),mine.crack.broken?1:0,
     [G.pulseN|0,r2(pa[0]),r2(pa[1]),r2(pa[2]),G.crystN|0,G.swN|0,G.smashN|0,G.bumpN|0,G.rollN|0,G.bowlN|0,G.wallN|0,G.boomN|0,G.lanN|0],golem.winding?1:0,sprite.winding?1:0,r2(C.roll),C.moved>0?1:0,L.moving?1:0];}
+// the Windmill Heights (only sent while the players are there)
+const CS=['rest','perched','free','carried','placed'];
+function packHeights(){return [hts.b1.open?1:0,r2(hts.b1.t),hts.b2.open?1:0,r2(hts.b2.t),VANES.map(v=>v.catch?1:0),VANES.map(v=>r2(v.t)),r2(WHEEL.a),r2(WHEEL.w),
+  COGS.map(c=>[CS.indexOf(c.state),r2(c.pos.x),r2(c.pos.y),r2(c.pos.z)]),hts.placed,hts.brake?1:0,r2(hts.sails),[G.vaneN|0,G.nudgeN|0],sprite.wind||'',golem.wading?1:0];}
+function applyHeights(m){
+  if(!Array.isArray(m))return;
+  hts.b1.open=!!m[0];hts.b1.t=+m[1]||0;hts.b1.col.on=hts.b1.t>=.97;hts.b2.open=!!m[2];hts.b2.t=+m[3]||0;hts.b2.col.on=hts.b2.t>=.97;
+  if(Array.isArray(m[4]))m[4].forEach((k,i)=>{const v=VANES[i];if(v&&v.catch!==!!k){v.catch=!!k;setVaneCol(v);}});if(Array.isArray(m[5]))m[5].forEach((k,i)=>{if(VANES[i])VANES[i].t=+k||0;});
+  WHEEL.a=+m[6]||0;WHEEL.w=+m[7]||0;placeGondolas();
+  if(Array.isArray(m[8]))m[8].forEach((a,i)=>{const c=COGS[i];if(!c||!Array.isArray(a))return;c.state=CS[a[0]]||c.state;c.pos.set(+a[1],+a[2],+a[3]);});
+  hts.placed=m[9]|0;hts.brake=!!m[10];hts.sails=+m[11]||0;if(Array.isArray(m[12])){G.vaneN=m[12][0]|0;G.nudgeN=m[12][1]|0;}
+  sprite.wind=typeof m[13]==='string'?m[13].slice(0,12):'';golem.wading=!!m[14];
+  for(const l of HLEVERS)l.pulled=l.id==='b1'?hts.b1.open:l.id==='b2'?hts.b2.open:hts.brake;
+}
 function applyMines(m){
   if(!Array.isArray(m))return;const C=mine.cart,L=mine.lift,B=mine.boulder;
   mine.lan=m[0]|0;if(Array.isArray(m[1]))m[1].forEach((t,i)=>{const c=CRYST[i];if(c){c.t=+t||0;c.col.on=c.t>0;}});
@@ -3615,7 +4114,8 @@ function applyState(st){
     VCAVE.grotto.open=!!x[11];VCAVE.grotto.t=+x[12]||0;VCAVE.echo.raised=!!x[13];VCAVE.echo.t=+x[14]||0;for(const l of VLEVERS)l.pulled=l.id==='grotto'?VCAVE.grotto.open:VCAVE.echo.raised;stepCaves(0);}
   if(Array.isArray(st.ch))G.ch={seeds:st.ch[0]|0,petals:st.ch[1]|0,secrets:st.ch[2]|0,launches:st.ch[3]|0,pulses:st.ch[4]|0};
   if(G.region==='ch2'&&st.m2)applyMines(st.m2);
-  if(st.pg&&typeof st.pg==='object'){const p=st.pg;PROG.roots=clamp(p.r|0,0,7);PROG.ws=keySet(p.ws);PROG.seeds=keySet(p.sd);PROG.petals=keySet(p.pt);PROG.secrets=keySet(p.se);PROG.planted=p.pl|0;PROG.seen=keySet(p.sn);PROG.ch1.done=p.c1?1:0;PROG.ch1.best=p.b1|0;PROG.ch2.done=p.c2?1:0;PROG.ch2.best=p.b2|0;PROG.ch2.lan=p.l2|0;PROG.ch2.door=p.d2|0;}
+  if(G.region==='ch3'&&st.m3)applyHeights(st.m3);
+  if(st.pg&&typeof st.pg==='object'){const p=st.pg;PROG.roots=clamp(p.r|0,0,7);PROG.ws=keySet(p.ws);PROG.seeds=keySet(p.sd);PROG.petals=keySet(p.pt);PROG.secrets=keySet(p.se);PROG.planted=p.pl|0;PROG.seen=keySet(p.sn);PROG.ch1.done=p.c1?1:0;PROG.ch1.best=p.b1|0;PROG.ch2.done=p.c2?1:0;PROG.ch2.best=p.b2|0;PROG.ch2.lan=p.l2|0;PROG.ch2.door=p.d2|0;PROG.ch3.done=p.c3?1:0;PROG.ch3.best=p.b3|0;}
   G.placed=st.pl|0;G.ending=!!st.en;G.endT=+st.et||0;G.falls=st.f|0;G.lastFall=st.lf==='g'?'g':'s';G.fallN=st.fn|0;G.throws=st.th|0;G.pick=st.pk|0;G.useN=st.us|0;
 }
 function guestSmooth(dt){
@@ -3624,6 +4124,7 @@ function guestSmooth(dt){
   if(sprite.pos.distanceTo(tgtS)>4||sprite.held)sprite.pos.copy(tgtS);else sprite.pos.lerp(tgtS,k);
   for(const l of levers)l.t=approach(l.t,l.pulled?1:0,dt/.35);crank.t=approach(crank.t,crank.used?1:0,dt/2.6);
   for(const l of MLEVERS)l.t=approach(l.t,l.pulled?1:0,dt/.35);
+  for(const l of HLEVERS)l.t=approach(l.t,l.pulled?1:0,dt/.35);
   if(G.region==='ch2'){const L=mine.lift;if(L.moving)L.wheelA+=dt*.5;mine.sw.t=approach(mine.sw.t,mine.sw.b?1:0,dt/.4);}
 }
 let guestJN=0,guestAN=0,lastPush=0,lastIn='';
@@ -3693,22 +4194,23 @@ function togglePause(){
   if(chatOpen){closeChat();return;}
   const open=$('scrPause').hidden;
   if(open){G.paused=mode==='local';$('pauseEyebrow').textContent=(mode==='local'?'Paused':'Menu (the game keeps running online)')+' · '+curReg.name;$('pauseObj').textContent=objectiveText();
-    const boss=mode!=='online'||role==='host',inCh=G.region==='ch1'||G.region==='ch2';$('bRestart').hidden=!boss||!inCh;$('bToVale').hidden=!boss||!inCh;$('scrPause').hidden=false;}
+    const boss=mode!=='online'||role==='host',inCh=G.region==='ch1'||G.region==='ch2'||G.region==='ch3';$('bRestart').hidden=!boss||!inCh;$('bToVale').hidden=!boss||!inCh;$('scrPause').hidden=false;}
   else{G.paused=false;$('scrPause').hidden=true;}
 }
 function toTitle(){if(mode==='online'){leaveOnline();if(role!=='host'){const st=PROG.settings;PROG=freshProgress();loadProgress();PROG.settings=st;}}
   G.scene='';G.card='';closeOverlay();refreshTitleSave();mode=null;G.phase='title';G.paused=false;clearChat();partnerName='';partnerHere=false;names.g=names.s='';show('scrTitle');}
 function showEnd(){
-  const dl=$('endStats');dl.textContent='';const m=Math.floor(G.time/60),s=Math.floor(G.time%60),n=G.region==='ch2'?2:1,reg='ch'+n;
+  const dl=$('endStats');dl.textContent='';const m=Math.floor(G.time/60),s=Math.floor(G.time%60),n=G.region==='ch3'?3:G.region==='ch2'?2:1,reg='ch'+n;
   const add=(a,b)=>{const dt=document.createElement('dt');dt.textContent=a;const dd=document.createElement('dd');dd.textContent=b;dl.append(dt,dd);};
   add('Time',m+' min '+s+' s');add('Golden seeds',seedsFoundIn(reg)+' of '+seedsIn(reg).length);
   const pc=PETALS.filter(p=>p.reg===reg);add('Memory petals',pc.filter(p=>PROG.petals[p.id]).length+' of '+pc.length);add('Secrets',REG[reg].secrets.filter(x=>PROG.secrets[x.id]).length+' of '+REG[reg].secrets.length);
   if(n===1){add(nameOf('s')+' thrown',G.throws+' times');add('Seesaw launches',String(G.ch.launches));}
-  else{add('Lanterns lit',countBits(mine.lan)+' of '+LANTERNS.length);add('Light pulses',String(G.ch.pulses|0));add(nameOf('s')+' thrown',G.throws+' times');}
+  else if(n===2){add('Lanterns lit',countBits(mine.lan)+' of '+LANTERNS.length);add('Light pulses',String(G.ch.pulses|0));add(nameOf('s')+' thrown',G.throws+' times');}
+  else{add(nameOf('s')+' thrown',G.throws+' times');}
   add('Falls',String(G.falls));
-  $('endEyebrow').textContent=n===1?'Chapter 1 · The Sunken Garden':'Chapter 2 · The Lantern Mines';$('endTitle').textContent=n===1?'The fountain wakes':'The Great Lantern wakes';
-  $('endLede').textContent=n===1?nameOf('g')+' and '+nameOf('s')+' woke the fountain together. Far away, under the Vale, the first root stirs.':nameOf('g')+' and '+nameOf('s')+' lit the Great Lantern together. Deep under the hills, the second root wakes.';
-  $('bEndMenu').firstChild.textContent=n===1?'Keep exploring the garden ':'Keep exploring the mines ';
+  $('endEyebrow').textContent=['','Chapter 1 · The Sunken Garden','Chapter 2 · The Lantern Mines','Chapter 3 · The Windmill Heights'][n];$('endTitle').textContent=['','The fountain wakes','The Great Lantern wakes','The Great Windmill turns'][n];
+  $('endLede').textContent=nameOf('g')+' and '+nameOf('s')+[,' woke the fountain together. Far away, under the Vale, the first root stirs.',' lit the Great Lantern together. Deep under the hills, the second root wakes.',' set the Great Windmill turning. High above the clouds, the third root wakes.'][n];
+  $('bEndMenu').firstChild.textContent=['','Keep exploring the garden ','Keep exploring the mines ','Keep exploring the heights '][n];
   const boss=mode!=='online'||role==='host';$('bAgain').hidden=!boss;$('bEndMenu').hidden=!boss;$('endWait').hidden=boss;show('scrEnd');
 }
 $('bLocal').onclick=()=>{initAudio();mode='local';myRole='g';role=null;clearChat();resetLevel();openBrief();};
@@ -3728,12 +4230,12 @@ $('codeIn').addEventListener('keydown',e=>{if(e.key==='Enter')$('bJoin').click()
 $('bBegin').onclick=()=>{initAudio();if(mode==='local')startPlay();else if(role==='host'&&findPartner())startPlay();};
 $('bBriefBack').onclick=toTitle;
 $('bResume').onclick=togglePause;
-$('bRestart').onclick=()=>{$('scrPause').hidden=true;if(G.region==='ch1')resetLevel();else if(G.region==='ch2')resetMines();G.paused=false;resetWatch();};
+$('bRestart').onclick=()=>{$('scrPause').hidden=true;if(G.region==='ch1')resetLevel();else if(G.region==='ch2')resetMines();else if(G.region==='ch3')resetHeights();G.paused=false;resetWatch();};
 $('bToVale').onclick=()=>{$('scrPause').hidden=true;G.paused=false;returnToVale();};
 $('bJournal').onclick=()=>openJournal('story');$('bMapP').onclick=openMap;$('bSettings').onclick=openSettings;$('bSettingsT').onclick=()=>{initAudio();openSettings();};
 $('bMute').onclick=()=>setMuted(!muted);
 $('bQuit').onclick=()=>{$('scrPause').hidden=true;toTitle();};
-function returnToVale(){const sp=valeSpotAtGate(G.region==='ch2'?2:1);G.phase='play';travel('vale',sp.g,sp.s,sp.yaw);show(null);}
+function returnToVale(){const sp=valeSpotAtGate(G.region==='ch3'?3:G.region==='ch2'?2:1);G.phase='play';travel('vale',sp.g,sp.s,sp.yaw);show(null);}
 $('bAgain').onclick=returnToVale;
 $('bEndMenu').onclick=()=>{G.phase='play';show(null);};
 let partnerHere=false;
@@ -3820,9 +4322,10 @@ async function boot(){const tb=performance.now();
     if(REAL.ready)ch1RealBegin();
     buildWorld();buildInteractives();buildCh1Extras();buildOrchard();if(REAL.ready)ch1RealFinish();endRegion(R);buildSeedInstances('ch1');curBuild='';BOOTMS.vale=Math.round(tb1-tb0);BOOTMS.ch1=Math.round(performance.now()-tb1);
     const tb2=performance.now();buildMines();curBuild='';BOOTMS.ch2=Math.round(performance.now()-tb2);
-    storyHooks();
+    const tb3=performance.now();buildHeights();curBuild='';BOOTMS.ch3=Math.round(performance.now()-tb3);
+    storyHooks();heightsHooks();
     buildGolem();buildSprite();initAmbientParticles();
-    enterRegion('ch1');resetLevel();enterRegion('ch2');resetMines();enterRegion('vale');resetCaves();
+    enterRegion('ch1');resetLevel();enterRegion('ch2');resetMines();enterRegion('ch3');resetHeights();enterRegion('vale');resetCaves();
     const sp=startSpot();placeAt(golem,sp.g);placeAt(sprite,sp.s);
   }
   catch(e){console.error(e);fail('Something went wrong while building the Vale: '+e.message);return;}
@@ -3840,7 +4343,7 @@ async function boot(){const tb=performance.now();
 window.__bs={get PROG(){return PROG;},REG,travel,travelToWaystone,seesaw,crack,stones,SEEDS,PETALS,WAYS,GATES,VALE,playScene,skipScene,storyNext,valeH,saveProgress,eraseProgress,openMap,closeOverlay,get overlay(){return overlayOpen;},
   G,golem,sprite,get block(){return block;},runes,gate,bridge,port,plates,levers,get crank(){return crank;},latch,stepSim,resetLevel,startLocal:()=>{mode='local';resetLevel();startPlay();},NOIN,W,fadeables,camera,
   get camYaw(){return camYaw;},rotateCam,set dbgDist(v){dbgDist=v;},advance:(sec)=>{let n=performance.now();for(let i=0;i<sec*60;i++){n+=1000/60;tick(n);}},get models(){return MODELS;},set bot(v){BOT=v;},get bot(){return BOT;},
-  get ch1(){return {CP,F,SEESAW,POOL,CELLAR,levers,crank,runes,plates,stones,crack,exitGate,W,ORCH,TOWER,PAV,stair,pav};},get colliders(){return colliders;},get curReg(){return curReg;},get greet(){return GREET;},get perch(){return PERCH;},get caves(){return {CAVES,VCAVE,VLEVERS};},get ch2(){return {mine,MCP,GL,LANTERNS,CRYST,MLEVERS,LSTONES,WINCH_B,WINCH_T,MINE,lightPulse,resetMines,BSTATES};},packState,applyState,get renderer(){return renderer;},BOOTMS,scene,travelReq:()=>G.travelReq};
+  get ch1(){return {CP,F,SEESAW,POOL,CELLAR,levers,crank,runes,plates,stones,crack,exitGate,W,ORCH,TOWER,PAV,stair,pav};},get colliders(){return colliders;},get curReg(){return curReg;},get greet(){return GREET;},get perch(){return PERCH;},get caves(){return {CAVES,VCAVE,VLEVERS};},get ch2(){return {mine,MCP,GL,LANTERNS,CRYST,MLEVERS,LSTONES,WINCH_B,WINCH_T,MINE,lightPulse,resetMines,BSTATES};},get ch3(){return {hts,HCP,HT,WHEEL,POND,WINDS,VANES,COGS,HLEVERS,HBRIDGES,ISLES,resetHeights,windAt,wheelWind,heightsH};},packState,applyState,get renderer(){return renderer;},BOOTMS,scene,travelReq:()=>G.travelReq};
 boot();
 
 })();

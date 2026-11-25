@@ -12,8 +12,10 @@ OUT=../game.js
   echo "import {Water} from 'three/addons/objects/Water.js';"
   echo "(() => {"
   echo '"use strict";'
-  for f in src/01-core.js src/02-world.js src/02b-regions.js src/02c-vale.js src/02d-ch1x.js src/02e-real.js src/02f-ch1real.js src/02g-orchard.js src/02h-caves.js src/02i-mines.js src/03-chars.js src/04-sim.js src/05-input.js src/06-audio.js src/06b-music.js src/07-hud.js src/07b-story.js src/08-visuals.js src/09-net.js src/10-main.js; do cat "$f"; echo; done
+  for f in src/01-core.js src/02-world.js src/02b-regions.js src/02c-vale.js src/02d-ch1x.js src/02e-real.js src/02f-ch1real.js src/02g-orchard.js src/02h-caves.js src/02i-mines.js src/02j-heights.js src/03-chars.js src/04-sim.js src/05-input.js src/06-audio.js src/06b-music.js src/07-hud.js src/07b-story.js src/08-visuals.js src/09-net.js src/10-main.js; do cat "$f"; echo; done
   echo "})();"
 } > "$OUT"
 # check it as an ES module (the browser loads it as one); a plain --check can miss errors
 TMP=$(mktemp -t bsXXXX).mjs; cp "$OUT" "$TMP"; node --check "$TMP" 2>&1 && echo BUILD_OK; rm -f "$TMP"
+# stamp the page with this build's fingerprint so an ordinary reload fetches the new game.js (the host caches it for minutes)
+V=$(shasum "$OUT" | cut -c1-10); sed -i.bak -E "s#src=\"game\.js(\?v=[0-9a-f]+)?\"#src=\"game.js?v=$V\"#" ../index.html && rm -f ../index.html.bak

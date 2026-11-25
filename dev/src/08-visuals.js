@@ -26,6 +26,7 @@ function updateCamera(dt,t){
   _mid.y+=vale?.9+camLift:.4;
   if(G.region==='ch1'&&(G.ending||G.phase==='end')){want=16;_mid.set(F.x,2.2,F.z);}
   if(G.region==='ch2'&&(G.ending||G.phase==='end')){want=19;_mid.set(GL.x,3.2,GL.z);}
+  if(G.region==='ch3'&&(G.ending||G.phase==='end')){want=26;_mid.set(52,22,-80);}
   if(G.region==='ch1'&&(golem.pos.y<-1.5||sprite.pos.y<-1.5)&&golem.pos.x>29&&sprite.pos.x>29)want=Math.min(want,13);
   if(dbgDist)want=dbgDist;
   const k=camSnap?1:1-Math.exp(-dt*4);
@@ -97,6 +98,7 @@ function nextBeaconTarget(){
   if(G.region==='ch2'){if(minesDone()||G.ending)return null;
     if(!mine.bar.broken&&!mine.sw.b)return MLEVERS[0].pos;
     if(!mine.lift.cw&&sprite.pos.y>5)return MLEVERS[1].pos;return null;}
+  if(G.region==='ch3'){if(heightsDone()||G.ending)return null;if(!hts.b1.open&&sprite.pos.y>4)return HLEVERS[0].pos;if(COGS[1].state==='perched'&&sprite.pos.y>8)return COGS[1].pos;if(hts.placed>=3)return HLEVERS[2].pos;return null;}
   if(G.region!=='ch1'||G.fountainOn)return null;
   if(!gate.open)return levers[0].pos;
   if(!bridge.open)return crank.pos;
@@ -116,7 +118,7 @@ function updateVisuals(dt,t){
   const pulse=.5+.5*Math.sin(t*3.2);
   for(const p of plates){p.mesh.position.y=p.on?-.04:0;p.ring.material.opacity=p.on?1:(port.open?.25:.35+.45*pulse);}
   for(const h of holeMarkers){h.icon.position.y=h.base+Math.sin(t*2)*.08;h.glow.material.opacity=.35+.3*pulse;}
-  const bt=G.phase==='play'?nextBeaconTarget():null,bcn=G.region==='ch2'&&mine.beacon?mine.beacon:W.beacon;bcn.visible=!!bt;if(bt){bcn.position.set(bt.x,bt.y+1.55+Math.abs(Math.sin(t*3))*.25,bt.z);}
+  const bt=G.phase==='play'?nextBeaconTarget():null,bcn=G.region==='ch2'&&mine.beacon?mine.beacon:G.region==='ch3'&&hts.beacon?hts.beacon:W.beacon;bcn.visible=!!bt;if(bt){bcn.position.set(bt.x,bt.y+1.55+Math.abs(Math.sin(t*3))*.25,bt.z);}
   block.mesh.position.set(block.pos.x,block.pos.y+.6,block.pos.z);
   // runes
   for(const r of runes){
@@ -133,6 +135,7 @@ function updateVisuals(dt,t){
   for(const r of runes)if(G.region!=='ch1')r.light.intensity=0;
   if(G.region==='ch1')updateOrchardVis();
   if(G.region==='ch2')updateMinesVis(dt,t);
+  if(G.region==='ch3')updateHeightsVis(dt,t);
   updateSeedInstances(t);updatePetals(t);updateWaystones(t);updateVale(dt,t);updateReal(dt,t);updateRings(dt);
   updateGreet(dt);updateGiant(dt,t);updateSpriteVis(dt,t);updateCrown();
   // ending: water and light

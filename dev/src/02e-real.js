@@ -250,6 +250,7 @@ function realifyProp(root){root.traverse(o=>{if(!o.isMesh)return;const n=o.mater
 function updateReal(dt,t){
   updateForests(dt);
   if(G.region==='ch1'){updateGrass(GRASS_CH1,t);return;}
+  if(G.region==='ch3'){updateGrass(GRASS_CH3,t);return;}
   if(G.region!=='vale')return;
   updateGrass(GRASS,t);
   if(REAL.water){REAL.water.visible=VALE.wake>.02;REAL.water.position.y=lerp(RIVER_WATER-.7,RIVER_WATER,VALE.wake);const sh=REAL.water.material.userData.sh;if(sh)sh.uniforms.uT.value=t;}

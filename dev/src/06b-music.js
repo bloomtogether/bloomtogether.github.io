@@ -5,6 +5,7 @@ const SONGS={
   vale:{root:196.0,bar:4.8,prog:[[0,7,16],[-3,4,12],[-7,5,12],[-5,2,11]],pent:[0,2,4,7,9,12,14,16]},
   ch1:{root:174.6,bar:4.2,prog:[[0,7,14,16],[5,9,16],[-3,4,12],[2,9,14]],pent:[0,2,4,7,9,12,14]},
   ch2:{root:146.8,bar:6,prog:[[0,7,15],[-4,3,12],[-2,5,14],[-5,2,10]],pent:[0,3,5,7,10,12,15]},
+  ch3:{root:196.0,bar:3.8,prog:[[0,7,16],[2,9,18],[-3,7,16],[5,9,16]],pent:[0,2,4,7,9,12,14,16]},
   title:{root:220.0,bar:5.5,prog:[[0,7,16],[5,12,16],[-3,7,12],[-5,7,14]],pent:[0,2,4,7,9,12]},
 };
 const semi=(f,n)=>f*Math.pow(2,n/12);
@@ -16,7 +17,7 @@ function pluck(f,t0,vol){const o=AC.createOscillator(),g=AC.createGain();o.type=
   g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(vol,t0+.01);g.gain.exponentialRampToValueAtTime(.0006,t0+1.6);o.connect(g);g.connect(musicBus);o.start(t0);o.stop(t0+1.7);}
 function updateMusic(now){
   if(!AC||!musicBus||muted||document.hidden||PROG.settings.music<=0)return;
-  const key=G.phase==='title'||G.phase==='brief'?'title':(G.region==='ch1'?'ch1':G.region==='ch2'?'ch2':'vale');
+  const key=G.phase==='title'||G.phase==='brief'?'title':(G.region==='ch1'?'ch1':G.region==='ch2'?'ch2':G.region==='ch3'?'ch3':'vale');
   if(key!==MUSIC.key){MUSIC.key=key;MUSIC.bar=0;MUSIC.next=Math.max(MUSIC.next,now+.3);}
   if(now<MUSIC.next-.25)return;
   const S=SONGS[key],t0=Math.max(now,MUSIC.next),ch=S.prog[MUSIC.bar%S.prog.length];
