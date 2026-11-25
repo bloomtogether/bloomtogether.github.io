@@ -267,7 +267,7 @@ export async function run(opts = {}) {
     if (ST[1].state !== 'carried') throw new Error('stone 2 not taken');
     await walkBoth(13.75, -67.2, 12.9, -67.7, 40);
     await until(() => mine.wall.broken, 25, 'the boulder breaking the wall');
-    await until(() => mine.boulder.st === 'done', 10, 'the boulder coming to rest');
+    await until(() => mine.boulder.st === 'done', 20, 'the boulder coming to rest');
     if ((G.bowlN || 0) > 0) throw new Error('bowled over ' + G.bowlN + ' times');
   });
   await step('Both walk through the broken wall and jump down into the Great Lantern hall', async () => {

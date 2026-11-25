@@ -447,7 +447,8 @@ function stepBoulder(dt){
     for(const b of [golem,sprite]){if(b===sprite&&sprite.held)continue;
       if(b.pos.y>Y-.6&&b.pos.y<Y+2*R&&Math.abs(b.pos.x-B.x)<R*.8&&Math.abs(b.pos.z-MINE.driftZ)<R+b.hw-.35){bowled();return;}}}
   else if(B.st==='fall'){B.x-=3*dt;B.vy-=GRAV*dt;B.y+=B.vy*dt;B.rot+=3*dt/R;if(B.y<=R){B.y=R;B.st='land';B.v=3;G.boomN=(G.boomN||0)+1;}}
-  else if(B.st==='land'){B.v=clamp((B.x+28)*1.6,1,3.4);B.x=Math.max(-28,B.x-B.v*dt);B.rot+=B.v*dt/R;if(B.x<=-28){B.st='done';}} // rolls well clear of where the players drop in
+  else if(B.st==='land'){B.v=clamp((B.x+28)*2,1.5,5.5);B.x=Math.max(-28,B.x-B.v*dt);B.rot+=B.v*dt/R;if(B.x<=-28){B.st='done';}
+    B.col.min.set(B.x-2.1,0,MINE.driftZ-2.1);B.col.max.set(B.x+2.1,4.8,MINE.driftZ+2.1);B.col.on=true;for(const b of [golem,sprite])if(!(b===sprite&&sprite.held))depenetrate(b,B.col);syncGolemCol();} // solid while it rolls: it shoves anyone in its way // rolls well clear of where the players drop in
   if(B.st==='done'&&!B.col.on){B.col.min.set(B.x-2.1,0,MINE.driftZ-2.1);B.col.max.set(B.x+2.1,4.8,MINE.driftZ+2.1);B.col.on=true;for(const b of [golem,sprite])depenetrate(b,B.col);syncGolemCol();}
 }
 function bowled(){
