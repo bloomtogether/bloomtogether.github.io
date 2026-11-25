@@ -451,10 +451,10 @@ function syncBlock(){const b=block,c=block.col;c.min.set(b.pos.x-b.hw,b.pos.y,b.
 // One save per laptop. Online, the host's save is the one that counts; the guest mirrors it while playing.
 const SAVE_KEY='bs_save_v1';
 const DEFAULT_SETTINGS={music:.55,sfx:.8,camMotion:'full',reduceFlash:false,shake:false};
-function freshProgress(){return {v:1,roots:0,ws:{vale_meadow:1},seeds:{},petals:{},secrets:{},planted:0,seen:{},ch1:{done:0,best:0},ch2:{done:0,best:0,lan:0,door:0},ch3:{done:0,best:0},settings:Object.assign({},DEFAULT_SETTINGS)};}
+function freshProgress(){return {v:1,roots:0,ws:{vale_meadow:1},seeds:{},petals:{},secrets:{},planted:0,seen:{},ch1:{done:0,best:0},ch2:{done:0,best:0,lan:0,door:0},ch3:{done:0,best:0},ch4:{done:0,best:0},settings:Object.assign({},DEFAULT_SETTINGS)};}
 let PROG=freshProgress();
 function loadProgress(){try{const t=localStorage.getItem(SAVE_KEY);if(!t)return;const o=JSON.parse(t);if(!o||o.v!==1)return;
-  const f=freshProgress();PROG=Object.assign(f,o);PROG.settings=Object.assign({},DEFAULT_SETTINGS,o.settings||{});PROG.ch1=Object.assign(f.ch1,o.ch1||{});PROG.ch2=Object.assign(f.ch2,o.ch2||{});PROG.ch3=Object.assign(f.ch3,o.ch3||{});}catch(e){}}
+  const f=freshProgress();PROG=Object.assign(f,o);PROG.settings=Object.assign({},DEFAULT_SETTINGS,o.settings||{});PROG.ch1=Object.assign(f.ch1,o.ch1||{});PROG.ch2=Object.assign(f.ch2,o.ch2||{});PROG.ch3=Object.assign(f.ch3,o.ch3||{});PROG.ch4=Object.assign(f.ch4,o.ch4||{});}catch(e){}}
 let saveT=0;
 function saveProgress(){if(mode==='online'&&role!=='host')return;try{localStorage.setItem(SAVE_KEY,JSON.stringify(PROG));}catch(e){}}
 function saveSoon(){saveT=.6;}
@@ -633,8 +633,8 @@ function valeColor(x,z,h,out){
 const VALE={wake:0,wakeT:0,river:null,foliage:[],ground:null,tree:null,roots:[],leaf:null,blossom:null,beds:[],gates:[]};
 const GATES=[];
 // chapters built so far; a gate opens once the chapter before it is complete
-function chapterOpens(n){return n===2||n===3;}
-function gateReady(n){return n===1||(n===2&&!!PROG.ch1.done)||(n===3&&!!PROG.ch2.done);}
+function chapterOpens(n){return n>=2&&n<=4;}
+function gateReady(n){return n===1||(n===2&&!!PROG.ch1.done)||(n===3&&!!PROG.ch2.done)||(n===4&&!!PROG.ch3.done);}
 const CHAPTERS=[
   {n:1,name:'The Sunken Garden',ready:true},{n:2,name:'The Lantern Mines'},{n:3,name:'The Windmill Heights'},{n:4,name:'The Frostmere Lake'},
   {n:5,name:'The Mushroom Marsh'},{n:6,name:'The Clockwork Library'},{n:7,name:'The Sunstone Desert'}];
@@ -727,7 +727,7 @@ function buildVale(){
   for(let k=0;k<6;k++){const a=k/6*6.28;ruin(VALE_HILL.x+Math.cos(a)*6,VALE_HILL.z+Math.sin(a)*6,2.4+(k%2)*1.4,.45,k%3===0);}
   box(VALE_HILL.x-1.6,VALE_HILL.x+1.6,hy-1,hy+.35,VALE_HILL.z-1.6,VALE_HILL.z+1.6,REAL.ready?stoneReal():M.pave,{fade:false,surface:'stone'});
   buildCaves();
-  buildValeLamps();buildValePinwheels();
+  buildValeLamps();buildValePinwheels();buildValeLilies();
   // ---------- forests (batched) ----------
   buildValeForest();
   if(REAL.ready){GRASS=newGrassField(grassAllowed,valeH,()=>VALE.wake);buildGrass(GRASS);if(VALE.veinTex)GRASS.mat.uniforms.uVein.value=VALE.veinTex;}else buildValeTufts();
@@ -797,7 +797,7 @@ function updateVale(dt,t){
   VALE.roots.forEach((r,i)=>{if(r.vein){const u=r.material.uniforms;u.uT.value=t;u.uOn.value=approach(u.uOn.value,i<PROG.roots?(PROG.settings.reduceFlash?.6:1):0,dt*.6);if(GRASS&&GRASS.mat)GRASS.mat.uniforms.uRootOn.value[i]=u.uOn.value;return;}const on=i<PROG.roots,em=r.material.emissive;if(on){em.set('#1fb3a3');r.material.emissiveIntensity=PROG.settings.reduceFlash?.35:.3+.15*Math.sin(t*1.5+i);}else r.material.emissiveIntensity=0;});
   VALE.treeLight.intensity=PROG.roots>0?.6:0;
   const planted=Math.floor(PROG.planted/5);VALE.beds.forEach((g,i)=>g.visible=i<planted);
-  updateValeLamps(dt);updateValePinwheels(dt);
+  updateValeLamps(dt);updateValePinwheels(dt);updateValeLilies();
   for(const g of GATES){g.ready=gateReady(g.ch);const ready=g.ready;g.bar.on=!ready;if(g.labOpen){g.labOpen.visible=ready;g.lab.visible=!ready;}
     const flicker=!ready&&g.ch===PROG.roots+1; // the next sealed gate flickers faintly
     g.veil.visible=ready||flicker;if(ready)g.veil.material.opacity=PROG.settings.reduceFlash?.3:.26+.1*Math.sin(t*1.6);
@@ -2438,6 +2438,256 @@ function buildValePinwheels(){
 function updateValePinwheels(dt){if(!VALE.pins)return;const on=PROG.roots>=3&&!(G.scene==='root3'&&G.line<1);VALE.pinPosts.visible=on;
   VALE.pins.forEach((g,i)=>{g.visible=on;g.rotation.z+=dt*(2.5+i*.3);});}
 
+// ================= Chapter 4: The Frostmere Lake =================
+// A frozen lake under snowy pines. New: ice. Ice is slippery (slow to start, slow to stop), thin ice holds the Sprite
+// but cracks under the Giant, and the Sprite's glow melts frozen things (hold interact next to them).
+// The route, south to north:
+//  Shore Camp (melt the frozen gate latch) -> the Ice Field (the Giant slides an ice block west against a frozen rock,
+//  then north into the open channel: it sinks level and becomes a step across) -> the hub on the north shore ->
+//  the Narrows (east: thin ice. The Sprite crosses to the islet and melts its frozen lever, which raises a stone
+//  causeway; the Giant crosses for ember 1) -> the Snowfield (west: the Giant rolls a snowball until it is big
+//  enough to fill the crevasse; ember 2 beyond) -> Hearth Island (north: the Sprite melts the ice sealing a cave,
+//  ember 3; set the embers in the hearth, lob the Sprite onto its roof, it melts the frozen chimney).
+// Optional: the fishing hut (melt its door), the thin-ice ring islet (only light feet), the big boulder (a lob).
+const FCP={g:[-1.5,0,4.5],s:[1.5,0,4.5]};
+const FR={blockHome:new V3(6,0,-24),ballHome:new V3(-20,0,-46.6),rampX:-10,hearth:new V3(0,0,-68.8),bay:{x0:4,x1:30,z0:-60,z1:-44},chan:{x0:-20,x1:20,z0:-42.2,z1:-40},crev:{x0:-36,x1:-12,z0:-52.6,z1:-50}};
+const frs={placed:0,flue:false,causeT:0,cause:false,causeCol:null,bridge:null};
+const MELTS=[],EMBERS=[],THIN=[],FISL=[];
+let ICEB=null,SNOWB=null;
+const FM={};
+const inCh4=()=>G.region==='ch4';
+
+function frostMats(){
+  const R=REAL.ready;
+  FM.snow=new THREE.MeshStandardMaterial({color:'#e6edf2',roughness:.92,metalness:0,envMapIntensity:.6});
+  FM.ice=new THREE.MeshStandardMaterial({color:'#8fc3dc',roughness:.12,metalness:0,envMapIntensity:1.3});
+  FM.thin=new THREE.MeshStandardMaterial({color:'#e2f4fa',roughness:.2,metalness:0,transparent:true,opacity:.78,envMapIntensity:1.1});
+  FM.block=new THREE.MeshStandardMaterial({color:'#a9dcef',roughness:.1,metalness:0,transparent:true,opacity:.9,envMapIntensity:1.4});
+  FM.rock=R?rockMat('frostRock','#9aa3ab'):new THREE.MeshLambertMaterial({color:'#8a939b'});TILE.set(FM.rock,3.5);
+  FM.wood=M.wood;FM.pine=new THREE.MeshLambertMaterial({color:'#2f5a3f',flatShading:true});FM.cap=new THREE.MeshLambertMaterial({color:'#f6fbff',flatShading:true});
+  FM.ember=new THREE.MeshStandardMaterial({color:'#ffb36b',emissive:'#ff6a1f',emissiveIntensity:1.6,roughness:.4});
+  FM.frozen=new THREE.MeshStandardMaterial({color:'#d8f1fb',roughness:.08,metalness:0,transparent:true,opacity:.82,envMapIntensity:1.5});
+  FM.water=M.water;
+}
+function snowFloor(xa,xb,za,zb,y,deep){box(xa,xb,(y||0)-.5,y||0,za,zb,FM.snow,{cast:false,fade:false,surface:'snow'});if(deep!==0)box(xa,xb,(y||0)-(deep||6),(y||0)-.5,za,zb,FM.rock,{cast:false,fade:false,collide:false});}
+function iceFloor(xa,xb,za,zb){box(xa,xb,-.4,0,za,zb,FM.ice,{cast:false,fade:false,surface:'ice'});}
+function bank(xa,xb,za,zb,h){box(xa,xb,0,h||1.6,za,zb,FM.snow,{surface:'snow'});}
+function frock(x,z,s,h){const m=new THREE.Mesh(REAL.ready?realRockGeo(s,h||s*.8,s,x+z):lowPoly(s,h||s*.8,s,0,(x*7+z)|0,.35),FM.rock);m.position.set(x,0,z);m.castShadow=m.receiveShadow=true;ROOT.add(m);
+  const cap=new THREE.Mesh(new THREE.SphereGeometry(s*.8,12,6,0,Math.PI*2,0,Math.PI/2),FM.cap);cap.scale.y=.25;cap.position.set(x,(h||s*.8)*.92,z);ROOT.add(cap);return m;}
+function pines(list){
+  const n=list.length,cone=new THREE.ConeGeometry(1,1.6,7),capG=new THREE.ConeGeometry(.55,.6,7),trunk=new THREE.CylinderGeometry(.16,.22,1.2,6);trunk.translate(0,.6,0);
+  const a=new THREE.InstancedMesh(cone,FM.pine,n*3),b=new THREE.InstancedMesh(capG,FM.cap,n*3),t=new THREE.InstancedMesh(trunk,M.wood,n);const m4=new THREE.Matrix4(),q=new THREE.Quaternion(),p=new V3(),sc=new V3();
+  list.forEach(([x,z,s],i)=>{p.set(x,0,z);q.identity();sc.set(s,s,s);m4.compose(p,q,sc);t.setMatrixAt(i,m4);
+    for(let k=0;k<3;k++){const w=(1.6-k*.42)*s,y=(1.5+k*1.1)*s;p.set(x,y,z);sc.set(w,s*(1.4-k*.2),w);m4.compose(p,q,sc);a.setMatrixAt(i*3+k,m4);p.set(x,y+.45*s*(1.4-k*.2),z);sc.set(w,s,w);m4.compose(p,q,sc);b.setMatrixAt(i*3+k,m4);}
+    box(x-.3*s,x+.3*s,0,3*s,z-.3*s,z+.3*s,null,{surface:'wood'});});
+  for(const im of [a,b,t]){im.castShadow=true;im.receiveShadow=true;ROOT.add(im);}
+}
+// ---- melting: the Sprite holds interact next to frozen things ----
+function addMelt(id,x,y,z,w,h,d,label,onDone,ready){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),FM.frozen.clone());m.position.set(x,y+h/2,z);m.castShadow=true;ROOT.add(m);
+  const M0={id,pos:new V3(x,y,z),t:0,done:false,m,label,onDone,ready:ready||(()=>true),col:null,w,h,d};MELTS.push(M0);return M0;
+}
+const meltReach=(s,M0)=>Math.max(Math.abs(s.pos.x-M0.pos.x)-M0.w/2,Math.abs(s.pos.z-M0.pos.z)-M0.d/2)<1.1&&s.pos.y>M0.pos.y-.9&&s.pos.y<M0.pos.y+M0.h+.6;
+function meltTarget(){for(const M0 of MELTS)if(!M0.done&&M0.ready()&&meltReach(sprite,M0))return M0;return null;}
+// ---- embers (the chapter's root stones) ----
+function addEmber(i,x,y,z,where){const m=new THREE.Mesh(new THREE.IcosahedronGeometry(.28,0),FM.ember);m.castShadow=true;ROOT.add(m);
+  const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:TEX.glow,color:'#ff9a4a',transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:.75}));glow.scale.set(1.7,1.7,1);ROOT.add(glow);
+  EMBERS.push({i,pos:new V3(x,y,z),home:new V3(x,y,z),state:'rest',m,glow,where});}
+const emberReach=(g,e)=>dxz(g.pos,e.pos)<1.9&&e.pos.y-g.pos.y>-.8&&e.pos.y-g.pos.y<2.2;
+
+// ================= build =================
+function buildFrost(){
+  curBuild='ch4';
+  const R=beginRegion('ch4',{name:'Chapter 4: The Frostmere Lake',short:'Frostmere Lake',chapter:4,fog:[60,240],fogReal:[70,300],spawn:FCP,
+    hazard:b=>!(b===sprite&&sprite.held)&&b.pos.y<-.3&&frostWater(b.pos.x,b.pos.z)});
+  frostMats();
+  // ---------- Shore Camp ----------
+  snowFloor(-16,16,10,-12);
+  {const g=prop('gate');if(REAL.ready)realifyProp(g);g.position.set(0,-.05,8.5);g.rotation.y=Math.PI;g.scale.setScalar(.82);ROOT.add(g);
+    const gm=[];g.traverse(o=>{if(o.isMesh)gm.push(o);});if(gm.length)markFadeGroup(gm);
+    for(const s of [-1,1])box(s>0?2.62:-4.3,s>0?4.3:-2.62,0,6.5,7.3,9.7,null,{surface:'stone'});
+    const veil=new THREE.Mesh(new THREE.PlaneGeometry(5.2,7.6),new THREE.MeshBasicMaterial({color:'#7ff0cf',transparent:true,opacity:.28,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}));
+    veil.position.set(0,3.9,8.9);ROOT.add(veil);frs.veil=veil;
+    const lab=labelSprite('The Vale','Walk through together','#1fb3a3');lab.scale.set(4.4,1.4,1);lab.position.set(0,9,8.6);ROOT.add(lab);invis(-5,5,0,12,11,12);}
+  bank(-16,-4.3,9.2,10.4,1.4);bank(4.3,16,9.2,10.4,1.4);bank(-17.4,-16,10,-12,2);bank(16,17.4,10,-12,2);
+  addWaystone('ch4_shore','Shore Camp',-7,0,5,Math.PI);
+  // a fence along the shore with a gate whose latch is frozen shut
+  for(const [a,b] of [[-16,-2],[2,16]]){box(a,b,0,1.6,-11.8,-12.2,M.wood,{surface:'wood'});for(let x=a;x<=b;x+=2)box(x-.1,x+.1,0,1.9,-11.85,-12.15,M.wood,{collide:false,fade:false});}
+  frs.gate={open:false,t:0,col:box(-2,2,0,1.8,-11.8,-12.2,null,{kind:'door'}),g:new THREE.Group()};frs.gate.g.position.set(-2,0,-12);ROOT.add(frs.gate.g);
+  for(let i=0;i<5;i++){const p=new THREE.Mesh(new THREE.BoxGeometry(.7,1.6,.12),M.wood);p.position.set(.4+i*.8,.85,0);p.castShadow=true;frs.gate.g.add(p);}
+  addMelt('latch',2.5,0,-11.4,.7,1.1,.7,'Hold to melt the frozen latch',()=>{frs.gate.open=true;});
+  {const logs=new THREE.Mesh(new THREE.CylinderGeometry(.9,1,.3,10),M.wood);logs.position.set(7,.15,-2);ROOT.add(logs);box(6,8,0,.4,-1,-3,null);}
+
+  // ---------- the Ice Field and the open channel ----------
+  iceFloor(-20,20,-12,-40);
+  bank(-22,-20,-12,-42,1.6);bank(20,22,-12,-42,1.6);
+  // frozen rocks: the one at x -11.5 stops a block sliding west in line with the ramp across the channel
+  for(const [x,z,s] of [[-11.6,-24,1.1],[14,-30,1.2],[-4,-34.6,.9],[-17,-16,1],[12,-16,.8]]){frock(x,z,s);box(x-s*.85,x+s*.85,0,1.4,z-s*.85,z+s*.85,null,{surface:'stone'});}
+  const C=FR.chan;box(C.x0,C.x1,-1.6,-1.2,C.z1,C.z0,FM.rock,{fade:false,cast:false,surface:'stone'});
+  {const w=new THREE.Mesh(new THREE.PlaneGeometry(C.x1-C.x0,2.2),M.water);w.rotation.x=-Math.PI/2;w.position.set(0,-.12,-41.1);ROOT.add(w);}
+  // the north shore: a snow cliff except for a gap in line with the ramp
+  bank(-22,-12,-42.2,-43.6,3);bank(-8,22,-42.2,-43.6,3);
+  ICEB={pos:FR.blockHome.clone(),vel:new V3(),hw:1,h:1.2,kind:'iceblock',stepH:0,onGround:false,sunk:false,lostT:0,
+    mesh:new THREE.Mesh(new THREE.BoxGeometry(2,1.2,2),FM.block)};ICEB.mesh.castShadow=true;ROOT.add(ICEB.mesh);
+  ICEB.col=box(0,1,0,1,0,1,null,{kind:'iceblock',surface:'ice'});ICEB.col.body=ICEB;syncIceBlock();
+  // the fishing hut (secret): its door is frozen shut
+  {const hx=16,hz=-36;box(hx-2,hx+2,0,2.4,hz+1.8,hz+2.2,M.wood);box(hx-2,hx+2,0,2.4,hz-2.2,hz-1.8,M.wood);box(hx+1.8,hx+2.2,0,2.4,hz-2,hz+2,M.wood);
+    box(hx-2.2,hx-1.8,1.4,2.4,hz-2,hz+2,M.wood,{fade:true});box(hx-2.2,hx-1.8,0,1.4,hz-2,hz-.7,M.wood);box(hx-2.2,hx-1.8,0,1.4,hz+.7,hz+2,M.wood);
+    const roof=new THREE.Mesh(new THREE.ConeGeometry(3.2,1.4,4),FM.cap);roof.rotation.y=Math.PI/4;roof.position.set(hx,3.1,hz);ROOT.add(roof);frs.roof=roof;markFade(roof);
+    const d=addMelt('hut',hx-2,0,hz,.4,1.4,1.4,'Hold to melt the frozen door',()=>{});d.col=box(hx-2.2,hx-1.8,0,1.4,hz-.7,hz+.7,null);}
+
+  // ---------- the north shore: the hub, the Narrows (east), the Snowfield (west), Hearth Island (north) ----------
+  snowFloor(-12,4,-43.6,-56);snowFloor(-12,-6,-56,-64);snowFloor(-12,-8,-42.2,-43.6,0,2); // the hub, the path north, the ramp up from the channel
+  // the Narrows: a bay of thin ice and dark water, the islet with the frozen lever, the sunken causeway
+  const B=FR.bay;box(B.x0,B.x1,-1.8,-1.4,B.z0,B.z1,FM.rock,{fade:false,cast:false,surface:'stone'});
+  {const w=new THREE.Mesh(new THREE.PlaneGeometry(B.x1-B.x0,B.z1-B.z0),M.water);w.rotation.x=-Math.PI/2;w.position.set((B.x0+B.x1)/2,-.14,(B.z0+B.z1)/2);ROOT.add(w);}
+  snowFloor(21,27,-49,-55,0,2);FISL.push([21,27,-55,-49]);
+  snowFloor(12.6,15.4,-56.6,-59.4,0,2);FISL.push([12.6,15.4,-59.4,-56.6]);                                   // the ring islet
+  bank(4,32,-43.6,-44,1.4);bank(30,32,-44,-60,1.4);bank(4,32,-60,-61.6,1.4);bank(2,4,-56,-61.6,1.4);
+  {const tiles=[],cut=(lo,hi,edges)=>{const e=[...new Set([lo,hi,...edges.filter(v=>v>lo&&v<hi)])].sort((a,b)=>a-b),out=[];
+      for(let k=0;k<e.length-1;k++){const n=Math.max(1,Math.round((e[k+1]-e[k])/2.6));for(let m=0;m<n;m++)out.push([e[k]+(e[k+1]-e[k])*m/n,e[k]+(e[k+1]-e[k])*(m+1)/n]);}return out;};
+    // the thin ice is cut exactly at the islets' and the causeway's edges, so it meets them with no gap
+    const xs=cut(B.x0,B.x1,FISL.flatMap(r=>[r[0],r[1]]).concat([21])),zs=cut(B.z0,B.z1,FISL.flatMap(r=>[r[2],r[3]]).concat([-53.4,-50.6]));
+    for(const [x0,x1] of xs)for(const [z0,z1] of zs){const cx=(x0+x1)/2,cz=(z0+z1)/2;
+      if(FISL.some(([a,b,c,d])=>cx>a&&cx<b&&cz>c&&cz<d))continue;if(cz>-53.4&&cz<-50.6&&cx<21)continue;tiles.push([x0,x1,z0,z1]);}
+    const im=new THREE.InstancedMesh(new THREE.BoxGeometry(1,.25,1),FM.thin,tiles.length),m4=new THREE.Matrix4();
+    tiles.forEach(([x0,x1,z0,z1],i)=>{const col=box(x0,x1,-.25,0,z0,z1,null,{kind:'thinice',surface:'ice'});THIN.push({col,i,t:0,broken:false,re:0,x0,x1,z0,z1});
+      m4.makeScale(x1-x0-.04,1,z1-z0-.04);m4.setPosition((x0+x1)/2,-.125,(z0+z1)/2);im.setMatrixAt(i,m4);});
+    im.receiveShadow=true;ROOT.add(im);frs.thinIM=im;}
+  frs.causeCol=box(4,21,-1.8,0,-50.6,-53.4,null,{surface:'stone'});frs.causeCol.on=false;
+  frs.causeM=new THREE.Mesh(boxGeo(17,1.8,2.8,3,0,0,0),FM.rock);frs.causeM.position.set(12.5,-.9,-52);frs.causeM.castShadow=true;ROOT.add(frs.causeM);
+  addMelt('lever',24,0,-50.2,.7,1.1,.7,'Hold to melt the frozen lever',()=>{frs.cause=true;});
+  addEmber(0,25.4,0,-53.4,'The Narrows');
+  // the Snowfield: room to roll a snowball, the crevasse, the ledge beyond
+  const V=FR.crev;snowFloor(-36,-12,-43.6,-50);snowFloor(-36,-12,-52.6,-64);bank(-38,-36,-43.6,-64,2.4);bank(-36,-12,-64,-65.6,2.4);
+  box(V.x0,V.x1,-6.4,-6,V.z0,V.z1,FM.rock,{fade:false,cast:false});
+  SNOWB={pos:FR.ballHome.clone(),r:.5,rot:new THREE.Quaternion(),bridged:false,lostT:0,mesh:new THREE.Mesh(new THREE.SphereGeometry(1,20,14),FM.snow)};SNOWB.mesh.castShadow=true;ROOT.add(SNOWB.mesh);
+  SNOWB.col=box(0,1,0,1,0,1,null,{kind:'snowball',surface:'snow'});syncSnowball();
+  frs.bridge=box(0,1,-6,0,V.z0,V.z1,null,{surface:'snow'});frs.bridge.on=false;
+  addEmber(1,-24,0,-59,'The Snowfield');
+  // Hearth Island: the hearth with three sockets, a frozen chimney, the ice cave, a big boulder (secret)
+  snowFloor(-12,12,-64,-82);bank(-14,-12,-64,-82,2.4);bank(12,14,-64,-82,2.4);bank(-14,14,-82,-84,2.4);bank(-6,12,-62.4,-64,2.4);
+  box(-2,2,0,3.4,-70,-74,FM.rock,{surface:'stone'});
+  {const roof=new THREE.Mesh(new THREE.BoxGeometry(4.4,.3,4.4),M.wood);roof.position.set(0,3.45,-72);ROOT.add(roof);
+    box(-.7,.7,3.4,4,-72.7,-71.3,FM.rock,{fade:false});
+    frs.fire=new THREE.PointLight('#ff8a3a',0,26,1.6);frs.fire.position.set(0,2,-68.4);ROOT.add(frs.fire);
+    frs.mouth=new THREE.Mesh(new THREE.PlaneGeometry(1.6,1.2),new THREE.MeshBasicMaterial({color:'#1b1310'}));frs.mouth.position.set(0,1,-69.98);ROOT.add(frs.mouth);
+    frs.sockets=[];for(let k=0;k<3;k++){const e=new THREE.Mesh(new THREE.IcosahedronGeometry(.2,0),FM.ember);e.position.set(-.9+k*.9,2.2,-69.85);e.visible=false;ROOT.add(e);frs.sockets.push(e);}}
+  addMelt('flue',0,4,-72,1.2,.7,1.2,'Hold to melt the ice in the chimney',()=>{frs.flue=true;if(!G.ending&&!frostDone()){G.ending=true;G.endT=0;chapterComplete(4);}},()=>frs.placed>=3);
+  box(-12,-6,0,3,-73.4,-74,FM.rock);box(-12,-6,0,3,-78,-78.6,FM.rock);box(-12,-6,3,3.6,-73.4,-78.6,FM.rock,{fade:true});
+  {const w=addMelt('cave',-5.7,0,-76,.6,3,4,'Hold to melt the ice wall',()=>{});w.col=box(-6,-5.4,0,3,-74,-78,null);}
+  addEmber(2,-9.4,0,-76,'Ice cave');
+  frock(8,-78,1.9,3.2);box(6.4,9.6,0,3.2,-76.4,-79.6,null,{surface:'stone'});
+  addWaystone('ch4_hearth','Hearth Island',6,0,-66.4,Math.PI);
+  pines([[-13,6,1],[13,6,1.1],[-14,-4,1.2],[14,-6,1],[-10,-1,.8],[-24,-14,1.4],[24,-18,1.3],[-24,-30,1.2],[24,-34,1.4],[-37,-46,1.1],[-37,-60,1.2],[-13,-63.4,.8],[-12.8,-80,1.1],[10.6,-80.6,1],[31,-46,1.1],[31,-58,1.2]]);
+  // ---------- collectibles ----------
+  const S=[[-5,0,2],[5,0,-4],[-10,0,-8],[10,0,-8],
+    [-14,0,-18],[0,0,-20],[16,0,-22],[-6,0,-28],[8,0,-30],[-16,0,-36],[2,0,-38],[16,0,-36],
+    [-10,0,-47],[-2,0,-46],[2,0,-47.6],
+    [8,0,-46],[16,0,-46],[22,0,-50],[26,0,-50],[14,0,-58],[14.6,0,-57.4],
+    [-30,0,-45],[-26,0,-48.6],[-18,0,-45],[-14,0,-48.6],[-30,0,-56],[-18,0,-56],[-28,0,-62],
+    [-9,0,-56],[-9,0,-61],
+    [-8,0,-68],[8,0,-70],[-4,0,-80],[4,0,-80],[-10.6,0,-74.6],[-10.6,0,-77.4],[8,3.2,-78.6],[7.4,3.2,-77.2],
+    [17,0,-36.6],[15,0,-35.4]];
+  S.forEach(([x,y,z],i)=>addSeed('c4s'+i,x,y,z));
+  addPetal('m12',16.6,0,-36);addPetal('m13',14,0,-58.4);addPetal('m14',8.6,3.2,-78);
+  frs.beacon=makeBeacon();
+  endRegion(R);
+  buildSeedInstances('ch4');
+}
+// icy water: the channel, the bay (under broken thin ice), the crevasse floor counts as a fall
+function frostWater(x,z){const C=FR.chan,B=FR.bay;return (x>C.x0&&x<C.x1&&z>C.z0&&z<C.z1)||(x>B.x0&&x<B.x1&&z>B.z0&&z<B.z1);}
+function syncIceBlock(){const b=ICEB,c=b.col,hz=b.sunk?1.1:b.hw;c.min.set(b.pos.x-b.hw,b.pos.y,b.pos.z-hz);c.max.set(b.pos.x+b.hw,b.pos.y+b.h,b.pos.z+hz);}
+function syncSnowball(){const b=SNOWB,c=b.col,r=b.r*.92;c.min.set(b.pos.x-r,b.bridged?-6:0,b.pos.z-r);c.max.set(b.pos.x+r,b.bridged?0:b.r*1.8,b.pos.z+r);}
+// the Giant walking into the ice block sets it sliding along that axis until it hits something
+function pushIceBlock(ax,d){const b=ICEB;if(b.sunk||!b.onGround||Math.abs(b.vel.x)+Math.abs(b.vel.z)>.1)return false;b.vel[ax]=Math.sign(d)*7.5;G.slideN=(G.slideN||0)+1;return false;}
+// the Giant rolls the snowball: it moves with the push and grows on snow
+function pushSnowball(ax,d){const b=SNOWB;if(b.bridged)return false;const old=b.pos[ax];b.pos[ax]+=d;syncSnowball();
+  for(const c of colliders){if(!c.on||c===b.col||c.kind==='golem')continue;if(ovBox(b.col,c)){b.pos[ax]=old;syncSnowball();return false;}}
+  const r0=b.r;b.r=Math.min(1.6,b.r+Math.abs(d)*.05);b.pos[ax]+=Math.sign(d)*(b.r-r0)*.92; // grows forward, away from the one pushing
+  const axis=ax==='x'?new V3(0,0,-Math.sign(d)):new V3(Math.sign(d),0,0);b.rot.premultiply(new THREE.Quaternion().setFromAxisAngle(axis,Math.abs(d)/b.r));syncSnowball();return true;}
+
+// ================= state =================
+function resetFrost(){
+  const done=!!PROG.ch4.done;
+  G.time=0;G.falls=0;G.throws=0;G.ending=false;G.endT=0;G.fallN=0;G.pick=0;G.useN=0;
+  for(const M0 of MELTS){M0.done=done&&M0.id!=='hut'&&M0.id!=='cave'?true:false;M0.t=+M0.done;if(M0.col)M0.col.on=!M0.done;}
+  if(done){for(const M0 of MELTS){M0.done=true;M0.t=1;if(M0.col)M0.col.on=false;}}
+  frs.gate.open=done;frs.gate.t=+done;frs.gate.col.on=!done;
+  const b=ICEB;b.pos.copy(done?new V3(FR.rampX,-1.2,-41.1):FR.blockHome);b.vel.set(0,0,0);b.sunk=done;b.lostT=0;syncIceBlock();
+  const s=SNOWB;s.r=done?1.45:.5;s.bridged=done;s.lostT=0;s.pos.copy(done?new V3(-24,0,-51.3):FR.ballHome);syncSnowball();setSnowBridge();
+  frs.cause=done;frs.causeT=+done;frs.causeCol.on=done;
+  for(const t of THIN){t.broken=false;t.t=0;t.re=0;t.col.on=true;}
+  for(const e of EMBERS){e.state=done?'placed':'rest';e.pos.copy(e.home);}
+  frs.placed=done?3:0;frs.flue=done;
+  golem.runes=0;golem.holding=false;golem.charging=false;golem.pound=false;sprite.held=false;sprite.melting=null;
+  placeAt(golem,FCP.g);placeAt(sprite,FCP.s);golem.yaw=sprite.yaw=Math.PI;hintsShown.clear();camSnap=true;
+}
+function frostDone(){return !!PROG.ch4.done;}
+function setSnowBridge(){const s=SNOWB,c=frs.bridge;if(s.bridged){c.min.set(s.pos.x-s.r,-6,FR.crev.z0);c.max.set(s.pos.x+s.r,0,FR.crev.z1);c.on=true;}else c.on=false;}
+function emberTarget(){const g=golem;for(const e of EMBERS)if(e.state==='rest'&&emberReach(g,e))return e;return null;}
+function golemFrostAction(){
+  const g=golem;
+  if(g.runes>0&&dxz(g.pos,FR.hearth)<3&&g.pos.y<1){for(const e of EMBERS)if(e.state==='carried'){e.state='placed';frs.placed++;}g.runes=0;return true;}
+  const e=emberTarget();if(e){e.state='carried';g.runes++;G.pick++;return true;}
+  return false;
+}
+// ---- per step ----
+function stepFrostA(dt,IS){
+  const s=sprite;
+  // melting: hold interact next to something frozen
+  if(s.melting){const M0=s.melting;if(!IS.act||s.held||M0.done||!meltReach(s,M0))s.melting=null;
+    else{M0.t=Math.min(1,M0.t+dt/1.6);if(M0.t>=1){M0.done=true;if(M0.col)M0.col.on=false;s.melting=null;G.meltN=(G.meltN||0)+1;G.lastMelt=M0.id;M0.onDone();}}}
+}
+function stepFrostB(dt){
+  const g=golem;
+  // the ice block slides until something stops it; in the channel it sinks level with the ice
+  const b=ICEB;
+  if(!b.sunk){b.vel.y-=GRAV*dt;moveBody(b,dt,listFor(b).filter(c=>c.kind!=='golem'));
+    if(b.onGround&&Math.abs(b.vel.x)+Math.abs(b.vel.z)<.05)b.vel.x=b.vel.z=0;
+    syncIceBlock();if(b.pos.y<-1.1&&b.onGround){b.sunk=true;b.vel.set(0,0,0);b.pos.z=(FR.chan.z0+FR.chan.z1)/2;b.pos.y=-1.2;syncIceBlock();G.sinkN=(G.sinkN||0)+1;} // settles to fill the channel edge to edge
+    for(const o of [golem,sprite])if(!(o===sprite&&sprite.held))depenetrate(o,b.col);syncGolemCol();}
+  else if(Math.abs(b.pos.x-FR.rampX)>1.2){b.lostT+=dt;if(b.lostT>2.5){b.pos.copy(FR.blockHome);b.vel.set(0,0,0);b.sunk=false;b.lostT=0;syncIceBlock();G.blockBackN=(G.blockBackN||0)+1;}}
+  // the snowball: into the crevasse it goes (a bridge if it is big enough, otherwise lost and remade)
+  const s=SNOWB,V=FR.crev;
+  if(!s.bridged&&s.pos.z<V.z1+.2&&s.pos.z>V.z0-1){if(s.r>=1.3){s.bridged=true;s.pos.z=(V.z0+V.z1)/2;syncSnowball();setSnowBridge();G.snowN=(G.snowN||0)+1;}
+    else{s.lostT+=dt;if(s.lostT>.01){s.pos.copy(FR.ballHome);s.r=.5;s.lostT=0;syncSnowball();G.snowLostN=(G.snowLostN||0)+1;}}}
+  // thin ice cracks under the Giant (and freezes over again a little later)
+  for(const t of THIN){if(t.broken){t.re-=dt;if(t.re<=0&&!ov(golem,t.col)&&!ov(sprite,t.col)){t.broken=false;t.col.on=true;t.t=0;}continue;}
+    if(g.onGround&&g.ground===t.col){t.t+=dt;if(t.t>.3){t.broken=true;t.col.on=false;t.re=6;G.crackN++;}}else t.t=Math.max(0,t.t-dt);}
+  frs.causeT=approach(frs.causeT,frs.cause?1:0,dt/2.4);const on=frs.causeT>.97;if(on&&!frs.causeCol.on)liftOnto(frs.causeCol);frs.causeCol.on=on;
+  frs.gate.t=approach(frs.gate.t,frs.gate.open?1:0,dt/1.2);frs.gate.col.on=frs.gate.t<.6;
+}
+// ================= visuals =================
+function updateFrostVis(dt,t){
+  const rf=PROG.settings.reduceFlash;
+  ICEB.mesh.position.set(ICEB.pos.x,ICEB.pos.y+.6,ICEB.pos.z);ICEB.mesh.scale.z=ICEB.sunk?1.1:1;
+  const s=SNOWB;s.mesh.position.set(s.pos.x,s.bridged?-s.r*.55:s.r*.92,s.pos.z);s.mesh.scale.set(s.r,s.bridged?s.r*.8:s.r*.92,s.r);s.mesh.quaternion.copy(s.rot);
+  for(const M0 of MELTS){const k=1-M0.t;M0.m.visible=!M0.done;M0.m.scale.set(.3+.7*k,.2+.8*k,.3+.7*k);M0.m.position.y=M0.pos.y+M0.h*(.2+.8*k)/2;
+    M0.m.material.emissive=M0.m.material.emissive||new THREE.Color();
+    if(sprite.melting===M0&&!rf&&Math.random()<dt*30)emit(M0.pos.x+(Math.random()-.5)*M0.w,M0.pos.y+M0.h*k,M0.pos.z+(Math.random()-.5)*M0.d,0,1.2,0,.95,.97,1,.12,1.2,-.4,.3);}
+  frs.gate.g.rotation.y=-frs.gate.t*1.9;
+  const im=frs.thinIM,m4=new THREE.Matrix4();let dirty=false;
+  for(const tl of THIN){const want=tl.broken?0:1;if(tl.vis!==want){tl.vis=want;dirty=true;m4.makeScale((tl.x1-tl.x0-.04)*want||1e-4,want||1e-4,(tl.z1-tl.z0-.04)*want||1e-4);m4.setPosition((tl.x0+tl.x1)/2,-.125,(tl.z0+tl.z1)/2);im.setMatrixAt(tl.i,m4);}}
+  if(dirty)im.instanceMatrix.needsUpdate=true;
+  frs.causeM.position.y=-.9-(1-smooth(0,1,frs.causeT))*1.6;
+  for(const e of EMBERS){const vis=e.state==='rest';e.m.visible=e.glow.visible=vis;if(vis){const y=e.pos.y+.5+Math.sin(t*1.8+e.i)*.07;e.m.position.set(e.pos.x,y,e.pos.z);e.m.rotation.y=t;e.glow.position.set(e.pos.x,y,e.pos.z);e.glow.material.opacity=rf?.7:.6+.2*Math.sin(t*3+e.i);}}
+  frs.sockets.forEach((m,i)=>m.visible=i<frs.placed);
+  const fire=frs.flue||frostDone()?1:frs.placed/3*.35;frs.fire.intensity=approach(frs.fire.intensity,fire*(rf?2:2+.4*Math.sin(t*9)),dt*2);
+  frs.mouth.material.color.set(frs.flue||frostDone()?'#ff8a3a':'#1b1310');
+  if((frs.flue||frostDone())&&Math.random()<dt*20)emit((Math.random()-.5)*.6,4.6,-72+(Math.random()-.5)*.6,0,1.4,0,.75,.72,.7,.2,2.4,-.3,.3);
+  frs.veil.material.opacity=rf?.24:.2+.1*Math.sin(t*1.6);
+  // gentle snowfall around the camera
+  if(!rf&&Math.random()<dt*14)emit(camTarget.x+(Math.random()-.5)*26,camTarget.y+8+Math.random()*4,camTarget.z+(Math.random()-.5)*26,(Math.random()-.5)*.3,-1.2,(Math.random()-.5)*.3,1,1,1,.07,7,0,.05);
+}
+// ================= the Vale: frost lilies along the river once the fourth root wakes =================
+function buildValeLilies(){
+  const n=60,im=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(.16,0),new THREE.MeshLambertMaterial({color:'#dff4ff',emissive:'#7fc8e8',emissiveIntensity:.35}),n),m4=new THREE.Matrix4();
+  for(let i=0;i<n;i++){const x=-110+i*3.7+hash2(i,1,4)*2,z=riverZ(x)+(i%2?1:-1)*(RIVER_W+2.2+hash2(i,2,4)*2);m4.makeTranslation(x,valeH(x,z)+.15,z);im.setMatrixAt(i,m4);}
+  im.visible=false;ROOT.add(im);VALE.lilies=im;
+}
+function updateValeLilies(){if(VALE.lilies)VALE.lilies.visible=PROG.roots>=4&&!(G.scene==='root4'&&G.line<1);}
+
 // ================= characters =================
 const golem={kind:'golem',pos:new V3(),vel:new V3(),hw:.6,h:2.3,stepH:.45,yaw:Math.PI,onGround:false,coyote:0,holding:false,charging:false,charge:0,runes:0,cp:0,pushing:false,anim:0,prev:new V3(),delta:new V3(),stepSound:0,walk:0};
 const sprite={kind:'sprite',pos:new V3(),vel:new V3(),hw:.14,h:.4,stepH:.14,yaw:Math.PI,onGround:false,coyote:0,held:false,gliding:false,thrownT:0,cp:0,walk:0,anim:0,airT:0};
@@ -2615,6 +2865,8 @@ function moveBody(b,dt,list){
       if((b.onGround||wasGround)&&rise>0&&rise<=b.stepH){const oy=b.pos.y;b.pos.y=c.max.y+.001;if(freeAt(b,list)){b.onGround=true;continue;}b.pos.y=oy;}
       if(c.kind==='block'&&b.kind==='golem'&&(b.onGround||wasGround)&&rise>.35){if(pushBlock(ax,d)&&!ov(b,c)){b.pushing=true;continue;}}
       if(c.kind==='cart'&&b.kind==='golem'&&(b.onGround||wasGround)&&rise>.35){if(pushCart(ax,d)&&!ov(b,c)){b.pushing=true;continue;}}
+      if(c.kind==='snowball'&&b.kind==='golem'&&(b.onGround||wasGround)&&rise>.35){if(pushSnowball(ax,d)&&!ov(b,c)){b.pushing=true;continue;}}
+      if(c.kind==='iceblock'&&b.kind==='golem'&&(b.onGround||wasGround)&&rise>.35){pushIceBlock(ax,d);b.pushing=true;}
       if(d>0)b.pos[ax]=c.min[ax]-b.hw-1e-4;else b.pos[ax]=c.max[ax]+b.hw+1e-4;b.vel[ax]=0;}}
 }
 function depenetrate(b,c){
@@ -2661,6 +2913,7 @@ function travel(reg,g,s,yaw){
   if(reg==='ch1'&&from!=='ch1'){resetLevel();G.ch={seeds:seedsFoundIn('ch1'),petals:0,secrets:0,launches:0};}
   if(reg==='ch2'&&from!=='ch2'){G.ch={seeds:seedsFoundIn('ch2'),petals:0,secrets:0,launches:0,pulses:0};resetMines();}
   if(reg==='ch3'&&from!=='ch3'){G.ch={seeds:seedsFoundIn('ch3'),petals:0,secrets:0,launches:0,pulses:0};resetHeights();}
+  if(reg==='ch4'&&from!=='ch4'){G.ch={seeds:seedsFoundIn('ch4'),petals:0,secrets:0,launches:0,pulses:0};resetFrost();}
   golem.holding=false;golem.charging=false;golem.pound=false;sprite.held=false;
   if(g)placeAt(golem,g);if(s)placeAt(sprite,s);if(yaw!=null)golem.yaw=sprite.yaw=yaw;
   golem.safe=null;sprite.safe=null;syncGolemCol();camSnap=true;CAVECAM.c=null;camYawT=Math.round(camYawT/(Math.PI*2))*Math.PI*2;
@@ -2669,9 +2922,11 @@ function travel(reg,g,s,yaw){
   else if(reg==='vale'&&PROG.roots>=1&&!PROG.seen.root1)playScene('root1');
   else if(reg==='vale'&&PROG.roots>=2&&!PROG.seen.root2)playScene('root2');
   else if(reg==='vale'&&PROG.roots>=3&&!PROG.seen.root3)playScene('root3');
+  else if(reg==='vale'&&PROG.roots>=4&&!PROG.seen.root4)playScene('root4');
   else if(reg==='ch1'&&!PROG.seen.ch1_intro)playScene('ch1_intro');
   else if(reg==='ch2'&&!PROG.seen.ch2_intro)playScene('ch2_intro');
   else if(reg==='ch3'&&!PROG.seen.ch3_intro)playScene('ch3_intro');
+  else if(reg==='ch4'&&!PROG.seen.ch4_intro)playScene('ch4_intro');
 }
 // just inside the Vale in front of a chapter's gate, facing the Heart Tree
 function valeSpotAtGate(n){
@@ -2696,6 +2951,7 @@ function golemAction(){
   }
   if(inCh2()&&golemMineAction())return;
   if(inCh3()&&golemHeightsAction())return;
+  if(inCh4()&&golemFrostAction())return;
   if(!sprite.held&&dxz(g.pos,sprite.pos)<1.75){const dy=sprite.pos.y-g.pos.y;if(dy>-.7&&dy<2.75){sprite.held=true;g.holding=true;sprite.vel.set(0,0,0);sprite.gliding=false;G.pick++;return;}}
   if(G.region==='vale'&&plotNear(g)&&seedsToPlant()>=5){plantSeeds();return;}
   if(nearWaystone(g)){G.travelReq++;return;}
@@ -2730,6 +2986,7 @@ function spriteTarget(){
     for(const l of HLEVERS)if(!l.pulled&&(l.id!=='brake'||hts.placed>=3))consider(l,l.pos,l.id==='brake'?'Release the brake':'Pull the lever (lower the bridge)');
     for(const c of COGS)if(c.state==='perched')consider(c,c.pos,'Nudge the cog off the pillar');
   }
+  if(inCh4()&&!best){const m=meltTarget();if(m)best={obj:m,label:m.label};}
   if(!best){const w=nearWaystone(s,2.4);if(w)best={obj:w,label:'Travel from the waystone'};}
   if(!best&&G.region==='vale'&&plotNear(s)&&seedsToPlant()>=5)best={obj:'plot',label:'Plant 5 golden seeds'};
   return best;
@@ -2739,6 +2996,7 @@ function spriteAction(){
   if(t.obj==='winch'){sprite.winding=true;return;}
   if(t.obj.mine){pullMineLever(t.obj);return;}
   if(t.obj.ch3){pullHeightsLever(t.obj);return;}
+  if(t.obj.onDone){sprite.melting=t.obj;return;}
   if(t.obj.kind==='cog'){const c=t.obj;c.state='free';c.pos.y+=.05;c.vel.set(0,3.2,5.2);c.onGround=false;G.nudgeN=(G.nudgeN||0)+1;return;}
   if(t.obj==='plot'){plantSeeds();return;}
   if(WAYS.includes(t.obj)){G.travelReq++;return;}
@@ -2757,8 +3015,9 @@ function stepSim(dt,IG,IS){
   if(G.scene||G.card){const press=IG.jumpP||IG.actP||IS.jumpP||IS.actP;if(G.scene){G.lineT+=dt;if(press||G.lineT>14)storyNext();}else{G.cardT+=dt;if(press&&G.cardT>1)G.card='';}return;}
   if(!G.ending)G.time+=dt;
   if(G.ending){IG=NOIN;IS=NOIN;}
-  const g=golem,s=sprite,ch1=inCh1(),ch2=inCh2(),ch3=inCh3();
+  const g=golem,s=sprite,ch1=inCh1(),ch2=inCh2(),ch3=inCh3(),ch4=inCh4();
   if(ch3)stepHeightsA(dt);
+  if(ch4){stepFrostA(dt,IS);if(s.melting)IS=Object.assign({},IS,{mx:0,mz:0,jumpP:0});}
   for(const b of [g,s])if(b.frz>0)b.frz-=dt;
   if(g.frz>0)IG=Object.assign({},IG,{mx:0,mz:0,jumpP:0,actP:0});if(s.frz>0)IS=Object.assign({},IS,{mx:0,mz:0,jumpP:0,actP:0});
   if(ch2){stepMinesA(dt,IG,IS);if(g.winding)IG=Object.assign({},IG,{mx:0,mz:0,jumpP:0});if(s.winding)IS=Object.assign({},IS,{mx:0,mz:0,jumpP:0});}
@@ -2770,7 +3029,8 @@ function stepSim(dt,IG,IS){
   {const len=Math.hypot(IG.mx,IG.mz),k=len>1?1/len:1,mx=g.pound?0:IG.mx*k,mz=g.pound?0:IG.mz*k;
    g.wading=ch3&&g.pos.y<-.3&&inPond(g.pos.x,g.pos.z);
    const spd=GOLEM.speed*(g.holding?.8:1)*(g.charging?.35:1)*(g.pushing?.6:1)*(g.wading?.6:1);g.pushing=false;
-   const acc=(g.onGround?16:6)*dt*GOLEM.speed;
+   const icy=ch4&&g.onGround&&g.ground&&g.ground.surface==='ice';g.icy=icy;
+   const acc=(icy?2.2:g.onGround?16:6)*dt*GOLEM.speed;
    if(g.pound){g.vel.x=g.vel.z=0;}else{g.vel.x=approach(g.vel.x,mx*spd,acc);g.vel.z=approach(g.vel.z,mz*spd,acc);}
    if(len>.15&&!g.pound)g.yaw=angLerp(g.yaw,Math.atan2(mx,mz),1-Math.exp(-dt*9));
    if(IG.jumpP&&g.coyote>0&&!g.holding&&!g.charging){g.vel.y=GOLEM.jumpV;g.coyote=0;}
@@ -2807,7 +3067,7 @@ function stepSim(dt,IG,IS){
     depenetrate(s,golem.col);if(ch1)depenetrate(s,block.col);if(ch2)depenetrate(s,mine.cart.col);
     const len=Math.hypot(IS.mx,IS.mz),k=len>1?1/len:1,mx=IS.mx*k,mz=IS.mz*k;
     s.gliding=!s.onGround&&IS.jump&&s.vel.y<0;
-    const tgt=s.onGround?SPR.speed:(s.gliding?3.2:4.6),acc=s.onGround?42*dt:(len<.15?0:(s.thrownT>0?4:13)*dt);
+    const tgt=s.onGround?SPR.speed:(s.gliding?3.2:4.6),acc=s.onGround?(ch4&&s.ground&&s.ground.surface==='ice'?7:42)*dt:(len<.15?0:(s.thrownT>0?4:13)*dt);
     s.vel.x=approach(s.vel.x,mx*tgt,acc);s.vel.z=approach(s.vel.z,mz*tgt,acc);
     if(s.gliding&&s.thrownT<=0){const hsp=Math.hypot(s.vel.x,s.vel.z);if(hsp>3.6){const kk=Math.max(3.6,hsp-6*dt)/hsp;s.vel.x*=kk;s.vel.z*=kk;}}
     if(len>.15)s.yaw=angLerp(s.yaw,Math.atan2(mx,mz),1-Math.exp(-dt*14));
@@ -2821,6 +3081,7 @@ function stepSim(dt,IG,IS){
   }
   if(ch2)stepMinesB(dt);
   if(ch3)stepHeightsB(dt);
+  if(ch4)stepFrostB(dt);
   if(ch1){
     // ---- runes ----
     for(const r of runes){
@@ -2849,7 +3110,7 @@ function stepSim(dt,IG,IS){
       if(b===g&&g.holding){g.holding=false;g.charging=false;s.held=false;placeAt(s,CP[s.cp].s);}
       if(b===g)syncGolemCol();
     }
-    if((ch2&&b.pos.y<-6)||(ch3&&b.pos.y<-15)){ // a fall into a chasm or off an island: back to the last safe spot
+    if((ch2&&b.pos.y<-6)||(ch3&&b.pos.y<-15)||(ch4&&b.pos.y<-4)){ // a fall into a chasm or off an island: back to the last safe spot
       const p=b.safe?[b.safe.x,b.safe.y+.05,b.safe.z]:curReg.spawn[b===g?'g':'s'];respawnAt(b,p);G.falls++;G.fallN++;G.lastFall=b===g?'g':'s';
       if(b===g&&g.holding){g.holding=false;g.charging=false;s.held=false;placeAt(s,[p[0]+.8,p[1],p[2]]);}
       if(b===g)syncGolemCol();
@@ -2869,10 +3130,10 @@ function applyDoorColliders(){
 }
 // a spot counts as safe ground only when the body stands well onto it (its centre at least half a body-width
 // inside the edge), so a respawn never lands someone on the very lip of a drop where they slip straight off again
-function wellOn(b){const c=b.ground;if(c===TERR)return true;const m=b.hw*.5;return b.pos.x>c.min.x+m&&b.pos.x<c.max.x-m&&b.pos.z>c.min.z+m&&b.pos.z<c.max.z-m;}
+function wellOn(b){const c=b.ground;if(c===TERR)return true;const m=Math.max(.35,b.hw*.5);return b.pos.x>c.min.x+m&&b.pos.x<c.max.x-m&&b.pos.z>c.min.z+m&&b.pos.z<c.max.z-m;}
 // back on safe ground after a fall: still, no slam or winding, and a moment before the keys move them again
 function respawnAt(b,p){placeAt(b,p);b.pound=false;b.winding=false;b.charging=false;b.frz=.5;b.airT=0;}
-const UNSAFE={seesaw:1,crack:1,golem:1,block:1,bridge:1,cart:1,lift:1,door:1,nest:1,gondola:1};
+const UNSAFE={seesaw:1,crack:1,golem:1,block:1,bridge:1,cart:1,lift:1,door:1,nest:1,gondola:1,thinice:1,iceblock:1,snowball:1};
 function chapterComplete(n){
   const P=PROG['ch'+n],first=!P.done;P.done=1;PROG.roots=Math.max(PROG.roots,n);G.endCh=n;
   if(!P.best||G.time<P.best)P.best=Math.round(G.time);G.firstClear=first;saveProgress();
@@ -2892,11 +3153,11 @@ function worldChecks(){
   tickDialogue(1/60);
   // walking through a gate together changes region
   const both=(p,r)=>dxz(g.pos,p)<r&&dxz(s.pos,p)<r;
-  if(reg==='vale')for(const gt of GATES){if(!gt.ready||gt.ch>3)continue;
-    if(dxz(g.pos,gt.pos)<2.6||dxz(s.pos,gt.pos)<2.6){if(both(gt.pos,11)){const sp={1:CP[0],2:MCP,3:HCP}[gt.ch];travel('ch'+gt.ch,sp.g,sp.s,Math.PI);}else if(G.chT<=0){G.waitN++;G.chT=4;}}}
-  const exitZ=reg==='ch3'?9.3:5.3;
-  if((reg==='ch2'||reg==='ch3')&&(g.pos.z>exitZ||s.pos.z>exitZ)&&Math.abs(g.pos.x)<5&&Math.abs(s.pos.x)<5){
-    if(both(new V3(0,0,exitZ-.9),11)){const sp=valeSpotAtGate(reg==='ch3'?3:2);travel('vale',sp.g,sp.s,sp.yaw);}
+  if(reg==='vale')for(const gt of GATES){if(!gt.ready||gt.ch>4)continue;
+    if(dxz(g.pos,gt.pos)<2.6||dxz(s.pos,gt.pos)<2.6){if(both(gt.pos,11)){const sp={1:CP[0],2:MCP,3:HCP,4:FCP}[gt.ch];travel('ch'+gt.ch,sp.g,sp.s,Math.PI);}else if(G.chT<=0){G.waitN++;G.chT=4;}}}
+  const exitZ=reg==='ch3'||reg==='ch4'?9.3:5.3;
+  if((reg==='ch2'||reg==='ch3'||reg==='ch4')&&(g.pos.z>exitZ||s.pos.z>exitZ)&&Math.abs(g.pos.x)<5&&Math.abs(s.pos.x)<5){
+    if(both(new V3(0,0,exitZ-.9),11)){const sp=valeSpotAtGate(+reg.slice(2));travel('vale',sp.g,sp.s,sp.yaw);}
     else{for(const b of [g,s])if(b.pos.z>5.3){b.pos.z=5.2;b.vel.z=Math.min(0,b.vel.z);}if(G.chT<=0){G.waitN++;G.chT=4;}}}
   if(reg==='ch1'&&(g.pos.z>5.3||s.pos.z>5.3)&&Math.abs(g.pos.x)<5&&Math.abs(s.pos.x)<5){
     if(both(exitGate.pos,11)){const z=-100.5;travel('vale',[-1.6,valeH(-1.6,z),z],[1.6,valeH(1.6,z),z],0);}
@@ -3008,7 +3269,7 @@ function initAudio(){
   amb.wind=loop('bandpass',380,.6,.05);amb.water=loop('lowpass',900,.5,0);amb.glide=loop('bandpass',2200,2,0);amb.grind=loop('lowpass',300,1,0);amb.fount=loop('bandpass',1400,.4,0);
   birdLoop();
 }
-function birdLoop(){if(!AC)return;setTimeout(birdLoop,2500+Math.random()*6000);if(G.phase!=='play'||muted||document.hidden||G.region==='ch2')return;
+function birdLoop(){if(!AC)return;setTimeout(birdLoop,2500+Math.random()*6000);if(G.phase!=='play'||muted||document.hidden||G.region==='ch2'||G.region==='ch4')return;
   const base=2200+Math.random()*1600,n=2+Math.floor(Math.random()*4);for(let i=0;i<n;i++)tone(base*(1+Math.random()*.2),base*(.8+Math.random()*.5),.09,'sine',.018,i*.13);}
 function tone(f0,f1,dur,type,vol,delay){if(!AC)return;const t0=AC.currentTime+(delay||0),o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.setValueAtTime(f0,t0);o.frequency.exponentialRampToValueAtTime(Math.max(20,f1),t0+dur);
   g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(vol,t0+.012);g.gain.exponentialRampToValueAtTime(.0008,t0+dur);o.connect(g);g.connect(sfxBus);o.start(t0);o.stop(t0+dur+.05);}
@@ -3049,7 +3310,8 @@ function applyVolumes(){if(!AC)return;const st=PROG.settings;sfxBus.gain.value=s
 function updateAudio(dt){
   if(!AC)return;const t=AC.currentTime,focus=camTarget;
   let nearWater=0;
-  if(G.region==='ch3')nearWater=Math.max(0,1-Math.hypot(focus.x,focus.z+36)/16)*.1;
+  if(G.region==='ch4')nearWater=0;
+  else if(G.region==='ch3')nearWater=Math.max(0,1-Math.hypot(focus.x,focus.z+36)/16)*.1;
   else if(G.region==='ch1')nearWater=Math.max(0,1-Math.abs(focus.z+30)/14)*.12+Math.max(0,1-Math.abs(focus.z+56)/8)*.04*(focus.x<0?1:.4)+(focus.x<-14&&focus.z<-44&&focus.z>-66?.08:0);
   else if(G.region==='vale'&&VALE.wake>.5)nearWater=Math.max(0,1-riverDist(focus.x,focus.z)/18)*.11;
   amb.water.g.gain.setTargetAtTime(G.phase==='play'?nearWater:0,t,.4);
@@ -3070,6 +3332,7 @@ const SONGS={
   ch1:{root:174.6,bar:4.2,prog:[[0,7,14,16],[5,9,16],[-3,4,12],[2,9,14]],pent:[0,2,4,7,9,12,14]},
   ch2:{root:146.8,bar:6,prog:[[0,7,15],[-4,3,12],[-2,5,14],[-5,2,10]],pent:[0,3,5,7,10,12,15]},
   ch3:{root:196.0,bar:3.8,prog:[[0,7,16],[2,9,18],[-3,7,16],[5,9,16]],pent:[0,2,4,7,9,12,14,16]},
+  ch4:{root:233.1,bar:5.2,prog:[[0,7,14],[-2,5,12],[-5,4,11],[-7,5,12]],pent:[0,2,5,7,9,12,14]},
   title:{root:220.0,bar:5.5,prog:[[0,7,16],[5,12,16],[-3,7,12],[-5,7,14]],pent:[0,2,4,7,9,12]},
 };
 const semi=(f,n)=>f*Math.pow(2,n/12);
@@ -3081,7 +3344,7 @@ function pluck(f,t0,vol){const o=AC.createOscillator(),g=AC.createGain();o.type=
   g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(vol,t0+.01);g.gain.exponentialRampToValueAtTime(.0006,t0+1.6);o.connect(g);g.connect(musicBus);o.start(t0);o.stop(t0+1.7);}
 function updateMusic(now){
   if(!AC||!musicBus||muted||document.hidden||PROG.settings.music<=0)return;
-  const key=G.phase==='title'||G.phase==='brief'?'title':(G.region==='ch1'?'ch1':G.region==='ch2'?'ch2':G.region==='ch3'?'ch3':'vale');
+  const key=G.phase==='title'||G.phase==='brief'?'title':(G.region==='ch1'?'ch1':G.region==='ch2'?'ch2':G.region==='ch3'?'ch3':G.region==='ch4'?'ch4':'vale');
   if(key!==MUSIC.key){MUSIC.key=key;MUSIC.bar=0;MUSIC.next=Math.max(MUSIC.next,now+.3);}
   if(now<MUSIC.next-.25)return;
   const S=SONGS[key],t0=Math.max(now,MUSIC.next),ch=S.prog[MUSIC.bar%S.prog.length];
@@ -3164,6 +3427,21 @@ function runWatchers(){
     watch('fall3',G.fallN,()=>{SFX.splash();toast(nameOf(G.lastFall==='g'?'g':'s')+' fell off the island. Back to safe ground');});
     watch('ending3',G.ending,v=>{if(v){SFX.swell();toast('The Great Windmill turns!');celebrate();}});
   }
+  // ---- the Frostmere Lake ----
+  if(G.region==='ch4'){
+    watch('melt',G.meltN||0,(v,o)=>{if(v>o){SFX.chime();toast({latch:'The latch thaws. The gate swings open!',lever:'The lever thaws and springs back: a stone causeway rises!',cave:'The ice wall melts away!',hut:'The hut door thaws open.',flue:'The chimney is clear!'}[G.lastMelt]||'The ice melts.');}});
+    watch('slide',G.slideN||0,(v,o)=>{if(v>o)SFX.toss();});
+    watch('sink',G.sinkN||0,(v,o)=>{if(v>o){SFX.splash();toast(Math.abs(ICEB.pos.x-FR.rampX)<=1.2?'The ice block sinks level with the ice: a step across!':'The block sank in the wrong place. A new one is being cut…');}});
+    watch('blockBack',G.blockBackN||0,(v,o)=>{if(v>o){SFX.stone();toast('A fresh ice block is back where the first one started.');}});
+    watch('snow',G.snowN||0,(v,o)=>{if(v>o){SFX.thud(1);toast('The snowball wedges into the crevasse: a snow bridge!');celebrate();}});
+    watch('snowLost',G.snowLostN||0,(v,o)=>{if(v>o){SFX.splash();toast('Too small: the snowball fell into the crevasse. Roll a bigger one.');}});
+    watch('crack4',G.crackN,(v,o)=>{if(v>o){SFX.crash();toast('The thin ice cracks under the Giant!');}});
+    watch('cause',frs.cause,v=>{if(v)SFX.rumble(2.2);});
+    EMBERS.forEach((e,i)=>watch('em'+i,e.state,v=>{if(v==='carried'){SFX.chime();const n=EMBERS.filter(x=>x.state!=='rest').length;toast('Ember found ('+n+'/3)');}if(v==='placed')SFX.place();}));
+    watch('fplaced',frs.placed,v=>{if(frostDone()||G.ending)return;if(v>=3)toast('All three embers glow in the hearth. Now the chimney!');else if(v>0)toast(v+' of 3 embers set');});
+    watch('fall4',G.fallN,()=>{SFX.splash();toast(nameOf(G.lastFall==='g'?'g':'s')+' fell. Back to safe ground');});
+    watch('ending4',G.ending,v=>{if(v){SFX.swell();toast('The hearth roars and the lake begins to thaw!');celebrate();}});
+  }
 }
 
 // ================= HUD helpers =================
@@ -3189,6 +3467,7 @@ function golemPrompt(){
   if(G.ending)return '';
   if(g.charging)return 'Release '+k+' to throw!';
   if(g.holding&&inCh3()&&heightsCogTarget())return k+': take the cog';
+  if(g.holding&&inCh4()&&emberTarget())return k+': take the ember';
   if(g.holding)return 'Tap '+k+' for a high lob, or hold '+k+' for a long throw';
   if(g.pound)return 'Slam!';
   const ch1=G.region==='ch1';
@@ -3202,6 +3481,15 @@ function golemPrompt(){
     if(g.runes>0&&dxz(g.pos,HT.gear)<3&&Math.abs(g.pos.y-13)<1)return k+': set the cogs in the gearbox';
     if(heightsCogTarget())return k+': take the cog';
     for(const v of VANES)if(dxz(g.pos,v.capPos)<2&&g.pos.y<1)return k+': turn the sail ('+(v.catch?'to edge-on':'to face the wind')+')';
+  }
+  if(inCh4()){
+    if(g.runes>0&&dxz(g.pos,FR.hearth)<3&&g.pos.y<1)return k+': set the embers in the hearth';
+    if(emberTarget())return k+': take the ember';
+    if(!SNOWB.bridged&&dxz(g.pos,SNOWB.pos)<SNOWB.r+1.4)return 'Walk into the snowball to roll it. It grows as it rolls (size '+Math.round(SNOWB.r/1.3*100)+'%)';
+    if(!ICEB.sunk&&dxz(g.pos,ICEB.pos)<2.4)return 'Walk into the ice block to send it sliding';
+    if(g.icy)return 'Slippery! Slow to start, slow to stop';
+  }
+  if(inCh3()){
     if(g.wading)return g.holding?'Wading. Deep water, but '+nameOf('s')+' is safe up top':'Wading through deep water';
   }
   if(ch1&&g.runes>0&&dxz(g.pos,F)<4.7)return k+': set the rune stones in the fountain';
@@ -3219,6 +3507,7 @@ function spritePrompt(){
   const s=sprite;if(G.ending)return '';
   if(s.held)return jumpKey('s')+': leap off. Or wait to be thrown';
   if(s.winding)return 'Keep holding '+actKey('s')+': winding the lift';
+  if(s.melting)return 'Keep holding '+actKey('s')+': melting the ice ('+Math.round(s.melting.t*100)+'%)';
   const t=spriteTarget();if(t)return actKey('s')+': '+t.label.toLowerCase();
   if(inCh2()&&!G.ending)return actKey('s')+': light pulse';
   if(inCh3()&&!s.onGround&&windAt(s))return 'Hold '+jumpKey('s')+' to ride the wind';
@@ -3234,9 +3523,11 @@ function objectiveText(){
     if(seedsToPlant()>=5)return 'You have '+seedsToPlant()+' golden seeds to plant. Bring them to the Seed Garden by the Meadow waystone.';
     if(!PROG.ch2.done)return 'The first root is awake. The gate to the Lantern Mines glows in the eastern hills, past the lookout: walk through it together for Chapter 2.';
     if(!PROG.ch3.done)return 'Two roots are awake. The gate to the Windmill Heights glows at the eastern edge of the Vale: walk through it together for Chapter 3.';
-    return 'Three roots are awake. Explore the Vale, plant seeds, or return to any chapter for what you missed. Chapter 4 arrives in a later update.';}
+    if(!PROG.ch4.done)return 'Three roots are awake. The gate to the Frostmere Lake glows in the south-east of the Vale: walk through it together for Chapter 4.';
+    return 'Four roots are awake. Explore the Vale, plant seeds, or return to any chapter for what you missed. Chapter 5 arrives in a later update.';}
   if(inCh2())return mineObjective();
   if(inCh3())return heightsObjective();
+  if(inCh4())return frostObjective();
   if(G.ending)return 'The fountain wakes.';
   if(G.fountainOn)return 'The fountain runs again. Look for missed seeds, memory petals and secrets, or walk back through the south gate to the Vale.';
   if(!gate.open)return 'Open the north gate. Its lever is in a small room behind the east wall. Only the Sprite fits through the glowing gap.';
@@ -3253,11 +3544,11 @@ function updateHUD(dt){
   if(helpOpen)setText('helpGoal',obj);
   const cs=seedsFound()+'|'+countKeys(PROG.petals)+'|'+G.region;if(hudCache.cnt!==cs){if(hudCache.cnt)cntShowT=4;hudCache.cnt=cs;}
   objShowT-=dt;cntShowT-=dt;chipT+=dt;
-  const ch1=G.region==='ch1',ch2=G.region==='ch2',ch3=G.region==='ch3';$('runeList').hidden=ch2?minesDone():ch3?heightsDone():(!ch1||G.fountainOn);$('timerWrap').hidden=!ch1&&!ch2&&!ch3;
+  const ch1=G.region==='ch1',ch2=G.region==='ch2',ch3=G.region==='ch3',ch4=G.region==='ch4';$('runeList').hidden=ch2?minesDone():ch3?heightsDone():ch4?frostDone():(!ch1||G.fountainOn);$('timerWrap').hidden=!ch1&&!ch2&&!ch3&&!ch4;
   setText('regName',curReg?curReg.short:'');setText('seedCount',String(seedsFound()));setText('petalCount',countKeys(PROG.petals)+'/'+MEMS.length);
-  const rl=$('runeList');const list=ch2?LSTONES:ch3?COGS:runes,sig=G.region+list.map(r=>r.state).join();
+  const rl=$('runeList');const list=ch2?LSTONES:ch3?COGS:ch4?EMBERS:runes,sig=G.region+list.map(r=>r.state).join();
   if(hudCache.runes!==sig){hudCache.runes=sig;rl.textContent='';for(const r of list){const d=document.createElement('div');const st=r.state==='carried'?'carried':r.state==='placed'?'placed':'';d.className=st;
-    d.textContent=(ch2||ch3?r.where:r.where.split(' ')[1].replace(/^./,c=>c.toUpperCase()))+(st==='carried'?' · carried':st==='placed'?' · set':'');d.title=r.where;rl.appendChild(d);}}
+    d.textContent=(ch2||ch3||ch4?r.where:r.where.split(' ')[1].replace(/^./,c=>c.toUpperCase()))+(st==='carried'?' · carried':st==='placed'?' · set':'');d.title=r.where;rl.appendChild(d);}}
   const inWW=ch1&&(golem.pos.z<-44||sprite.pos.z<-44)&&golem.pos.x>-11&&!port.open;$('plates').hidden=!inWW;
   if(inWW){$('plA').classList.toggle('on',plates[0].on);$('plB').classList.toggle('on',plates[1].on);$('latch').firstChild.style.width=(latch.t/1.1*100)+'%';}
   const m=Math.floor(G.time/60),s=Math.floor(G.time%60);setText('timer',m+':'+(s<10?'0':'')+s);
@@ -3279,6 +3570,7 @@ function updateHUD(dt){
     return;}
   if(ch2){mineHints(mineG,mineS);return;}
   if(ch3){heightsHints(mineG,mineS);return;}
+  if(ch4){frostHints(mineG,mineS);return;}
   if(dxz(golem.pos,{x:SEESAW.x,z:SEESAW.z})<6.5||dxz(sprite.pos,{x:SEESAW.x,z:SEESAW.z})<6.5)hint('seesaw','Seesaw: the Sprite stands in the mint cup. The Giant jumps onto the orange end, and the Sprite flies.');
   if(!crack.broken&&dxz(golem.pos,{x:34.8,z:-1.2})<3){if(hintsShown.has('pound'))hint('crack','A cracked slab. A ground pound might break it.');else hint('pound','New: Ground Pound. Giant, jump and then press '+actKey('g')+' in mid-air to slam down. That cracked slab looks weak.');}
   if(stones.raised===false&&(dxz(sprite.pos,{x:-24.5,z:-55})<2.5||dxz(golem.pos,{x:-24.5,z:-55})<2.5))hint('island','Too far to jump. Giant: throw the Sprite to the island.');
@@ -3364,6 +3656,31 @@ function heightsHints(mineG,mineS){
   if(mineS&&s.pos.x>11&&s.pos.z>0&&s.pos.z<6&&s.pos.y>-.5&&s.pos.y<1)hint('nest','Something glints on a little rock below the edge. Only wings could get down there and back.');
 }
 
+// ================= the Frostmere Lake: goal, hints =================
+function frostObjective(){
+  const g=golem,s=sprite;
+  if(G.ending)return 'The hearth roars and the lake thaws.';
+  if(frostDone())return 'The hearth burns again and the lake is thawing. Look for missed seeds, memory petals and secrets, or walk back out through the gate at Shore Camp.';
+  if(!frs.gate.open)return 'The gate onto the lake is frozen shut. Sprite: stand by its latch and hold '+actKey('s')+' to melt the ice with your glow.';
+  if(g.pos.z>-42&&!(ICEB.sunk&&Math.abs(ICEB.pos.x-FR.rampX)<=1.2))return 'Cross the open channel at the far side of the ice. Giant: slide the ice block west until a frozen rock stops it in line with the ramp, then push it north into the channel.';
+  if(g.pos.z>-42)return 'Cross the channel on the sunken ice block and climb the ramp to the north shore.';
+  if(EMBERS[0].state==='rest')return frs.cause?'The causeway is up. Giant: cross it to the islet and take the ember.':'An ember lies on the islet in the bay. Thin ice holds the Sprite but not the Giant. Sprite: cross to the islet and melt its frozen lever.';
+  if(EMBERS[1].state==='rest')return SNOWB.bridged?'Cross the snow bridge and take the ember beyond the crevasse.':'An ember lies beyond the crevasse in the snowfield. Giant: roll the snowball around the snow until it is big enough, then roll it into the crevasse.';
+  if(EMBERS[2].state==='rest')return 'The last ember is sealed in the ice cave on Hearth Island. Sprite: melt the ice wall. Giant: take the ember.';
+  if(frs.placed<3)return 'Giant: set the three embers in the hearth on Hearth Island.';
+  return 'The chimney is frozen. Giant: lift the Sprite and tap '+actKey('g')+' to lob it onto the hearth roof. Sprite: hold '+actKey('s')+' by the chimney to melt the ice.';
+}
+function frostHints(mineG,mineS){
+  const g=golem,s=sprite;
+  if(G.time>1.5&&G.time<3)hint('melt','New: Thawing. Sprite, stand next to something frozen and hold '+actKey('s')+'. Your glow melts the ice.');
+  if(g.icy)hint('ice','New: Ice. It is slippery: slow to start and slow to stop, especially for the Giant.');
+  if(!ICEB.sunk&&dxz(g.pos,ICEB.pos)<3.5)hint('block','Giant: walk into the ice block to send it sliding. It slides until something stops it.');
+  if(g.pos.z<-43&&g.pos.x>0&&EMBERS[0].state==='rest'&&!frs.cause)hint('thin','Thin ice! It holds the Sprite, but it cracks under the Giant.');
+  if(!SNOWB.bridged&&dxz(g.pos,SNOWB.pos)<4)hint('snowball','Giant: roll the snowball around the snowfield to make it grow. It must be big to fill the crevasse.');
+  if(EMBERS[2].state==='rest'&&dxz(s.pos,{x:-5.7,z:-76})<4)hint('cave','Sprite: hold '+actKey('s')+' next to the ice wall to melt it.');
+  if(frs.placed>=3&&dxz(g.pos,FR.hearth)<5)hint('lob4','Giant: lift the Sprite, face the hearth and tap '+actKey('g')+' for a high lob onto its roof.');
+}
+
 // ================= story: scenes, dialogue, memory cards =================
 // Narration says "the Giant" and "the Sprite"; dialogue uses the players' own names.
 const SCENES={
@@ -3400,7 +3717,16 @@ const SCENES={
   root3:{title:'The third root wakes',lines:[
     {text:'High above the eastern clouds, the third root wakes.',p:[[80,30,12],[92,26,0]],l:[[104,8,-8],[104,10,-8]]},
     {text:'Little windmills start to spin on the Vale\u2019s hills.',p:[[-26,14,64],[-8,12,44]],l:[[-40,4,38],[0,4,12]]},
-    {text:'Four roots still sleep. The gate to the Frostmere Lake has begun to flicker. (Chapter 4 arrives in a later update.)',p:[[30,30,30],[12,34,22]],l:[[78,6,74],[78,8,74]]}]},
+    {text:'Four roots still sleep. The gate to the Frostmere Lake, in the south-east of the Vale, has begun to glow.',p:[[30,30,30],[12,34,22]],l:[[78,6,74],[78,8,74]]}]},
+  ch4_intro:{title:'Chapter 4: The Frostmere Lake',lines:[
+    {text:'The Frostmere Lake has been frozen since the Hush. Snow lies on the pines, and nothing moves on the ice.',p:[[0,9,24],[0,12,8]],l:[[0,1,-10],[0,1,-30]]},
+    {text:'On its island stands the old hearth that once warmed the whole shore. It has gone cold.',p:[[10,14,-58],[6,12,-62]],l:[[0,2,-72],[0,2,-72]]},
+    {text:'Bring it three embers and clear its chimney, and the fourth root will wake.',p:[[-20,16,-30],[20,16,-40]],l:[[-24,0,-58],[24,0,-52]]},
+    {text:'Mind your feet. The ice is slippery, and some of it is very thin.',p:[[0,5,14],[0,4,11]],l:[[0,1.2,4],[0,1.2,4]]}]},
+  root4:{title:'The fourth root wakes',lines:[
+    {text:'Far across the snow, the fourth root wakes, and the Frostmere Lake begins to thaw.',p:[[60,26,90],[70,22,80]],l:[[78,6,74],[78,8,74]]},
+    {text:'Frost lilies open along the river, cool and bright.',p:[[-30,10,70],[0,8,66]],l:[[-20,0,54],[20,0,50]]},
+    {text:'Three roots still sleep. The gate to the Mushroom Marsh has begun to flicker. (Chapter 5 arrives in a later update.)',p:[[-30,30,40],[-50,34,40]],l:[[-78,6,74],[-78,8,74]]}]},
 };
 function playScene(id){if(!SCENES[id])return;G.scene=id;G.line=0;G.lineT=0;PROG.seen[id]=1;saveSoon();}
 function storyNext(){const S=SCENES[G.scene];if(!S){G.scene='';return;}G.line++;G.lineT=0;if(G.line>=S.lines.length){const id=G.scene;G.scene='';G.line=0;camSnap=true;if(S.after)S.after();}}
@@ -3476,6 +3802,16 @@ const DLG={
   h10:{who:'s',text:'Behind the waterfall… a hidden room! Wade in, {g}.'},
   h11:{who:'s',text:'The gearbox is empty. Three cogs, and the Great Windmill turns again.'},
   h12:{who:'g',text:"You're flying, {s}. Really flying."},
+  f1:{who:'s',text:'Brr! Everything is frozen, {g}. Even the gate.'},
+  f2:{who:'g',text:"Careful, {s}. I don't stop well on ice."},
+  f3:{who:'s',text:'If that block slid all the way to the water…'},
+  f4:{who:'g',text:'That ice is too thin for me. It creaks when I look at it.'},
+  f5:{who:'s',text:"I'm light! I'll skate across and thaw that lever."},
+  f6:{who:'g',text:'A snowball. If I keep rolling it, it will keep growing.'},
+  f7:{who:'s',text:'Bigger, {g}! Big enough to fill that crack.'},
+  f8:{who:'g',text:'The old hearth. We used to sit by it, didn\u2019t we, {s}?'},
+  f9:{who:'s',text:'Something glows behind that ice wall. Let me warm it.'},
+  f10:{who:'s',text:'A little hut, frozen shut. I wonder who fished here.'},
 };
 const fill=t=>t.replace(/\{g\}/g,nameOf('g')).replace(/\{s\}/g,nameOf('s'));
 let dlgPending=null;
@@ -3496,10 +3832,13 @@ const MEMS=[
   {id:'m9',where:'Chapter 3: the cloud nest',title:'Naming Clouds',text:'On lazy afternoons they lay on the hill and named the clouds. The Sprite saw dragons and boats. The Giant only ever saw rocks, and said so, every single time.'},
   {id:'m10',where:'Chapter 3: behind the waterfall',title:'Carrying Water',text:'Every morning the Giant carried water up the hill to the young tree, one careful bucket at a time, until the Sprite drew a windmill in the mud and said, \u201cLet the wind carry it.\u201d'},
   {id:'m11',where:'Chapter 3: the windmill rooftop',title:'The Windiest Day',text:'On the windiest day of the year the Sprite let the wind lift her higher than the tree. Far below, the Giant held his breath until she came back down.'},
+  {id:'m12',where:'Chapter 4: the fishing hut',title:'Winter Fish',text:'One hard winter the Giant cut a hole in the lake for the Sprite to fish through. The Sprite caught nothing all day, and then one silver fish that she let go again.'},
+  {id:'m13',where:'Chapter 4: the thin-ice islet',title:'Skating',text:'The Sprite skated in circles on the thin ice where the Giant could never follow. He stood at the shore and clapped every time she spun.'},
+  {id:'m14',where:'Chapter 4: the great boulder',title:'The First Snowman',text:'They built a snowman together. The Giant rolled the body as tall as himself; the Sprite made a tiny head and stuck a single pine needle on it for a smile.'},
 ];
 function drawMemory(c,id,W,H){
   const sky=c.createLinearGradient(0,0,0,H);
-  const pal={m0:['#ffd9a8','#f7a7a0'],m1:['#bfe3f2','#e6f3e0'],m2:['#9fb8c9','#d2dfe0'],m3:['#ffe7b8','#cfe9c8'],m4:['#c9d6e6','#f1f4f7'],m5:['#d9f0c4','#fff3cf'],m6:['#1f2a4a','#4a4f78'],m7:['#3a2c22','#5e4a38'],m8:['#141a2a','#2c3550'],m9:['#9fd0f2','#eaf6ff'],m10:['#ffe3b0','#d9efc7'],m11:['#7fbfe8','#e9f6ff']}[id]||['#bfe3f2','#e6f3e0'];
+  const pal={m0:['#ffd9a8','#f7a7a0'],m1:['#bfe3f2','#e6f3e0'],m2:['#9fb8c9','#d2dfe0'],m3:['#ffe7b8','#cfe9c8'],m4:['#c9d6e6','#f1f4f7'],m5:['#d9f0c4','#fff3cf'],m6:['#1f2a4a','#4a4f78'],m7:['#3a2c22','#5e4a38'],m8:['#141a2a','#2c3550'],m9:['#9fd0f2','#eaf6ff'],m10:['#ffe3b0','#d9efc7'],m11:['#7fbfe8','#e9f6ff'],m12:['#cfe2ee','#f4f9fc'],m13:['#bcd9ea','#eef7fb'],m14:['#dfe9f1','#ffffff']}[id]||['#bfe3f2','#e6f3e0'];
   sky.addColorStop(0,pal[0]);sky.addColorStop(1,pal[1]);c.fillStyle=sky;c.fillRect(0,0,W,H);
   const hill=(y,col,amp,ph)=>{c.fillStyle=col;c.beginPath();c.moveTo(0,H);for(let x=0;x<=W;x+=8)c.lineTo(x,y+Math.sin(x/W*Math.PI*2*1.2+ph)*amp);c.lineTo(W,H);c.fill();};
   const giant=(x,y,s,kneel)=>{c.fillStyle='#8c7a6a';c.beginPath();c.ellipse(x,y-60*s*(kneel?.75:1),42*s,58*s*(kneel?.75:1),0,0,7);c.fill();c.beginPath();c.arc(x+(kneel?14*s:0),y-(kneel?112:128)*s,24*s,0,7);c.fill();
@@ -3534,6 +3873,11 @@ function drawMemory(c,id,W,H){
   else if(id==='m11'){c.fillStyle='rgba(255,255,255,.85)';for(let i=0;i<8;i++){c.beginPath();c.ellipse(hash2(i,1,9)*W,hash2(i,2,9)*H*.5,40+hash2(i,3,9)*40,14,0,0,7);c.fill();}
     hill(H*.86,'#93c070',8,2.2);c.strokeStyle='#7a5a3c';c.lineWidth=4;c.beginPath();c.moveTo(W*.3,H*.88);c.lineTo(W*.3,H*.74);c.stroke();c.fillStyle='#6cbf52';c.beginPath();c.arc(W*.3,H*.72,16,0,7);c.fill();
     giant(W*.42,H*.97,.6);spr(W*.66,H*.2,1.1);}
+  else if(id==='m12'||id==='m13'||id==='m14'){c.fillStyle='rgba(255,255,255,.8)';for(let i=0;i<60;i++){c.beginPath();c.arc(hash2(i,1,12)*W,hash2(i,2,12)*H*.7,1+hash2(i,3,12)*2,0,7);c.fill();}
+    hill(H*.74,'#eef4f8',10,1.4);c.fillStyle='#a9d3e6';c.beginPath();c.ellipse(W*.5,H*.86,W*.42,H*.1,0,0,7);c.fill();
+    if(id==='m12'){c.fillStyle='#2d4f63';c.beginPath();c.ellipse(W*.6,H*.86,20,8,0,0,7);c.fill();giant(W*.38,H*.95,.9,true);spr(W*.62,H*.74,.9);c.fillStyle='#d8e6ee';c.beginPath();c.ellipse(W*.7,H*.7,12,5,.3,0,7);c.fill();}
+    else if(id==='m13'){c.strokeStyle='rgba(255,255,255,.9)';c.lineWidth=2;c.beginPath();c.ellipse(W*.6,H*.86,60,12,0,0,7);c.stroke();spr(W*.6,H*.78,.9);giant(W*.2,H*.92,.8);}
+    else{c.fillStyle='#ffffff';c.beginPath();c.arc(W*.6,H*.76,40,0,7);c.fill();c.beginPath();c.arc(W*.6,H*.6,14,0,7);c.fill();giant(W*.36,H*.95,.9);spr(W*.68,H*.55,.8);}}
   else if(id==='m8'){c.fillStyle='#0f1422';c.fillRect(0,H*.7,W,H*.3);const gr=c.createLinearGradient(0,0,W,0);gr.addColorStop(0,'rgba(255,210,120,0)');gr.addColorStop(.5,'rgba(255,220,140,1)');gr.addColorStop(1,'rgba(255,210,120,0)');
     c.strokeStyle=gr;c.lineWidth=6;c.beginPath();c.moveTo(0,H*.78);c.bezierCurveTo(W*.3,H*.62,W*.6,H*.9,W,H*.7);c.stroke();c.globalAlpha=.35;c.lineWidth=18;c.stroke();c.globalAlpha=1;
     giant(W*.32,H*.94,1,true);spr(W*.58,H*.5,1.2);}
@@ -3565,7 +3909,9 @@ function storySoFar(){
   else if(PROG.ch1.done)out.push(['Next','The gate to the Lantern Mines glows in the eastern hills. Somewhere in the dark, three lantern stones wait to light the Great Lantern.']);
   if(PROG.ch3.done)out.push(['The Windmill Heights','High above the clouds they found three cogs, rode the wind and freed the Great Windmill\u2019s brake. The third root woke, and little windmills spin on the Vale\u2019s hills.']);
   else if(PROG.ch2.done)out.push(['Next','The gate to the Windmill Heights glows at the eastern edge of the Vale. Up there the Great Windmill is missing three cogs.']);
-  if(PROG.ch3.done)out.push(['Next','A fourth gate, to the Frostmere Lake, has begun to flicker. Chapter 4 arrives in a later update.']);
+  if(PROG.ch4.done)out.push(['The Frostmere Lake','On the frozen lake they slid ice, rolled a snowball as big as a bridge and melted their way to three embers. The old hearth burns again, the lake is thawing, and frost lilies line the Vale\u2019s river.']);
+  else if(PROG.ch3.done)out.push(['Next','The gate to the Frostmere Lake glows in the south-east of the Vale. Its old hearth needs three embers.']);
+  if(PROG.ch4.done)out.push(['Next','A fifth gate, to the Mushroom Marsh, has begun to flicker. Chapter 5 arrives in a later update.']);
   return out;
 }
 let jTab='story';
@@ -3581,6 +3927,7 @@ function renderJournal(){
     if(PROG.ch1.best)add('Best time, Chapter 1',Math.floor(PROG.ch1.best/60)+' min '+(PROG.ch1.best%60)+' s');
     if(PROG.ch2.best)add('Best time, Chapter 2',Math.floor(PROG.ch2.best/60)+' min '+(PROG.ch2.best%60)+' s');
     if(PROG.ch3.best)add('Best time, Chapter 3',Math.floor(PROG.ch3.best/60)+' min '+(PROG.ch3.best%60)+' s');
+    if(PROG.ch4.best)add('Best time, Chapter 4',Math.floor(PROG.ch4.best/60)+' min '+(PROG.ch4.best%60)+' s');
     if(PROG.ch1.done)add('Lanterns lit, Chapter 2',countBits(PROG.ch2.lan|0)+' of '+LANTERNS.length);
     el.appendChild(st);}
   if(jTab==='mem'){const el=$('jMem');el.textContent='';
@@ -3599,7 +3946,7 @@ function buildValeMapImage(){const N=200,cv=document.createElement('canvas');cv.
   c.putImageData(im,0,0);valeMapImg=cv;}
 function drawMap(cv){
   const c=cv.getContext('2d'),W=cv.width,H=cv.height;c.clearRect(0,0,W,H);c.fillStyle='#e9e2d0';c.fillRect(0,0,W,H);
-  let x0,x1,z0,z1;if(G.region==='vale'){x0=-128;x1=128;z0=-128;z1=128;}else if(G.region==='ch2'){x0=-38;x1=78;z0=-88;z1=8;}else if(G.region==='ch3'){x0=-20;x1=64;z0=-92;z1=12;}else{x0=-44;x1=48;z0=-86;z1=8;}
+  let x0,x1,z0,z1;if(G.region==='vale'){x0=-128;x1=128;z0=-128;z1=128;}else if(G.region==='ch2'){x0=-38;x1=78;z0=-88;z1=8;}else if(G.region==='ch3'){x0=-20;x1=64;z0=-92;z1=12;}else if(G.region==='ch4'){x0=-40;x1=34;z0=-86;z1=12;}else{x0=-44;x1=48;z0=-86;z1=8;}
   const s=Math.min((W-40)/(x1-x0),(H-40)/(z1-z0)),ox=(W-(x1-x0)*s)/2,oz=(H-(z1-z0)*s)/2;
   const X=x=>ox+(x-x0)*s,Z=z=>oz+(z-z0)*s;
   if(G.region==='vale'){
@@ -3613,6 +3960,14 @@ function drawMap(cv){
     for(const g of GATES){c.fillStyle=g.ready?'#f2873a':'#8f9aa3';c.beginPath();c.arc(X(g.pos.x),Z(g.pos.z),7,0,7);c.fill();label(c,g.ch+' · '+g.name,X(g.pos.x),Z(g.pos.z)+(g.pos.z<0?-14:22),g.ready?'#c9621a':'#5c6b76');}
     for(const cv of CAVES){const r=caveRect(cv);c.fillStyle='#4b4038';c.fillRect(X(r.x0),Z(r.z0),(r.x1-r.x0)*s,(r.z1-r.z0)*s);label(c,cv.name,X(cv.x-cv.dir*4),Z(cv.z)-12,'#5c4636');}
     c.fillStyle='#8a6448';c.beginPath();c.arc(X(VALE.plot.x),Z(VALE.plot.z),6,0,7);c.fill();label(c,'Seed Garden',X(VALE.plot.x)-26,Z(VALE.plot.z)+4,'#5c6b76');
+  }else if(G.region==='ch4'){
+    c.fillStyle='#dfe9ef';c.fillRect(X(x0),Z(z1),(x1-x0)*s,(z0-z1)*s);
+    for(const k of REG.ch4.colliders){if(!k.mesh||!k.on)continue;const top=k.max.y;if(top>.05||top<-.05)continue;c.fillStyle=k.surface==='ice'?'#bfe0ee':'#ffffff';c.fillRect(X(k.min.x),Z(k.min.z),(k.max.x-k.min.x)*s,(k.max.z-k.min.z)*s);}
+    c.fillStyle='#5d8fa6';c.fillRect(X(FR.chan.x0),Z(FR.chan.z0),(FR.chan.x1-FR.chan.x0)*s,2*s);c.fillStyle='rgba(93,143,166,.5)';c.fillRect(X(FR.bay.x0),Z(FR.bay.z0),(FR.bay.x1-FR.bay.x0)*s,(FR.bay.z1-FR.bay.z0)*s);
+    c.fillStyle='#3a4148';c.fillRect(X(FR.crev.x0),Z(FR.crev.z0),(FR.crev.x1-FR.crev.x0)*s,(FR.crev.z1-FR.crev.z0)*s);
+    c.fillStyle='#8a7a66';c.fillRect(X(-2),Z(-74),4*s,4*s);label(c,'Hearth',X(0),Z(-75),'#243039');
+    label(c,'Shore Camp',X(0),Z(-2),'#243039');label(c,'Ice Field',X(0),Z(-26),'#243039');label(c,'Snowfield',X(-24),Z(-45),'#243039');label(c,'The Narrows',X(18),Z(-45),'#243039');label(c,'To the Vale',X(0),Z(11),'#118a6f');
+    for(const p of PETALS)if(p.reg==='ch4'&&PROG.petals[p.id]){c.fillStyle='#ff8fc0';c.beginPath();c.arc(X(p.pos.x),Z(p.pos.z),5,0,7);c.fill();}
   }else if(G.region==='ch3'){
     c.fillStyle='#cfe3f0';c.fillRect(X(x0),Z(z1),(x1-x0)*s,(z0-z1)*s);
     for(const I of ISLES.slice().sort((a,b)=>a.y-b.y)){c.fillStyle=I.y>10?'#7fae5c':I.y<-1?'#9fc283':'#95c46f';c.fillRect(X(I.x0),Z(I.z0),(I.x1-I.x0)*s,(I.z1-I.z0)*s);}
@@ -3680,7 +4035,7 @@ function openTravel(){
   if(mode==='online'&&role!=='host'){toast(nameOf(myRole==='g'?'s':'g')+' chooses where to travel');return;}
   openOverlay('scrTravel');const L=$('travelList');L.textContent='';
   for(const w of WAYS){if(!PROG.ws[w.id])continue;const b=document.createElement('button');b.className='btn';const here=w.reg===G.region&&(dxz(golem.pos,w.pos)<4||dxz(sprite.pos,w.pos)<4);
-    b.append(({vale:'The Vale: ',ch1:'Chapter 1: ',ch2:'Chapter 2: ',ch3:'Chapter 3: '}[w.reg]||'')+w.name);const sm=document.createElement('small');sm.textContent=here?'you are here':(w.reg===G.region?'this area':'another area');b.append(sm);
+    b.append(({vale:'The Vale: ',ch1:'Chapter 1: ',ch2:'Chapter 2: ',ch3:'Chapter 3: ',ch4:'Chapter 4: '}[w.reg]||'')+w.name);const sm=document.createElement('small');sm.textContent=here?'you are here':(w.reg===G.region?'this area':'another area');b.append(sm);
     b.disabled=here;b.onclick=()=>{closeOverlay();travelToWaystone(w.id);};L.appendChild(b);}
 }
 function refreshTitleSave(){
@@ -3735,6 +4090,17 @@ function heightsHooks(){
     {id:'h10',x:-9,z:-36,r:3,cond:()=>!PROG.secrets.c3_grotto},{id:'h11',x:52,z:-78,r:6,cond:()=>hts.placed<3&&golem.pos.y>12},
     {id:'h12',x:52,z:-77.9,r:2.5,cond:()=>sprite.pos.y>19}];
 }
+function frostHooks(){
+  REG.ch4.secrets=[
+    {id:'c4_hut',name:'The fishing hut',test:b=>b.pos.x>14.2&&b.pos.x<17.8&&b.pos.z>-37.8&&b.pos.z<-34.2},
+    {id:'c4_ring',name:'The thin-ice islet',test:b=>b.pos.x>12.6&&b.pos.x<15.4&&b.pos.z>-59.4&&b.pos.z<-56.6&&b.pos.y>-.2},
+    {id:'c4_rock',name:'The great boulder',test:b=>b.pos.x>6.4&&b.pos.x<9.6&&b.pos.z>-79.6&&b.pos.z<-76.4&&b.pos.y>3}];
+  REG.ch4.talk=[
+    {id:'f1',x:0,z:-9,r:4,cond:()=>!frs.gate.open},{id:'f2',x:0,z:-15,r:4},{id:'f3',x:6,z:-22,r:4,cond:()=>!ICEB.sunk},
+    {id:'f4',x:4,z:-48,r:4,cond:()=>EMBERS[0].state==='rest'},{id:'f5',x:4,z:-52,r:4,cond:()=>!frs.cause},
+    {id:'f6',x:-20,z:-46.6,r:4,cond:()=>!SNOWB.bridged},{id:'f7',x:-24,z:-49,r:4,cond:()=>!SNOWB.bridged&&SNOWB.r>.9},
+    {id:'f8',x:0,z:-68,r:4},{id:'f9',x:-5,z:-76,r:4,cond:()=>EMBERS[2].state==='rest'},{id:'f10',x:13.5,z:-36,r:3}];
+}
 function countBits(n){let c=0;while(n){c+=n&1;n>>>=1;}return c;}
 
 // ================= camera: calm follow, quarter-turns with Q / R =================
@@ -3766,6 +4132,7 @@ function updateCamera(dt,t){
   if(G.region==='ch1'&&(G.ending||G.phase==='end')){want=16;_mid.set(F.x,2.2,F.z);}
   if(G.region==='ch2'&&(G.ending||G.phase==='end')){want=19;_mid.set(GL.x,3.2,GL.z);}
   if(G.region==='ch3'&&(G.ending||G.phase==='end')){want=26;_mid.set(52,22,-80);}
+  if(G.region==='ch4'&&(G.ending||G.phase==='end')){want=18;_mid.set(0,3,-72);}
   if(G.region==='ch1'&&(golem.pos.y<-1.5||sprite.pos.y<-1.5)&&golem.pos.x>29&&sprite.pos.x>29)want=Math.min(want,13);
   if(dbgDist)want=dbgDist;
   const k=camSnap?1:1-Math.exp(-dt*4);
@@ -3837,6 +4204,7 @@ function nextBeaconTarget(){
   if(G.region==='ch2'){if(minesDone()||G.ending)return null;
     if(!mine.bar.broken&&!mine.sw.b)return MLEVERS[0].pos;
     if(!mine.lift.cw&&sprite.pos.y>5)return MLEVERS[1].pos;return null;}
+  if(G.region==='ch4'){if(frostDone()||G.ending)return null;if(frs.placed>=3&&sprite.pos.y>3)return MELTS.find(m=>m.id==='flue').pos;return null;}
   if(G.region==='ch3'){if(heightsDone()||G.ending)return null;if(!hts.b1.open&&sprite.pos.y>4)return HLEVERS[0].pos;if(COGS[1].state==='perched'&&sprite.pos.y>8)return COGS[1].pos;if(hts.placed>=3)return HLEVERS[2].pos;return null;}
   if(G.region!=='ch1'||G.fountainOn)return null;
   if(!gate.open)return levers[0].pos;
@@ -3857,7 +4225,7 @@ function updateVisuals(dt,t){
   const pulse=.5+.5*Math.sin(t*3.2);
   for(const p of plates){p.mesh.position.y=p.on?-.04:0;p.ring.material.opacity=p.on?1:(port.open?.25:.35+.45*pulse);}
   for(const h of holeMarkers){h.icon.position.y=h.base+Math.sin(t*2)*.08;h.glow.material.opacity=.35+.3*pulse;}
-  const bt=G.phase==='play'?nextBeaconTarget():null,bcn=G.region==='ch2'&&mine.beacon?mine.beacon:G.region==='ch3'&&hts.beacon?hts.beacon:W.beacon;bcn.visible=!!bt;if(bt){bcn.position.set(bt.x,bt.y+1.55+Math.abs(Math.sin(t*3))*.25,bt.z);}
+  const bt=G.phase==='play'?nextBeaconTarget():null,bcn=G.region==='ch2'&&mine.beacon?mine.beacon:G.region==='ch3'&&hts.beacon?hts.beacon:G.region==='ch4'&&frs.beacon?frs.beacon:W.beacon;bcn.visible=!!bt;if(bt){bcn.position.set(bt.x,bt.y+1.55+Math.abs(Math.sin(t*3))*.25,bt.z);}
   block.mesh.position.set(block.pos.x,block.pos.y+.6,block.pos.z);
   // runes
   for(const r of runes){
@@ -3875,6 +4243,7 @@ function updateVisuals(dt,t){
   if(G.region==='ch1')updateOrchardVis();
   if(G.region==='ch2')updateMinesVis(dt,t);
   if(G.region==='ch3')updateHeightsVis(dt,t);
+  if(G.region==='ch4')updateFrostVis(dt,t);
   updateSeedInstances(t);updatePetals(t);updateWaystones(t);updateVale(dt,t);updateReal(dt,t);updateRings(dt);
   updateGreet(dt);updateGiant(dt,t);updateSpriteVis(dt,t);updateCrown();
   // ending: water and light
@@ -4055,7 +4424,8 @@ function packState(){
     ch:[G.ch.seeds,G.ch.petals,G.ch.secrets,G.ch.launches,G.ch.pulses|0],
     m2:G.region==='ch2'?packMines():null,
     m3:G.region==='ch3'?packHeights():null,
-    pg:{r:PROG.roots,ws:Object.keys(PROG.ws).join(','),sd:Object.keys(PROG.seeds).join(','),pt:Object.keys(PROG.petals).join(','),se:Object.keys(PROG.secrets).join(','),pl:PROG.planted,sn:Object.keys(PROG.seen).join(','),c1:PROG.ch1.done,b1:PROG.ch1.best,c2:PROG.ch2.done,b2:PROG.ch2.best,l2:PROG.ch2.lan|0,d2:PROG.ch2.door|0,c3:PROG.ch3.done,b3:PROG.ch3.best}};
+    m4:G.region==='ch4'?packFrost():null,
+    pg:{r:PROG.roots,ws:Object.keys(PROG.ws).join(','),sd:Object.keys(PROG.seeds).join(','),pt:Object.keys(PROG.petals).join(','),se:Object.keys(PROG.secrets).join(','),pl:PROG.planted,sn:Object.keys(PROG.seen).join(','),c1:PROG.ch1.done,b1:PROG.ch1.best,c2:PROG.ch2.done,b2:PROG.ch2.best,l2:PROG.ch2.lan|0,d2:PROG.ch2.door|0,c3:PROG.ch3.done,b3:PROG.ch3.best,c4:PROG.ch4.done,b4:PROG.ch4.best}};
 }
 // the Lantern Mines (only sent while the players are there)
 function packMines(){const C=mine.cart,L=mine.lift,B=mine.boulder,pa=G.pulseAt||[0,0,0];
@@ -4075,6 +4445,24 @@ function applyHeights(m){
   hts.placed=m[9]|0;hts.brake=!!m[10];hts.sails=+m[11]||0;if(Array.isArray(m[12])){G.vaneN=m[12][0]|0;G.nudgeN=m[12][1]|0;}
   sprite.wind=typeof m[13]==='string'?m[13].slice(0,12):'';golem.wading=!!m[14];
   for(const l of HLEVERS)l.pulled=l.id==='b1'?hts.b1.open:l.id==='b2'?hts.b2.open:hts.brake;
+}
+// the Frostmere Lake (only sent while the players are there)
+const ES=['rest','carried','placed'];
+function packFrost(){return [MELTS.map(m=>m.done?1:r2(m.t)),frs.gate.open?1:0,r2(frs.gate.t),[r2(ICEB.pos.x),r2(ICEB.pos.y),r2(ICEB.pos.z),ICEB.sunk?1:0],[r2(SNOWB.pos.x),r2(SNOWB.pos.z),r2(SNOWB.r),SNOWB.bridged?1:0],
+  THIN.map(t=>t.broken?1:0).join(''),frs.cause?1:0,r2(frs.causeT),EMBERS.map(e=>ES.indexOf(e.state)),frs.placed,frs.flue?1:0,
+  [G.meltN|0,G.lastMelt||'',G.slideN|0,G.sinkN|0,G.blockBackN|0,G.snowN|0,G.snowLostN|0],sprite.melting?MELTS.indexOf(sprite.melting):-1,golem.icy?1:0];}
+function applyFrost(m){
+  if(!Array.isArray(m))return;
+  if(Array.isArray(m[0]))m[0].forEach((v,i)=>{const M0=MELTS[i];if(!M0)return;M0.done=v===1;M0.t=+v||0;if(M0.col)M0.col.on=!M0.done;});
+  frs.gate.open=!!m[1];frs.gate.t=+m[2]||0;frs.gate.col.on=frs.gate.t<.6;
+  if(Array.isArray(m[3])){ICEB.pos.set(+m[3][0],+m[3][1],+m[3][2]);ICEB.sunk=!!m[3][3];syncIceBlock();}
+  if(Array.isArray(m[4])){SNOWB.pos.x=+m[4][0];SNOWB.pos.z=+m[4][1];SNOWB.r=+m[4][2]||.5;SNOWB.bridged=!!m[4][3];syncSnowball();setSnowBridge();}
+  if(typeof m[5]==='string')THIN.forEach((t,i)=>{t.broken=m[5][i]==='1';t.col.on=!t.broken;});
+  frs.cause=!!m[6];frs.causeT=+m[7]||0;frs.causeCol.on=frs.causeT>.97;
+  if(Array.isArray(m[8]))m[8].forEach((k,i)=>{if(EMBERS[i])EMBERS[i].state=ES[k]||'rest';});
+  frs.placed=m[9]|0;frs.flue=!!m[10];
+  if(Array.isArray(m[11])){const e=m[11];G.meltN=e[0]|0;G.lastMelt=String(e[1]||'').slice(0,8);G.slideN=e[2]|0;G.sinkN=e[3]|0;G.blockBackN=e[4]|0;G.snowN=e[5]|0;G.snowLostN=e[6]|0;}
+  sprite.melting=m[12]>=0?MELTS[m[12]]||null:null;golem.icy=!!m[13];
 }
 function applyMines(m){
   if(!Array.isArray(m))return;const C=mine.cart,L=mine.lift,B=mine.boulder;
@@ -4115,7 +4503,8 @@ function applyState(st){
   if(Array.isArray(st.ch))G.ch={seeds:st.ch[0]|0,petals:st.ch[1]|0,secrets:st.ch[2]|0,launches:st.ch[3]|0,pulses:st.ch[4]|0};
   if(G.region==='ch2'&&st.m2)applyMines(st.m2);
   if(G.region==='ch3'&&st.m3)applyHeights(st.m3);
-  if(st.pg&&typeof st.pg==='object'){const p=st.pg;PROG.roots=clamp(p.r|0,0,7);PROG.ws=keySet(p.ws);PROG.seeds=keySet(p.sd);PROG.petals=keySet(p.pt);PROG.secrets=keySet(p.se);PROG.planted=p.pl|0;PROG.seen=keySet(p.sn);PROG.ch1.done=p.c1?1:0;PROG.ch1.best=p.b1|0;PROG.ch2.done=p.c2?1:0;PROG.ch2.best=p.b2|0;PROG.ch2.lan=p.l2|0;PROG.ch2.door=p.d2|0;PROG.ch3.done=p.c3?1:0;PROG.ch3.best=p.b3|0;}
+  if(G.region==='ch4'&&st.m4)applyFrost(st.m4);
+  if(st.pg&&typeof st.pg==='object'){const p=st.pg;PROG.roots=clamp(p.r|0,0,7);PROG.ws=keySet(p.ws);PROG.seeds=keySet(p.sd);PROG.petals=keySet(p.pt);PROG.secrets=keySet(p.se);PROG.planted=p.pl|0;PROG.seen=keySet(p.sn);PROG.ch1.done=p.c1?1:0;PROG.ch1.best=p.b1|0;PROG.ch2.done=p.c2?1:0;PROG.ch2.best=p.b2|0;PROG.ch2.lan=p.l2|0;PROG.ch2.door=p.d2|0;PROG.ch3.done=p.c3?1:0;PROG.ch3.best=p.b3|0;PROG.ch4.done=p.c4?1:0;PROG.ch4.best=p.b4|0;}
   G.placed=st.pl|0;G.ending=!!st.en;G.endT=+st.et||0;G.falls=st.f|0;G.lastFall=st.lf==='g'?'g':'s';G.fallN=st.fn|0;G.throws=st.th|0;G.pick=st.pk|0;G.useN=st.us|0;
 }
 function guestSmooth(dt){
@@ -4194,13 +4583,13 @@ function togglePause(){
   if(chatOpen){closeChat();return;}
   const open=$('scrPause').hidden;
   if(open){G.paused=mode==='local';$('pauseEyebrow').textContent=(mode==='local'?'Paused':'Menu (the game keeps running online)')+' · '+curReg.name;$('pauseObj').textContent=objectiveText();
-    const boss=mode!=='online'||role==='host',inCh=G.region==='ch1'||G.region==='ch2'||G.region==='ch3';$('bRestart').hidden=!boss||!inCh;$('bToVale').hidden=!boss||!inCh;$('scrPause').hidden=false;}
+    const boss=mode!=='online'||role==='host',inCh=/^ch[1-4]$/.test(G.region);$('bRestart').hidden=!boss||!inCh;$('bToVale').hidden=!boss||!inCh;$('scrPause').hidden=false;}
   else{G.paused=false;$('scrPause').hidden=true;}
 }
 function toTitle(){if(mode==='online'){leaveOnline();if(role!=='host'){const st=PROG.settings;PROG=freshProgress();loadProgress();PROG.settings=st;}}
   G.scene='';G.card='';closeOverlay();refreshTitleSave();mode=null;G.phase='title';G.paused=false;clearChat();partnerName='';partnerHere=false;names.g=names.s='';show('scrTitle');}
 function showEnd(){
-  const dl=$('endStats');dl.textContent='';const m=Math.floor(G.time/60),s=Math.floor(G.time%60),n=G.region==='ch3'?3:G.region==='ch2'?2:1,reg='ch'+n;
+  const dl=$('endStats');dl.textContent='';const m=Math.floor(G.time/60),s=Math.floor(G.time%60),n=G.region==='ch4'?4:G.region==='ch3'?3:G.region==='ch2'?2:1,reg='ch'+n;
   const add=(a,b)=>{const dt=document.createElement('dt');dt.textContent=a;const dd=document.createElement('dd');dd.textContent=b;dl.append(dt,dd);};
   add('Time',m+' min '+s+' s');add('Golden seeds',seedsFoundIn(reg)+' of '+seedsIn(reg).length);
   const pc=PETALS.filter(p=>p.reg===reg);add('Memory petals',pc.filter(p=>PROG.petals[p.id]).length+' of '+pc.length);add('Secrets',REG[reg].secrets.filter(x=>PROG.secrets[x.id]).length+' of '+REG[reg].secrets.length);
@@ -4208,9 +4597,9 @@ function showEnd(){
   else if(n===2){add('Lanterns lit',countBits(mine.lan)+' of '+LANTERNS.length);add('Light pulses',String(G.ch.pulses|0));add(nameOf('s')+' thrown',G.throws+' times');}
   else{add(nameOf('s')+' thrown',G.throws+' times');}
   add('Falls',String(G.falls));
-  $('endEyebrow').textContent=['','Chapter 1 · The Sunken Garden','Chapter 2 · The Lantern Mines','Chapter 3 · The Windmill Heights'][n];$('endTitle').textContent=['','The fountain wakes','The Great Lantern wakes','The Great Windmill turns'][n];
-  $('endLede').textContent=nameOf('g')+' and '+nameOf('s')+[,' woke the fountain together. Far away, under the Vale, the first root stirs.',' lit the Great Lantern together. Deep under the hills, the second root wakes.',' set the Great Windmill turning. High above the clouds, the third root wakes.'][n];
-  $('bEndMenu').firstChild.textContent=['','Keep exploring the garden ','Keep exploring the mines ','Keep exploring the heights '][n];
+  $('endEyebrow').textContent=['','Chapter 1 · The Sunken Garden','Chapter 2 · The Lantern Mines','Chapter 3 · The Windmill Heights','Chapter 4 · The Frostmere Lake'][n];$('endTitle').textContent=['','The fountain wakes','The Great Lantern wakes','The Great Windmill turns','The lake thaws'][n];
+  $('endLede').textContent=nameOf('g')+' and '+nameOf('s')+[,' woke the fountain together. Far away, under the Vale, the first root stirs.',' lit the Great Lantern together. Deep under the hills, the second root wakes.',' set the Great Windmill turning. High above the clouds, the third root wakes.',' lit the old hearth again. The Frostmere Lake thaws, and the fourth root wakes.'][n];
+  $('bEndMenu').firstChild.textContent=['','Keep exploring the garden ','Keep exploring the mines ','Keep exploring the heights ','Keep exploring the lake '][n];
   const boss=mode!=='online'||role==='host';$('bAgain').hidden=!boss;$('bEndMenu').hidden=!boss;$('endWait').hidden=boss;show('scrEnd');
 }
 $('bLocal').onclick=()=>{initAudio();mode='local';myRole='g';role=null;clearChat();resetLevel();openBrief();};
@@ -4230,12 +4619,12 @@ $('codeIn').addEventListener('keydown',e=>{if(e.key==='Enter')$('bJoin').click()
 $('bBegin').onclick=()=>{initAudio();if(mode==='local')startPlay();else if(role==='host'&&findPartner())startPlay();};
 $('bBriefBack').onclick=toTitle;
 $('bResume').onclick=togglePause;
-$('bRestart').onclick=()=>{$('scrPause').hidden=true;if(G.region==='ch1')resetLevel();else if(G.region==='ch2')resetMines();else if(G.region==='ch3')resetHeights();G.paused=false;resetWatch();};
+$('bRestart').onclick=()=>{$('scrPause').hidden=true;if(G.region==='ch1')resetLevel();else if(G.region==='ch2')resetMines();else if(G.region==='ch3')resetHeights();else if(G.region==='ch4')resetFrost();G.paused=false;resetWatch();};
 $('bToVale').onclick=()=>{$('scrPause').hidden=true;G.paused=false;returnToVale();};
 $('bJournal').onclick=()=>openJournal('story');$('bMapP').onclick=openMap;$('bSettings').onclick=openSettings;$('bSettingsT').onclick=()=>{initAudio();openSettings();};
 $('bMute').onclick=()=>setMuted(!muted);
 $('bQuit').onclick=()=>{$('scrPause').hidden=true;toTitle();};
-function returnToVale(){const sp=valeSpotAtGate(G.region==='ch3'?3:G.region==='ch2'?2:1);G.phase='play';travel('vale',sp.g,sp.s,sp.yaw);show(null);}
+function returnToVale(){const sp=valeSpotAtGate(+(G.region.slice(2))||1);G.phase='play';travel('vale',sp.g,sp.s,sp.yaw);show(null);}
 $('bAgain').onclick=returnToVale;
 $('bEndMenu').onclick=()=>{G.phase='play';show(null);};
 let partnerHere=false;
@@ -4323,9 +4712,10 @@ async function boot(){const tb=performance.now();
     buildWorld();buildInteractives();buildCh1Extras();buildOrchard();if(REAL.ready)ch1RealFinish();endRegion(R);buildSeedInstances('ch1');curBuild='';BOOTMS.vale=Math.round(tb1-tb0);BOOTMS.ch1=Math.round(performance.now()-tb1);
     const tb2=performance.now();buildMines();curBuild='';BOOTMS.ch2=Math.round(performance.now()-tb2);
     const tb3=performance.now();buildHeights();curBuild='';BOOTMS.ch3=Math.round(performance.now()-tb3);
-    storyHooks();heightsHooks();
+    const tb4=performance.now();buildFrost();curBuild='';BOOTMS.ch4=Math.round(performance.now()-tb4);
+    storyHooks();heightsHooks();frostHooks();
     buildGolem();buildSprite();initAmbientParticles();
-    enterRegion('ch1');resetLevel();enterRegion('ch2');resetMines();enterRegion('ch3');resetHeights();enterRegion('vale');resetCaves();
+    enterRegion('ch1');resetLevel();enterRegion('ch2');resetMines();enterRegion('ch3');resetHeights();enterRegion('ch4');resetFrost();enterRegion('vale');resetCaves();
     const sp=startSpot();placeAt(golem,sp.g);placeAt(sprite,sp.s);
   }
   catch(e){console.error(e);fail('Something went wrong while building the Vale: '+e.message);return;}
@@ -4343,7 +4733,7 @@ async function boot(){const tb=performance.now();
 window.__bs={get PROG(){return PROG;},REG,travel,travelToWaystone,seesaw,crack,stones,SEEDS,PETALS,WAYS,GATES,VALE,playScene,skipScene,storyNext,valeH,saveProgress,eraseProgress,openMap,closeOverlay,get overlay(){return overlayOpen;},
   G,golem,sprite,get block(){return block;},runes,gate,bridge,port,plates,levers,get crank(){return crank;},latch,stepSim,resetLevel,startLocal:()=>{mode='local';resetLevel();startPlay();},NOIN,W,fadeables,camera,
   get camYaw(){return camYaw;},rotateCam,set dbgDist(v){dbgDist=v;},advance:(sec)=>{let n=performance.now();for(let i=0;i<sec*60;i++){n+=1000/60;tick(n);}},get models(){return MODELS;},set bot(v){BOT=v;},get bot(){return BOT;},
-  get ch1(){return {CP,F,SEESAW,POOL,CELLAR,levers,crank,runes,plates,stones,crack,exitGate,W,ORCH,TOWER,PAV,stair,pav};},get colliders(){return colliders;},get curReg(){return curReg;},get greet(){return GREET;},get perch(){return PERCH;},get caves(){return {CAVES,VCAVE,VLEVERS};},get ch2(){return {mine,MCP,GL,LANTERNS,CRYST,MLEVERS,LSTONES,WINCH_B,WINCH_T,MINE,lightPulse,resetMines,BSTATES};},get ch3(){return {hts,HCP,HT,WHEEL,POND,WINDS,VANES,COGS,HLEVERS,HBRIDGES,ISLES,resetHeights,windAt,wheelWind,heightsH};},packState,applyState,get renderer(){return renderer;},BOOTMS,scene,travelReq:()=>G.travelReq};
+  get ch1(){return {CP,F,SEESAW,POOL,CELLAR,levers,crank,runes,plates,stones,crack,exitGate,W,ORCH,TOWER,PAV,stair,pav};},get colliders(){return colliders;},get curReg(){return curReg;},get greet(){return GREET;},get perch(){return PERCH;},get caves(){return {CAVES,VCAVE,VLEVERS};},get ch2(){return {mine,MCP,GL,LANTERNS,CRYST,MLEVERS,LSTONES,WINCH_B,WINCH_T,MINE,lightPulse,resetMines,BSTATES};},get ch3(){return {hts,HCP,HT,WHEEL,POND,WINDS,VANES,COGS,HLEVERS,HBRIDGES,ISLES,resetHeights,windAt,wheelWind,heightsH};},get ch4(){return {frs,FCP,FR,MELTS,EMBERS,THIN,get ICEB(){return ICEB;},get SNOWB(){return SNOWB;},resetFrost,meltTarget};},packState,applyState,get renderer(){return renderer;},BOOTMS,scene,travelReq:()=>G.travelReq};
 boot();
 
 })();

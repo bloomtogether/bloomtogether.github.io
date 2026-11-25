@@ -70,6 +70,21 @@ function runWatchers(){
     watch('fall3',G.fallN,()=>{SFX.splash();toast(nameOf(G.lastFall==='g'?'g':'s')+' fell off the island. Back to safe ground');});
     watch('ending3',G.ending,v=>{if(v){SFX.swell();toast('The Great Windmill turns!');celebrate();}});
   }
+  // ---- the Frostmere Lake ----
+  if(G.region==='ch4'){
+    watch('melt',G.meltN||0,(v,o)=>{if(v>o){SFX.chime();toast({latch:'The latch thaws. The gate swings open!',lever:'The lever thaws and springs back: a stone causeway rises!',cave:'The ice wall melts away!',hut:'The hut door thaws open.',flue:'The chimney is clear!'}[G.lastMelt]||'The ice melts.');}});
+    watch('slide',G.slideN||0,(v,o)=>{if(v>o)SFX.toss();});
+    watch('sink',G.sinkN||0,(v,o)=>{if(v>o){SFX.splash();toast(Math.abs(ICEB.pos.x-FR.rampX)<=1.2?'The ice block sinks level with the ice: a step across!':'The block sank in the wrong place. A new one is being cut…');}});
+    watch('blockBack',G.blockBackN||0,(v,o)=>{if(v>o){SFX.stone();toast('A fresh ice block is back where the first one started.');}});
+    watch('snow',G.snowN||0,(v,o)=>{if(v>o){SFX.thud(1);toast('The snowball wedges into the crevasse: a snow bridge!');celebrate();}});
+    watch('snowLost',G.snowLostN||0,(v,o)=>{if(v>o){SFX.splash();toast('Too small: the snowball fell into the crevasse. Roll a bigger one.');}});
+    watch('crack4',G.crackN,(v,o)=>{if(v>o){SFX.crash();toast('The thin ice cracks under the Giant!');}});
+    watch('cause',frs.cause,v=>{if(v)SFX.rumble(2.2);});
+    EMBERS.forEach((e,i)=>watch('em'+i,e.state,v=>{if(v==='carried'){SFX.chime();const n=EMBERS.filter(x=>x.state!=='rest').length;toast('Ember found ('+n+'/3)');}if(v==='placed')SFX.place();}));
+    watch('fplaced',frs.placed,v=>{if(frostDone()||G.ending)return;if(v>=3)toast('All three embers glow in the hearth. Now the chimney!');else if(v>0)toast(v+' of 3 embers set');});
+    watch('fall4',G.fallN,()=>{SFX.splash();toast(nameOf(G.lastFall==='g'?'g':'s')+' fell. Back to safe ground');});
+    watch('ending4',G.ending,v=>{if(v){SFX.swell();toast('The hearth roars and the lake begins to thaw!');celebrate();}});
+  }
 }
 
 // ================= HUD helpers =================
@@ -95,6 +110,7 @@ function golemPrompt(){
   if(G.ending)return '';
   if(g.charging)return 'Release '+k+' to throw!';
   if(g.holding&&inCh3()&&heightsCogTarget())return k+': take the cog';
+  if(g.holding&&inCh4()&&emberTarget())return k+': take the ember';
   if(g.holding)return 'Tap '+k+' for a high lob, or hold '+k+' for a long throw';
   if(g.pound)return 'Slam!';
   const ch1=G.region==='ch1';
@@ -108,6 +124,15 @@ function golemPrompt(){
     if(g.runes>0&&dxz(g.pos,HT.gear)<3&&Math.abs(g.pos.y-13)<1)return k+': set the cogs in the gearbox';
     if(heightsCogTarget())return k+': take the cog';
     for(const v of VANES)if(dxz(g.pos,v.capPos)<2&&g.pos.y<1)return k+': turn the sail ('+(v.catch?'to edge-on':'to face the wind')+')';
+  }
+  if(inCh4()){
+    if(g.runes>0&&dxz(g.pos,FR.hearth)<3&&g.pos.y<1)return k+': set the embers in the hearth';
+    if(emberTarget())return k+': take the ember';
+    if(!SNOWB.bridged&&dxz(g.pos,SNOWB.pos)<SNOWB.r+1.4)return 'Walk into the snowball to roll it. It grows as it rolls (size '+Math.round(SNOWB.r/1.3*100)+'%)';
+    if(!ICEB.sunk&&dxz(g.pos,ICEB.pos)<2.4)return 'Walk into the ice block to send it sliding';
+    if(g.icy)return 'Slippery! Slow to start, slow to stop';
+  }
+  if(inCh3()){
     if(g.wading)return g.holding?'Wading. Deep water, but '+nameOf('s')+' is safe up top':'Wading through deep water';
   }
   if(ch1&&g.runes>0&&dxz(g.pos,F)<4.7)return k+': set the rune stones in the fountain';
@@ -125,6 +150,7 @@ function spritePrompt(){
   const s=sprite;if(G.ending)return '';
   if(s.held)return jumpKey('s')+': leap off. Or wait to be thrown';
   if(s.winding)return 'Keep holding '+actKey('s')+': winding the lift';
+  if(s.melting)return 'Keep holding '+actKey('s')+': melting the ice ('+Math.round(s.melting.t*100)+'%)';
   const t=spriteTarget();if(t)return actKey('s')+': '+t.label.toLowerCase();
   if(inCh2()&&!G.ending)return actKey('s')+': light pulse';
   if(inCh3()&&!s.onGround&&windAt(s))return 'Hold '+jumpKey('s')+' to ride the wind';
@@ -140,9 +166,11 @@ function objectiveText(){
     if(seedsToPlant()>=5)return 'You have '+seedsToPlant()+' golden seeds to plant. Bring them to the Seed Garden by the Meadow waystone.';
     if(!PROG.ch2.done)return 'The first root is awake. The gate to the Lantern Mines glows in the eastern hills, past the lookout: walk through it together for Chapter 2.';
     if(!PROG.ch3.done)return 'Two roots are awake. The gate to the Windmill Heights glows at the eastern edge of the Vale: walk through it together for Chapter 3.';
-    return 'Three roots are awake. Explore the Vale, plant seeds, or return to any chapter for what you missed. Chapter 4 arrives in a later update.';}
+    if(!PROG.ch4.done)return 'Three roots are awake. The gate to the Frostmere Lake glows in the south-east of the Vale: walk through it together for Chapter 4.';
+    return 'Four roots are awake. Explore the Vale, plant seeds, or return to any chapter for what you missed. Chapter 5 arrives in a later update.';}
   if(inCh2())return mineObjective();
   if(inCh3())return heightsObjective();
+  if(inCh4())return frostObjective();
   if(G.ending)return 'The fountain wakes.';
   if(G.fountainOn)return 'The fountain runs again. Look for missed seeds, memory petals and secrets, or walk back through the south gate to the Vale.';
   if(!gate.open)return 'Open the north gate. Its lever is in a small room behind the east wall. Only the Sprite fits through the glowing gap.';
@@ -159,11 +187,11 @@ function updateHUD(dt){
   if(helpOpen)setText('helpGoal',obj);
   const cs=seedsFound()+'|'+countKeys(PROG.petals)+'|'+G.region;if(hudCache.cnt!==cs){if(hudCache.cnt)cntShowT=4;hudCache.cnt=cs;}
   objShowT-=dt;cntShowT-=dt;chipT+=dt;
-  const ch1=G.region==='ch1',ch2=G.region==='ch2',ch3=G.region==='ch3';$('runeList').hidden=ch2?minesDone():ch3?heightsDone():(!ch1||G.fountainOn);$('timerWrap').hidden=!ch1&&!ch2&&!ch3;
+  const ch1=G.region==='ch1',ch2=G.region==='ch2',ch3=G.region==='ch3',ch4=G.region==='ch4';$('runeList').hidden=ch2?minesDone():ch3?heightsDone():ch4?frostDone():(!ch1||G.fountainOn);$('timerWrap').hidden=!ch1&&!ch2&&!ch3&&!ch4;
   setText('regName',curReg?curReg.short:'');setText('seedCount',String(seedsFound()));setText('petalCount',countKeys(PROG.petals)+'/'+MEMS.length);
-  const rl=$('runeList');const list=ch2?LSTONES:ch3?COGS:runes,sig=G.region+list.map(r=>r.state).join();
+  const rl=$('runeList');const list=ch2?LSTONES:ch3?COGS:ch4?EMBERS:runes,sig=G.region+list.map(r=>r.state).join();
   if(hudCache.runes!==sig){hudCache.runes=sig;rl.textContent='';for(const r of list){const d=document.createElement('div');const st=r.state==='carried'?'carried':r.state==='placed'?'placed':'';d.className=st;
-    d.textContent=(ch2||ch3?r.where:r.where.split(' ')[1].replace(/^./,c=>c.toUpperCase()))+(st==='carried'?' · carried':st==='placed'?' · set':'');d.title=r.where;rl.appendChild(d);}}
+    d.textContent=(ch2||ch3||ch4?r.where:r.where.split(' ')[1].replace(/^./,c=>c.toUpperCase()))+(st==='carried'?' · carried':st==='placed'?' · set':'');d.title=r.where;rl.appendChild(d);}}
   const inWW=ch1&&(golem.pos.z<-44||sprite.pos.z<-44)&&golem.pos.x>-11&&!port.open;$('plates').hidden=!inWW;
   if(inWW){$('plA').classList.toggle('on',plates[0].on);$('plB').classList.toggle('on',plates[1].on);$('latch').firstChild.style.width=(latch.t/1.1*100)+'%';}
   const m=Math.floor(G.time/60),s=Math.floor(G.time%60);setText('timer',m+':'+(s<10?'0':'')+s);
@@ -185,6 +213,7 @@ function updateHUD(dt){
     return;}
   if(ch2){mineHints(mineG,mineS);return;}
   if(ch3){heightsHints(mineG,mineS);return;}
+  if(ch4){frostHints(mineG,mineS);return;}
   if(dxz(golem.pos,{x:SEESAW.x,z:SEESAW.z})<6.5||dxz(sprite.pos,{x:SEESAW.x,z:SEESAW.z})<6.5)hint('seesaw','Seesaw: the Sprite stands in the mint cup. The Giant jumps onto the orange end, and the Sprite flies.');
   if(!crack.broken&&dxz(golem.pos,{x:34.8,z:-1.2})<3){if(hintsShown.has('pound'))hint('crack','A cracked slab. A ground pound might break it.');else hint('pound','New: Ground Pound. Giant, jump and then press '+actKey('g')+' in mid-air to slam down. That cracked slab looks weak.');}
   if(stones.raised===false&&(dxz(sprite.pos,{x:-24.5,z:-55})<2.5||dxz(golem.pos,{x:-24.5,z:-55})<2.5))hint('island','Too far to jump. Giant: throw the Sprite to the island.');
@@ -268,4 +297,29 @@ function heightsHints(mineG,mineS){
   if(COGS[2].state==='rest'&&!hts.b2.open&&g.pos.y>12&&g.pos.x<26)hint('gapthrow','Giant: lift the Sprite, face the islet and throw it into the wind current. Sprite: hold '+jumpKey('s')+' and ride it across.');
   if(hts.placed>=3&&!G.ending&&dxz(s.pos,{x:52,z:-77.9})<5)hint('tower','Sprite: jump into the rising wind by the gearbox and hold '+jumpKey('s')+' all the way up. Land on the balcony.');
   if(mineS&&s.pos.x>11&&s.pos.z>0&&s.pos.z<6&&s.pos.y>-.5&&s.pos.y<1)hint('nest','Something glints on a little rock below the edge. Only wings could get down there and back.');
+}
+
+// ================= the Frostmere Lake: goal, hints =================
+function frostObjective(){
+  const g=golem,s=sprite;
+  if(G.ending)return 'The hearth roars and the lake thaws.';
+  if(frostDone())return 'The hearth burns again and the lake is thawing. Look for missed seeds, memory petals and secrets, or walk back out through the gate at Shore Camp.';
+  if(!frs.gate.open)return 'The gate onto the lake is frozen shut. Sprite: stand by its latch and hold '+actKey('s')+' to melt the ice with your glow.';
+  if(g.pos.z>-42&&!(ICEB.sunk&&Math.abs(ICEB.pos.x-FR.rampX)<=1.2))return 'Cross the open channel at the far side of the ice. Giant: slide the ice block west until a frozen rock stops it in line with the ramp, then push it north into the channel.';
+  if(g.pos.z>-42)return 'Cross the channel on the sunken ice block and climb the ramp to the north shore.';
+  if(EMBERS[0].state==='rest')return frs.cause?'The causeway is up. Giant: cross it to the islet and take the ember.':'An ember lies on the islet in the bay. Thin ice holds the Sprite but not the Giant. Sprite: cross to the islet and melt its frozen lever.';
+  if(EMBERS[1].state==='rest')return SNOWB.bridged?'Cross the snow bridge and take the ember beyond the crevasse.':'An ember lies beyond the crevasse in the snowfield. Giant: roll the snowball around the snow until it is big enough, then roll it into the crevasse.';
+  if(EMBERS[2].state==='rest')return 'The last ember is sealed in the ice cave on Hearth Island. Sprite: melt the ice wall. Giant: take the ember.';
+  if(frs.placed<3)return 'Giant: set the three embers in the hearth on Hearth Island.';
+  return 'The chimney is frozen. Giant: lift the Sprite and tap '+actKey('g')+' to lob it onto the hearth roof. Sprite: hold '+actKey('s')+' by the chimney to melt the ice.';
+}
+function frostHints(mineG,mineS){
+  const g=golem,s=sprite;
+  if(G.time>1.5&&G.time<3)hint('melt','New: Thawing. Sprite, stand next to something frozen and hold '+actKey('s')+'. Your glow melts the ice.');
+  if(g.icy)hint('ice','New: Ice. It is slippery: slow to start and slow to stop, especially for the Giant.');
+  if(!ICEB.sunk&&dxz(g.pos,ICEB.pos)<3.5)hint('block','Giant: walk into the ice block to send it sliding. It slides until something stops it.');
+  if(g.pos.z<-43&&g.pos.x>0&&EMBERS[0].state==='rest'&&!frs.cause)hint('thin','Thin ice! It holds the Sprite, but it cracks under the Giant.');
+  if(!SNOWB.bridged&&dxz(g.pos,SNOWB.pos)<4)hint('snowball','Giant: roll the snowball around the snowfield to make it grow. It must be big to fill the crevasse.');
+  if(EMBERS[2].state==='rest'&&dxz(s.pos,{x:-5.7,z:-76})<4)hint('cave','Sprite: hold '+actKey('s')+' next to the ice wall to melt it.');
+  if(frs.placed>=3&&dxz(g.pos,FR.hearth)<5)hint('lob4','Giant: lift the Sprite, face the hearth and tap '+actKey('g')+' for a high lob onto its roof.');
 }

@@ -67,7 +67,8 @@ function packState(){
     ch:[G.ch.seeds,G.ch.petals,G.ch.secrets,G.ch.launches,G.ch.pulses|0],
     m2:G.region==='ch2'?packMines():null,
     m3:G.region==='ch3'?packHeights():null,
-    pg:{r:PROG.roots,ws:Object.keys(PROG.ws).join(','),sd:Object.keys(PROG.seeds).join(','),pt:Object.keys(PROG.petals).join(','),se:Object.keys(PROG.secrets).join(','),pl:PROG.planted,sn:Object.keys(PROG.seen).join(','),c1:PROG.ch1.done,b1:PROG.ch1.best,c2:PROG.ch2.done,b2:PROG.ch2.best,l2:PROG.ch2.lan|0,d2:PROG.ch2.door|0,c3:PROG.ch3.done,b3:PROG.ch3.best}};
+    m4:G.region==='ch4'?packFrost():null,
+    pg:{r:PROG.roots,ws:Object.keys(PROG.ws).join(','),sd:Object.keys(PROG.seeds).join(','),pt:Object.keys(PROG.petals).join(','),se:Object.keys(PROG.secrets).join(','),pl:PROG.planted,sn:Object.keys(PROG.seen).join(','),c1:PROG.ch1.done,b1:PROG.ch1.best,c2:PROG.ch2.done,b2:PROG.ch2.best,l2:PROG.ch2.lan|0,d2:PROG.ch2.door|0,c3:PROG.ch3.done,b3:PROG.ch3.best,c4:PROG.ch4.done,b4:PROG.ch4.best}};
 }
 // the Lantern Mines (only sent while the players are there)
 function packMines(){const C=mine.cart,L=mine.lift,B=mine.boulder,pa=G.pulseAt||[0,0,0];
@@ -87,6 +88,24 @@ function applyHeights(m){
   hts.placed=m[9]|0;hts.brake=!!m[10];hts.sails=+m[11]||0;if(Array.isArray(m[12])){G.vaneN=m[12][0]|0;G.nudgeN=m[12][1]|0;}
   sprite.wind=typeof m[13]==='string'?m[13].slice(0,12):'';golem.wading=!!m[14];
   for(const l of HLEVERS)l.pulled=l.id==='b1'?hts.b1.open:l.id==='b2'?hts.b2.open:hts.brake;
+}
+// the Frostmere Lake (only sent while the players are there)
+const ES=['rest','carried','placed'];
+function packFrost(){return [MELTS.map(m=>m.done?1:r2(m.t)),frs.gate.open?1:0,r2(frs.gate.t),[r2(ICEB.pos.x),r2(ICEB.pos.y),r2(ICEB.pos.z),ICEB.sunk?1:0],[r2(SNOWB.pos.x),r2(SNOWB.pos.z),r2(SNOWB.r),SNOWB.bridged?1:0],
+  THIN.map(t=>t.broken?1:0).join(''),frs.cause?1:0,r2(frs.causeT),EMBERS.map(e=>ES.indexOf(e.state)),frs.placed,frs.flue?1:0,
+  [G.meltN|0,G.lastMelt||'',G.slideN|0,G.sinkN|0,G.blockBackN|0,G.snowN|0,G.snowLostN|0],sprite.melting?MELTS.indexOf(sprite.melting):-1,golem.icy?1:0];}
+function applyFrost(m){
+  if(!Array.isArray(m))return;
+  if(Array.isArray(m[0]))m[0].forEach((v,i)=>{const M0=MELTS[i];if(!M0)return;M0.done=v===1;M0.t=+v||0;if(M0.col)M0.col.on=!M0.done;});
+  frs.gate.open=!!m[1];frs.gate.t=+m[2]||0;frs.gate.col.on=frs.gate.t<.6;
+  if(Array.isArray(m[3])){ICEB.pos.set(+m[3][0],+m[3][1],+m[3][2]);ICEB.sunk=!!m[3][3];syncIceBlock();}
+  if(Array.isArray(m[4])){SNOWB.pos.x=+m[4][0];SNOWB.pos.z=+m[4][1];SNOWB.r=+m[4][2]||.5;SNOWB.bridged=!!m[4][3];syncSnowball();setSnowBridge();}
+  if(typeof m[5]==='string')THIN.forEach((t,i)=>{t.broken=m[5][i]==='1';t.col.on=!t.broken;});
+  frs.cause=!!m[6];frs.causeT=+m[7]||0;frs.causeCol.on=frs.causeT>.97;
+  if(Array.isArray(m[8]))m[8].forEach((k,i)=>{if(EMBERS[i])EMBERS[i].state=ES[k]||'rest';});
+  frs.placed=m[9]|0;frs.flue=!!m[10];
+  if(Array.isArray(m[11])){const e=m[11];G.meltN=e[0]|0;G.lastMelt=String(e[1]||'').slice(0,8);G.slideN=e[2]|0;G.sinkN=e[3]|0;G.blockBackN=e[4]|0;G.snowN=e[5]|0;G.snowLostN=e[6]|0;}
+  sprite.melting=m[12]>=0?MELTS[m[12]]||null:null;golem.icy=!!m[13];
 }
 function applyMines(m){
   if(!Array.isArray(m))return;const C=mine.cart,L=mine.lift,B=mine.boulder;
@@ -127,7 +146,8 @@ function applyState(st){
   if(Array.isArray(st.ch))G.ch={seeds:st.ch[0]|0,petals:st.ch[1]|0,secrets:st.ch[2]|0,launches:st.ch[3]|0,pulses:st.ch[4]|0};
   if(G.region==='ch2'&&st.m2)applyMines(st.m2);
   if(G.region==='ch3'&&st.m3)applyHeights(st.m3);
-  if(st.pg&&typeof st.pg==='object'){const p=st.pg;PROG.roots=clamp(p.r|0,0,7);PROG.ws=keySet(p.ws);PROG.seeds=keySet(p.sd);PROG.petals=keySet(p.pt);PROG.secrets=keySet(p.se);PROG.planted=p.pl|0;PROG.seen=keySet(p.sn);PROG.ch1.done=p.c1?1:0;PROG.ch1.best=p.b1|0;PROG.ch2.done=p.c2?1:0;PROG.ch2.best=p.b2|0;PROG.ch2.lan=p.l2|0;PROG.ch2.door=p.d2|0;PROG.ch3.done=p.c3?1:0;PROG.ch3.best=p.b3|0;}
+  if(G.region==='ch4'&&st.m4)applyFrost(st.m4);
+  if(st.pg&&typeof st.pg==='object'){const p=st.pg;PROG.roots=clamp(p.r|0,0,7);PROG.ws=keySet(p.ws);PROG.seeds=keySet(p.sd);PROG.petals=keySet(p.pt);PROG.secrets=keySet(p.se);PROG.planted=p.pl|0;PROG.seen=keySet(p.sn);PROG.ch1.done=p.c1?1:0;PROG.ch1.best=p.b1|0;PROG.ch2.done=p.c2?1:0;PROG.ch2.best=p.b2|0;PROG.ch2.lan=p.l2|0;PROG.ch2.door=p.d2|0;PROG.ch3.done=p.c3?1:0;PROG.ch3.best=p.b3|0;PROG.ch4.done=p.c4?1:0;PROG.ch4.best=p.b4|0;}
   G.placed=st.pl|0;G.ending=!!st.en;G.endT=+st.et||0;G.falls=st.f|0;G.lastFall=st.lf==='g'?'g':'s';G.fallN=st.fn|0;G.throws=st.th|0;G.pick=st.pk|0;G.useN=st.us|0;
 }
 function guestSmooth(dt){

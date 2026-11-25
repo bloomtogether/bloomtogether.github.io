@@ -10,7 +10,7 @@ function initAudio(){
   amb.wind=loop('bandpass',380,.6,.05);amb.water=loop('lowpass',900,.5,0);amb.glide=loop('bandpass',2200,2,0);amb.grind=loop('lowpass',300,1,0);amb.fount=loop('bandpass',1400,.4,0);
   birdLoop();
 }
-function birdLoop(){if(!AC)return;setTimeout(birdLoop,2500+Math.random()*6000);if(G.phase!=='play'||muted||document.hidden||G.region==='ch2')return;
+function birdLoop(){if(!AC)return;setTimeout(birdLoop,2500+Math.random()*6000);if(G.phase!=='play'||muted||document.hidden||G.region==='ch2'||G.region==='ch4')return;
   const base=2200+Math.random()*1600,n=2+Math.floor(Math.random()*4);for(let i=0;i<n;i++)tone(base*(1+Math.random()*.2),base*(.8+Math.random()*.5),.09,'sine',.018,i*.13);}
 function tone(f0,f1,dur,type,vol,delay){if(!AC)return;const t0=AC.currentTime+(delay||0),o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.setValueAtTime(f0,t0);o.frequency.exponentialRampToValueAtTime(Math.max(20,f1),t0+dur);
   g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(vol,t0+.012);g.gain.exponentialRampToValueAtTime(.0008,t0+dur);o.connect(g);g.connect(sfxBus);o.start(t0);o.stop(t0+dur+.05);}
@@ -51,7 +51,8 @@ function applyVolumes(){if(!AC)return;const st=PROG.settings;sfxBus.gain.value=s
 function updateAudio(dt){
   if(!AC)return;const t=AC.currentTime,focus=camTarget;
   let nearWater=0;
-  if(G.region==='ch3')nearWater=Math.max(0,1-Math.hypot(focus.x,focus.z+36)/16)*.1;
+  if(G.region==='ch4')nearWater=0;
+  else if(G.region==='ch3')nearWater=Math.max(0,1-Math.hypot(focus.x,focus.z+36)/16)*.1;
   else if(G.region==='ch1')nearWater=Math.max(0,1-Math.abs(focus.z+30)/14)*.12+Math.max(0,1-Math.abs(focus.z+56)/8)*.04*(focus.x<0?1:.4)+(focus.x<-14&&focus.z<-44&&focus.z>-66?.08:0);
   else if(G.region==='vale'&&VALE.wake>.5)nearWater=Math.max(0,1-riverDist(focus.x,focus.z)/18)*.11;
   amb.water.g.gain.setTargetAtTime(G.phase==='play'?nearWater:0,t,.4);

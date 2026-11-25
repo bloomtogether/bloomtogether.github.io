@@ -52,13 +52,13 @@ function togglePause(){
   if(chatOpen){closeChat();return;}
   const open=$('scrPause').hidden;
   if(open){G.paused=mode==='local';$('pauseEyebrow').textContent=(mode==='local'?'Paused':'Menu (the game keeps running online)')+' · '+curReg.name;$('pauseObj').textContent=objectiveText();
-    const boss=mode!=='online'||role==='host',inCh=G.region==='ch1'||G.region==='ch2'||G.region==='ch3';$('bRestart').hidden=!boss||!inCh;$('bToVale').hidden=!boss||!inCh;$('scrPause').hidden=false;}
+    const boss=mode!=='online'||role==='host',inCh=/^ch[1-4]$/.test(G.region);$('bRestart').hidden=!boss||!inCh;$('bToVale').hidden=!boss||!inCh;$('scrPause').hidden=false;}
   else{G.paused=false;$('scrPause').hidden=true;}
 }
 function toTitle(){if(mode==='online'){leaveOnline();if(role!=='host'){const st=PROG.settings;PROG=freshProgress();loadProgress();PROG.settings=st;}}
   G.scene='';G.card='';closeOverlay();refreshTitleSave();mode=null;G.phase='title';G.paused=false;clearChat();partnerName='';partnerHere=false;names.g=names.s='';show('scrTitle');}
 function showEnd(){
-  const dl=$('endStats');dl.textContent='';const m=Math.floor(G.time/60),s=Math.floor(G.time%60),n=G.region==='ch3'?3:G.region==='ch2'?2:1,reg='ch'+n;
+  const dl=$('endStats');dl.textContent='';const m=Math.floor(G.time/60),s=Math.floor(G.time%60),n=G.region==='ch4'?4:G.region==='ch3'?3:G.region==='ch2'?2:1,reg='ch'+n;
   const add=(a,b)=>{const dt=document.createElement('dt');dt.textContent=a;const dd=document.createElement('dd');dd.textContent=b;dl.append(dt,dd);};
   add('Time',m+' min '+s+' s');add('Golden seeds',seedsFoundIn(reg)+' of '+seedsIn(reg).length);
   const pc=PETALS.filter(p=>p.reg===reg);add('Memory petals',pc.filter(p=>PROG.petals[p.id]).length+' of '+pc.length);add('Secrets',REG[reg].secrets.filter(x=>PROG.secrets[x.id]).length+' of '+REG[reg].secrets.length);
@@ -66,9 +66,9 @@ function showEnd(){
   else if(n===2){add('Lanterns lit',countBits(mine.lan)+' of '+LANTERNS.length);add('Light pulses',String(G.ch.pulses|0));add(nameOf('s')+' thrown',G.throws+' times');}
   else{add(nameOf('s')+' thrown',G.throws+' times');}
   add('Falls',String(G.falls));
-  $('endEyebrow').textContent=['','Chapter 1 · The Sunken Garden','Chapter 2 · The Lantern Mines','Chapter 3 · The Windmill Heights'][n];$('endTitle').textContent=['','The fountain wakes','The Great Lantern wakes','The Great Windmill turns'][n];
-  $('endLede').textContent=nameOf('g')+' and '+nameOf('s')+[,' woke the fountain together. Far away, under the Vale, the first root stirs.',' lit the Great Lantern together. Deep under the hills, the second root wakes.',' set the Great Windmill turning. High above the clouds, the third root wakes.'][n];
-  $('bEndMenu').firstChild.textContent=['','Keep exploring the garden ','Keep exploring the mines ','Keep exploring the heights '][n];
+  $('endEyebrow').textContent=['','Chapter 1 · The Sunken Garden','Chapter 2 · The Lantern Mines','Chapter 3 · The Windmill Heights','Chapter 4 · The Frostmere Lake'][n];$('endTitle').textContent=['','The fountain wakes','The Great Lantern wakes','The Great Windmill turns','The lake thaws'][n];
+  $('endLede').textContent=nameOf('g')+' and '+nameOf('s')+[,' woke the fountain together. Far away, under the Vale, the first root stirs.',' lit the Great Lantern together. Deep under the hills, the second root wakes.',' set the Great Windmill turning. High above the clouds, the third root wakes.',' lit the old hearth again. The Frostmere Lake thaws, and the fourth root wakes.'][n];
+  $('bEndMenu').firstChild.textContent=['','Keep exploring the garden ','Keep exploring the mines ','Keep exploring the heights ','Keep exploring the lake '][n];
   const boss=mode!=='online'||role==='host';$('bAgain').hidden=!boss;$('bEndMenu').hidden=!boss;$('endWait').hidden=boss;show('scrEnd');
 }
 $('bLocal').onclick=()=>{initAudio();mode='local';myRole='g';role=null;clearChat();resetLevel();openBrief();};
@@ -88,12 +88,12 @@ $('codeIn').addEventListener('keydown',e=>{if(e.key==='Enter')$('bJoin').click()
 $('bBegin').onclick=()=>{initAudio();if(mode==='local')startPlay();else if(role==='host'&&findPartner())startPlay();};
 $('bBriefBack').onclick=toTitle;
 $('bResume').onclick=togglePause;
-$('bRestart').onclick=()=>{$('scrPause').hidden=true;if(G.region==='ch1')resetLevel();else if(G.region==='ch2')resetMines();else if(G.region==='ch3')resetHeights();G.paused=false;resetWatch();};
+$('bRestart').onclick=()=>{$('scrPause').hidden=true;if(G.region==='ch1')resetLevel();else if(G.region==='ch2')resetMines();else if(G.region==='ch3')resetHeights();else if(G.region==='ch4')resetFrost();G.paused=false;resetWatch();};
 $('bToVale').onclick=()=>{$('scrPause').hidden=true;G.paused=false;returnToVale();};
 $('bJournal').onclick=()=>openJournal('story');$('bMapP').onclick=openMap;$('bSettings').onclick=openSettings;$('bSettingsT').onclick=()=>{initAudio();openSettings();};
 $('bMute').onclick=()=>setMuted(!muted);
 $('bQuit').onclick=()=>{$('scrPause').hidden=true;toTitle();};
-function returnToVale(){const sp=valeSpotAtGate(G.region==='ch3'?3:G.region==='ch2'?2:1);G.phase='play';travel('vale',sp.g,sp.s,sp.yaw);show(null);}
+function returnToVale(){const sp=valeSpotAtGate(+(G.region.slice(2))||1);G.phase='play';travel('vale',sp.g,sp.s,sp.yaw);show(null);}
 $('bAgain').onclick=returnToVale;
 $('bEndMenu').onclick=()=>{G.phase='play';show(null);};
 let partnerHere=false;
@@ -181,9 +181,10 @@ async function boot(){const tb=performance.now();
     buildWorld();buildInteractives();buildCh1Extras();buildOrchard();if(REAL.ready)ch1RealFinish();endRegion(R);buildSeedInstances('ch1');curBuild='';BOOTMS.vale=Math.round(tb1-tb0);BOOTMS.ch1=Math.round(performance.now()-tb1);
     const tb2=performance.now();buildMines();curBuild='';BOOTMS.ch2=Math.round(performance.now()-tb2);
     const tb3=performance.now();buildHeights();curBuild='';BOOTMS.ch3=Math.round(performance.now()-tb3);
-    storyHooks();heightsHooks();
+    const tb4=performance.now();buildFrost();curBuild='';BOOTMS.ch4=Math.round(performance.now()-tb4);
+    storyHooks();heightsHooks();frostHooks();
     buildGolem();buildSprite();initAmbientParticles();
-    enterRegion('ch1');resetLevel();enterRegion('ch2');resetMines();enterRegion('ch3');resetHeights();enterRegion('vale');resetCaves();
+    enterRegion('ch1');resetLevel();enterRegion('ch2');resetMines();enterRegion('ch3');resetHeights();enterRegion('ch4');resetFrost();enterRegion('vale');resetCaves();
     const sp=startSpot();placeAt(golem,sp.g);placeAt(sprite,sp.s);
   }
   catch(e){console.error(e);fail('Something went wrong while building the Vale: '+e.message);return;}
@@ -201,5 +202,5 @@ async function boot(){const tb=performance.now();
 window.__bs={get PROG(){return PROG;},REG,travel,travelToWaystone,seesaw,crack,stones,SEEDS,PETALS,WAYS,GATES,VALE,playScene,skipScene,storyNext,valeH,saveProgress,eraseProgress,openMap,closeOverlay,get overlay(){return overlayOpen;},
   G,golem,sprite,get block(){return block;},runes,gate,bridge,port,plates,levers,get crank(){return crank;},latch,stepSim,resetLevel,startLocal:()=>{mode='local';resetLevel();startPlay();},NOIN,W,fadeables,camera,
   get camYaw(){return camYaw;},rotateCam,set dbgDist(v){dbgDist=v;},advance:(sec)=>{let n=performance.now();for(let i=0;i<sec*60;i++){n+=1000/60;tick(n);}},get models(){return MODELS;},set bot(v){BOT=v;},get bot(){return BOT;},
-  get ch1(){return {CP,F,SEESAW,POOL,CELLAR,levers,crank,runes,plates,stones,crack,exitGate,W,ORCH,TOWER,PAV,stair,pav};},get colliders(){return colliders;},get curReg(){return curReg;},get greet(){return GREET;},get perch(){return PERCH;},get caves(){return {CAVES,VCAVE,VLEVERS};},get ch2(){return {mine,MCP,GL,LANTERNS,CRYST,MLEVERS,LSTONES,WINCH_B,WINCH_T,MINE,lightPulse,resetMines,BSTATES};},get ch3(){return {hts,HCP,HT,WHEEL,POND,WINDS,VANES,COGS,HLEVERS,HBRIDGES,ISLES,resetHeights,windAt,wheelWind,heightsH};},packState,applyState,get renderer(){return renderer;},BOOTMS,scene,travelReq:()=>G.travelReq};
+  get ch1(){return {CP,F,SEESAW,POOL,CELLAR,levers,crank,runes,plates,stones,crack,exitGate,W,ORCH,TOWER,PAV,stair,pav};},get colliders(){return colliders;},get curReg(){return curReg;},get greet(){return GREET;},get perch(){return PERCH;},get caves(){return {CAVES,VCAVE,VLEVERS};},get ch2(){return {mine,MCP,GL,LANTERNS,CRYST,MLEVERS,LSTONES,WINCH_B,WINCH_T,MINE,lightPulse,resetMines,BSTATES};},get ch3(){return {hts,HCP,HT,WHEEL,POND,WINDS,VANES,COGS,HLEVERS,HBRIDGES,ISLES,resetHeights,windAt,wheelWind,heightsH};},get ch4(){return {frs,FCP,FR,MELTS,EMBERS,THIN,get ICEB(){return ICEB;},get SNOWB(){return SNOWB;},resetFrost,meltTarget};},packState,applyState,get renderer(){return renderer;},BOOTMS,scene,travelReq:()=>G.travelReq};
 boot();

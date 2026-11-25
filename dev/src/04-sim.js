@@ -29,6 +29,8 @@ function moveBody(b,dt,list){
       if((b.onGround||wasGround)&&rise>0&&rise<=b.stepH){const oy=b.pos.y;b.pos.y=c.max.y+.001;if(freeAt(b,list)){b.onGround=true;continue;}b.pos.y=oy;}
       if(c.kind==='block'&&b.kind==='golem'&&(b.onGround||wasGround)&&rise>.35){if(pushBlock(ax,d)&&!ov(b,c)){b.pushing=true;continue;}}
       if(c.kind==='cart'&&b.kind==='golem'&&(b.onGround||wasGround)&&rise>.35){if(pushCart(ax,d)&&!ov(b,c)){b.pushing=true;continue;}}
+      if(c.kind==='snowball'&&b.kind==='golem'&&(b.onGround||wasGround)&&rise>.35){if(pushSnowball(ax,d)&&!ov(b,c)){b.pushing=true;continue;}}
+      if(c.kind==='iceblock'&&b.kind==='golem'&&(b.onGround||wasGround)&&rise>.35){pushIceBlock(ax,d);b.pushing=true;}
       if(d>0)b.pos[ax]=c.min[ax]-b.hw-1e-4;else b.pos[ax]=c.max[ax]+b.hw+1e-4;b.vel[ax]=0;}}
 }
 function depenetrate(b,c){
@@ -75,6 +77,7 @@ function travel(reg,g,s,yaw){
   if(reg==='ch1'&&from!=='ch1'){resetLevel();G.ch={seeds:seedsFoundIn('ch1'),petals:0,secrets:0,launches:0};}
   if(reg==='ch2'&&from!=='ch2'){G.ch={seeds:seedsFoundIn('ch2'),petals:0,secrets:0,launches:0,pulses:0};resetMines();}
   if(reg==='ch3'&&from!=='ch3'){G.ch={seeds:seedsFoundIn('ch3'),petals:0,secrets:0,launches:0,pulses:0};resetHeights();}
+  if(reg==='ch4'&&from!=='ch4'){G.ch={seeds:seedsFoundIn('ch4'),petals:0,secrets:0,launches:0,pulses:0};resetFrost();}
   golem.holding=false;golem.charging=false;golem.pound=false;sprite.held=false;
   if(g)placeAt(golem,g);if(s)placeAt(sprite,s);if(yaw!=null)golem.yaw=sprite.yaw=yaw;
   golem.safe=null;sprite.safe=null;syncGolemCol();camSnap=true;CAVECAM.c=null;camYawT=Math.round(camYawT/(Math.PI*2))*Math.PI*2;
@@ -83,9 +86,11 @@ function travel(reg,g,s,yaw){
   else if(reg==='vale'&&PROG.roots>=1&&!PROG.seen.root1)playScene('root1');
   else if(reg==='vale'&&PROG.roots>=2&&!PROG.seen.root2)playScene('root2');
   else if(reg==='vale'&&PROG.roots>=3&&!PROG.seen.root3)playScene('root3');
+  else if(reg==='vale'&&PROG.roots>=4&&!PROG.seen.root4)playScene('root4');
   else if(reg==='ch1'&&!PROG.seen.ch1_intro)playScene('ch1_intro');
   else if(reg==='ch2'&&!PROG.seen.ch2_intro)playScene('ch2_intro');
   else if(reg==='ch3'&&!PROG.seen.ch3_intro)playScene('ch3_intro');
+  else if(reg==='ch4'&&!PROG.seen.ch4_intro)playScene('ch4_intro');
 }
 // just inside the Vale in front of a chapter's gate, facing the Heart Tree
 function valeSpotAtGate(n){
@@ -110,6 +115,7 @@ function golemAction(){
   }
   if(inCh2()&&golemMineAction())return;
   if(inCh3()&&golemHeightsAction())return;
+  if(inCh4()&&golemFrostAction())return;
   if(!sprite.held&&dxz(g.pos,sprite.pos)<1.75){const dy=sprite.pos.y-g.pos.y;if(dy>-.7&&dy<2.75){sprite.held=true;g.holding=true;sprite.vel.set(0,0,0);sprite.gliding=false;G.pick++;return;}}
   if(G.region==='vale'&&plotNear(g)&&seedsToPlant()>=5){plantSeeds();return;}
   if(nearWaystone(g)){G.travelReq++;return;}
@@ -144,6 +150,7 @@ function spriteTarget(){
     for(const l of HLEVERS)if(!l.pulled&&(l.id!=='brake'||hts.placed>=3))consider(l,l.pos,l.id==='brake'?'Release the brake':'Pull the lever (lower the bridge)');
     for(const c of COGS)if(c.state==='perched')consider(c,c.pos,'Nudge the cog off the pillar');
   }
+  if(inCh4()&&!best){const m=meltTarget();if(m)best={obj:m,label:m.label};}
   if(!best){const w=nearWaystone(s,2.4);if(w)best={obj:w,label:'Travel from the waystone'};}
   if(!best&&G.region==='vale'&&plotNear(s)&&seedsToPlant()>=5)best={obj:'plot',label:'Plant 5 golden seeds'};
   return best;
@@ -153,6 +160,7 @@ function spriteAction(){
   if(t.obj==='winch'){sprite.winding=true;return;}
   if(t.obj.mine){pullMineLever(t.obj);return;}
   if(t.obj.ch3){pullHeightsLever(t.obj);return;}
+  if(t.obj.onDone){sprite.melting=t.obj;return;}
   if(t.obj.kind==='cog'){const c=t.obj;c.state='free';c.pos.y+=.05;c.vel.set(0,3.2,5.2);c.onGround=false;G.nudgeN=(G.nudgeN||0)+1;return;}
   if(t.obj==='plot'){plantSeeds();return;}
   if(WAYS.includes(t.obj)){G.travelReq++;return;}
@@ -171,8 +179,9 @@ function stepSim(dt,IG,IS){
   if(G.scene||G.card){const press=IG.jumpP||IG.actP||IS.jumpP||IS.actP;if(G.scene){G.lineT+=dt;if(press||G.lineT>14)storyNext();}else{G.cardT+=dt;if(press&&G.cardT>1)G.card='';}return;}
   if(!G.ending)G.time+=dt;
   if(G.ending){IG=NOIN;IS=NOIN;}
-  const g=golem,s=sprite,ch1=inCh1(),ch2=inCh2(),ch3=inCh3();
+  const g=golem,s=sprite,ch1=inCh1(),ch2=inCh2(),ch3=inCh3(),ch4=inCh4();
   if(ch3)stepHeightsA(dt);
+  if(ch4){stepFrostA(dt,IS);if(s.melting)IS=Object.assign({},IS,{mx:0,mz:0,jumpP:0});}
   for(const b of [g,s])if(b.frz>0)b.frz-=dt;
   if(g.frz>0)IG=Object.assign({},IG,{mx:0,mz:0,jumpP:0,actP:0});if(s.frz>0)IS=Object.assign({},IS,{mx:0,mz:0,jumpP:0,actP:0});
   if(ch2){stepMinesA(dt,IG,IS);if(g.winding)IG=Object.assign({},IG,{mx:0,mz:0,jumpP:0});if(s.winding)IS=Object.assign({},IS,{mx:0,mz:0,jumpP:0});}
@@ -184,7 +193,8 @@ function stepSim(dt,IG,IS){
   {const len=Math.hypot(IG.mx,IG.mz),k=len>1?1/len:1,mx=g.pound?0:IG.mx*k,mz=g.pound?0:IG.mz*k;
    g.wading=ch3&&g.pos.y<-.3&&inPond(g.pos.x,g.pos.z);
    const spd=GOLEM.speed*(g.holding?.8:1)*(g.charging?.35:1)*(g.pushing?.6:1)*(g.wading?.6:1);g.pushing=false;
-   const acc=(g.onGround?16:6)*dt*GOLEM.speed;
+   const icy=ch4&&g.onGround&&g.ground&&g.ground.surface==='ice';g.icy=icy;
+   const acc=(icy?2.2:g.onGround?16:6)*dt*GOLEM.speed;
    if(g.pound){g.vel.x=g.vel.z=0;}else{g.vel.x=approach(g.vel.x,mx*spd,acc);g.vel.z=approach(g.vel.z,mz*spd,acc);}
    if(len>.15&&!g.pound)g.yaw=angLerp(g.yaw,Math.atan2(mx,mz),1-Math.exp(-dt*9));
    if(IG.jumpP&&g.coyote>0&&!g.holding&&!g.charging){g.vel.y=GOLEM.jumpV;g.coyote=0;}
@@ -221,7 +231,7 @@ function stepSim(dt,IG,IS){
     depenetrate(s,golem.col);if(ch1)depenetrate(s,block.col);if(ch2)depenetrate(s,mine.cart.col);
     const len=Math.hypot(IS.mx,IS.mz),k=len>1?1/len:1,mx=IS.mx*k,mz=IS.mz*k;
     s.gliding=!s.onGround&&IS.jump&&s.vel.y<0;
-    const tgt=s.onGround?SPR.speed:(s.gliding?3.2:4.6),acc=s.onGround?42*dt:(len<.15?0:(s.thrownT>0?4:13)*dt);
+    const tgt=s.onGround?SPR.speed:(s.gliding?3.2:4.6),acc=s.onGround?(ch4&&s.ground&&s.ground.surface==='ice'?7:42)*dt:(len<.15?0:(s.thrownT>0?4:13)*dt);
     s.vel.x=approach(s.vel.x,mx*tgt,acc);s.vel.z=approach(s.vel.z,mz*tgt,acc);
     if(s.gliding&&s.thrownT<=0){const hsp=Math.hypot(s.vel.x,s.vel.z);if(hsp>3.6){const kk=Math.max(3.6,hsp-6*dt)/hsp;s.vel.x*=kk;s.vel.z*=kk;}}
     if(len>.15)s.yaw=angLerp(s.yaw,Math.atan2(mx,mz),1-Math.exp(-dt*14));
@@ -235,6 +245,7 @@ function stepSim(dt,IG,IS){
   }
   if(ch2)stepMinesB(dt);
   if(ch3)stepHeightsB(dt);
+  if(ch4)stepFrostB(dt);
   if(ch1){
     // ---- runes ----
     for(const r of runes){
@@ -263,7 +274,7 @@ function stepSim(dt,IG,IS){
       if(b===g&&g.holding){g.holding=false;g.charging=false;s.held=false;placeAt(s,CP[s.cp].s);}
       if(b===g)syncGolemCol();
     }
-    if((ch2&&b.pos.y<-6)||(ch3&&b.pos.y<-15)){ // a fall into a chasm or off an island: back to the last safe spot
+    if((ch2&&b.pos.y<-6)||(ch3&&b.pos.y<-15)||(ch4&&b.pos.y<-4)){ // a fall into a chasm or off an island: back to the last safe spot
       const p=b.safe?[b.safe.x,b.safe.y+.05,b.safe.z]:curReg.spawn[b===g?'g':'s'];respawnAt(b,p);G.falls++;G.fallN++;G.lastFall=b===g?'g':'s';
       if(b===g&&g.holding){g.holding=false;g.charging=false;s.held=false;placeAt(s,[p[0]+.8,p[1],p[2]]);}
       if(b===g)syncGolemCol();
@@ -283,10 +294,10 @@ function applyDoorColliders(){
 }
 // a spot counts as safe ground only when the body stands well onto it (its centre at least half a body-width
 // inside the edge), so a respawn never lands someone on the very lip of a drop where they slip straight off again
-function wellOn(b){const c=b.ground;if(c===TERR)return true;const m=b.hw*.5;return b.pos.x>c.min.x+m&&b.pos.x<c.max.x-m&&b.pos.z>c.min.z+m&&b.pos.z<c.max.z-m;}
+function wellOn(b){const c=b.ground;if(c===TERR)return true;const m=Math.max(.35,b.hw*.5);return b.pos.x>c.min.x+m&&b.pos.x<c.max.x-m&&b.pos.z>c.min.z+m&&b.pos.z<c.max.z-m;}
 // back on safe ground after a fall: still, no slam or winding, and a moment before the keys move them again
 function respawnAt(b,p){placeAt(b,p);b.pound=false;b.winding=false;b.charging=false;b.frz=.5;b.airT=0;}
-const UNSAFE={seesaw:1,crack:1,golem:1,block:1,bridge:1,cart:1,lift:1,door:1,nest:1,gondola:1};
+const UNSAFE={seesaw:1,crack:1,golem:1,block:1,bridge:1,cart:1,lift:1,door:1,nest:1,gondola:1,thinice:1,iceblock:1,snowball:1};
 function chapterComplete(n){
   const P=PROG['ch'+n],first=!P.done;P.done=1;PROG.roots=Math.max(PROG.roots,n);G.endCh=n;
   if(!P.best||G.time<P.best)P.best=Math.round(G.time);G.firstClear=first;saveProgress();
@@ -306,11 +317,11 @@ function worldChecks(){
   tickDialogue(1/60);
   // walking through a gate together changes region
   const both=(p,r)=>dxz(g.pos,p)<r&&dxz(s.pos,p)<r;
-  if(reg==='vale')for(const gt of GATES){if(!gt.ready||gt.ch>3)continue;
-    if(dxz(g.pos,gt.pos)<2.6||dxz(s.pos,gt.pos)<2.6){if(both(gt.pos,11)){const sp={1:CP[0],2:MCP,3:HCP}[gt.ch];travel('ch'+gt.ch,sp.g,sp.s,Math.PI);}else if(G.chT<=0){G.waitN++;G.chT=4;}}}
-  const exitZ=reg==='ch3'?9.3:5.3;
-  if((reg==='ch2'||reg==='ch3')&&(g.pos.z>exitZ||s.pos.z>exitZ)&&Math.abs(g.pos.x)<5&&Math.abs(s.pos.x)<5){
-    if(both(new V3(0,0,exitZ-.9),11)){const sp=valeSpotAtGate(reg==='ch3'?3:2);travel('vale',sp.g,sp.s,sp.yaw);}
+  if(reg==='vale')for(const gt of GATES){if(!gt.ready||gt.ch>4)continue;
+    if(dxz(g.pos,gt.pos)<2.6||dxz(s.pos,gt.pos)<2.6){if(both(gt.pos,11)){const sp={1:CP[0],2:MCP,3:HCP,4:FCP}[gt.ch];travel('ch'+gt.ch,sp.g,sp.s,Math.PI);}else if(G.chT<=0){G.waitN++;G.chT=4;}}}
+  const exitZ=reg==='ch3'||reg==='ch4'?9.3:5.3;
+  if((reg==='ch2'||reg==='ch3'||reg==='ch4')&&(g.pos.z>exitZ||s.pos.z>exitZ)&&Math.abs(g.pos.x)<5&&Math.abs(s.pos.x)<5){
+    if(both(new V3(0,0,exitZ-.9),11)){const sp=valeSpotAtGate(+reg.slice(2));travel('vale',sp.g,sp.s,sp.yaw);}
     else{for(const b of [g,s])if(b.pos.z>5.3){b.pos.z=5.2;b.vel.z=Math.min(0,b.vel.z);}if(G.chT<=0){G.waitN++;G.chT=4;}}}
   if(reg==='ch1'&&(g.pos.z>5.3||s.pos.z>5.3)&&Math.abs(g.pos.x)<5&&Math.abs(s.pos.x)<5){
     if(both(exitGate.pos,11)){const z=-100.5;travel('vale',[-1.6,valeH(-1.6,z),z],[1.6,valeH(1.6,z),z],0);}

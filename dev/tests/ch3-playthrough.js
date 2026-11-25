@@ -217,7 +217,7 @@ export async function run(opts = {}) {
     await rideUp(wind('nest'), 4, 9, 3, 0);
     G0.falls = G.falls;
   });
-  await step('Both cross the bridge; the Giant lifts the Sprite onto its head and wades the pond, taking the first cog on the way', async () => {
+  await step('Both cross the bridge; the Giant lifts the Sprite onto its head and wades the pond, taking the first cog on the way', async () => { const sp0 = G.splashN | 0;
     await walkBoth(-.4, -24, .9, -24.6, 60);
     await pickUpSprite();
     await walkTo('g', 0, -34.75, .3, 40);
@@ -225,7 +225,7 @@ export async function run(opts = {}) {
     if (!s.held) throw new Error('the Sprite came off the Giant’s head');
     await walkTo('g', 0, -40, .5, 20); await walkTo('g', 0, -46.5, .5, 30);
     ctl.s = () => ({ jump: 1, mz: -1 }); frame(); frame(); ctl.s = null; await until(() => s.onGround, 4, 'Sprite hopping down');
-    if (G.splashN) throw new Error('someone fell in the water');
+    if ((G.splashN | 0) > sp0) throw new Error('someone fell in the water');
   });
   await step('Sail Terrace: the Giant turns the sails so only the far one faces the wind; the Sprite rides up to the pillar and nudges the cog down; the Giant takes it', async () => {
     await walkTo('g', VANES[0].capPos.x, VANES[0].capPos.z + 1.3, .4, 60); await press('g');
@@ -303,14 +303,14 @@ export async function run(opts = {}) {
     await rideWheel(false);
     if (g.pos.y > .5 || s.pos.y > .5) throw new Error('not back on the deck');
   });
-  await step('Behind the waterfall (secret, memory petal): the Giant wades into the grotto with the Sprite on its head', async () => {
+  await step('Behind the waterfall (secret, memory petal): the Giant wades into the grotto with the Sprite on its head', async () => { const sp0 = G.splashN | 0;
     await walkBoth(-.6, -47.4, .8, -47.6, 120);
     await pickUpSprite();
     await walkTo('g', 0, -40, .5, 30); await walkTo('g', -8.6, -36, .5, 30); await walkTo('g', -12.6, -36, .4, 20);
     await until(() => P.secrets.c3_grotto && P.petals.m10, 3, 'the grotto secret and memory petal');
     await walkTo('g', -6, -33, .5, 20); await walkTo('g', 0, -26.4, .5, 30);
     ctl.s = () => ({ jump: 1, mz: 1 }); frame(); frame(); ctl.s = null; await until(() => s.onGround, 4, 'Sprite hopping down');
-    if (G.splashN) throw new Error('someone fell in the water');
+    if ((G.splashN | 0) > sp0) throw new Error('someone fell in the water');
   });
   await step('Both walk back over the bridge to the Landing Isle and out through the gate to the Vale', async () => {
     await walkBoth(-1.2, 8, 1.2, 8, 120);

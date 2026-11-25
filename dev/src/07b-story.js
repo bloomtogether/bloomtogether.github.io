@@ -34,7 +34,16 @@ const SCENES={
   root3:{title:'The third root wakes',lines:[
     {text:'High above the eastern clouds, the third root wakes.',p:[[80,30,12],[92,26,0]],l:[[104,8,-8],[104,10,-8]]},
     {text:'Little windmills start to spin on the Vale\u2019s hills.',p:[[-26,14,64],[-8,12,44]],l:[[-40,4,38],[0,4,12]]},
-    {text:'Four roots still sleep. The gate to the Frostmere Lake has begun to flicker. (Chapter 4 arrives in a later update.)',p:[[30,30,30],[12,34,22]],l:[[78,6,74],[78,8,74]]}]},
+    {text:'Four roots still sleep. The gate to the Frostmere Lake, in the south-east of the Vale, has begun to glow.',p:[[30,30,30],[12,34,22]],l:[[78,6,74],[78,8,74]]}]},
+  ch4_intro:{title:'Chapter 4: The Frostmere Lake',lines:[
+    {text:'The Frostmere Lake has been frozen since the Hush. Snow lies on the pines, and nothing moves on the ice.',p:[[0,9,24],[0,12,8]],l:[[0,1,-10],[0,1,-30]]},
+    {text:'On its island stands the old hearth that once warmed the whole shore. It has gone cold.',p:[[10,14,-58],[6,12,-62]],l:[[0,2,-72],[0,2,-72]]},
+    {text:'Bring it three embers and clear its chimney, and the fourth root will wake.',p:[[-20,16,-30],[20,16,-40]],l:[[-24,0,-58],[24,0,-52]]},
+    {text:'Mind your feet. The ice is slippery, and some of it is very thin.',p:[[0,5,14],[0,4,11]],l:[[0,1.2,4],[0,1.2,4]]}]},
+  root4:{title:'The fourth root wakes',lines:[
+    {text:'Far across the snow, the fourth root wakes, and the Frostmere Lake begins to thaw.',p:[[60,26,90],[70,22,80]],l:[[78,6,74],[78,8,74]]},
+    {text:'Frost lilies open along the river, cool and bright.',p:[[-30,10,70],[0,8,66]],l:[[-20,0,54],[20,0,50]]},
+    {text:'Three roots still sleep. The gate to the Mushroom Marsh has begun to flicker. (Chapter 5 arrives in a later update.)',p:[[-30,30,40],[-50,34,40]],l:[[-78,6,74],[-78,8,74]]}]},
 };
 function playScene(id){if(!SCENES[id])return;G.scene=id;G.line=0;G.lineT=0;PROG.seen[id]=1;saveSoon();}
 function storyNext(){const S=SCENES[G.scene];if(!S){G.scene='';return;}G.line++;G.lineT=0;if(G.line>=S.lines.length){const id=G.scene;G.scene='';G.line=0;camSnap=true;if(S.after)S.after();}}
@@ -110,6 +119,16 @@ const DLG={
   h10:{who:'s',text:'Behind the waterfall… a hidden room! Wade in, {g}.'},
   h11:{who:'s',text:'The gearbox is empty. Three cogs, and the Great Windmill turns again.'},
   h12:{who:'g',text:"You're flying, {s}. Really flying."},
+  f1:{who:'s',text:'Brr! Everything is frozen, {g}. Even the gate.'},
+  f2:{who:'g',text:"Careful, {s}. I don't stop well on ice."},
+  f3:{who:'s',text:'If that block slid all the way to the water…'},
+  f4:{who:'g',text:'That ice is too thin for me. It creaks when I look at it.'},
+  f5:{who:'s',text:"I'm light! I'll skate across and thaw that lever."},
+  f6:{who:'g',text:'A snowball. If I keep rolling it, it will keep growing.'},
+  f7:{who:'s',text:'Bigger, {g}! Big enough to fill that crack.'},
+  f8:{who:'g',text:'The old hearth. We used to sit by it, didn\u2019t we, {s}?'},
+  f9:{who:'s',text:'Something glows behind that ice wall. Let me warm it.'},
+  f10:{who:'s',text:'A little hut, frozen shut. I wonder who fished here.'},
 };
 const fill=t=>t.replace(/\{g\}/g,nameOf('g')).replace(/\{s\}/g,nameOf('s'));
 let dlgPending=null;
@@ -130,10 +149,13 @@ const MEMS=[
   {id:'m9',where:'Chapter 3: the cloud nest',title:'Naming Clouds',text:'On lazy afternoons they lay on the hill and named the clouds. The Sprite saw dragons and boats. The Giant only ever saw rocks, and said so, every single time.'},
   {id:'m10',where:'Chapter 3: behind the waterfall',title:'Carrying Water',text:'Every morning the Giant carried water up the hill to the young tree, one careful bucket at a time, until the Sprite drew a windmill in the mud and said, \u201cLet the wind carry it.\u201d'},
   {id:'m11',where:'Chapter 3: the windmill rooftop',title:'The Windiest Day',text:'On the windiest day of the year the Sprite let the wind lift her higher than the tree. Far below, the Giant held his breath until she came back down.'},
+  {id:'m12',where:'Chapter 4: the fishing hut',title:'Winter Fish',text:'One hard winter the Giant cut a hole in the lake for the Sprite to fish through. The Sprite caught nothing all day, and then one silver fish that she let go again.'},
+  {id:'m13',where:'Chapter 4: the thin-ice islet',title:'Skating',text:'The Sprite skated in circles on the thin ice where the Giant could never follow. He stood at the shore and clapped every time she spun.'},
+  {id:'m14',where:'Chapter 4: the great boulder',title:'The First Snowman',text:'They built a snowman together. The Giant rolled the body as tall as himself; the Sprite made a tiny head and stuck a single pine needle on it for a smile.'},
 ];
 function drawMemory(c,id,W,H){
   const sky=c.createLinearGradient(0,0,0,H);
-  const pal={m0:['#ffd9a8','#f7a7a0'],m1:['#bfe3f2','#e6f3e0'],m2:['#9fb8c9','#d2dfe0'],m3:['#ffe7b8','#cfe9c8'],m4:['#c9d6e6','#f1f4f7'],m5:['#d9f0c4','#fff3cf'],m6:['#1f2a4a','#4a4f78'],m7:['#3a2c22','#5e4a38'],m8:['#141a2a','#2c3550'],m9:['#9fd0f2','#eaf6ff'],m10:['#ffe3b0','#d9efc7'],m11:['#7fbfe8','#e9f6ff']}[id]||['#bfe3f2','#e6f3e0'];
+  const pal={m0:['#ffd9a8','#f7a7a0'],m1:['#bfe3f2','#e6f3e0'],m2:['#9fb8c9','#d2dfe0'],m3:['#ffe7b8','#cfe9c8'],m4:['#c9d6e6','#f1f4f7'],m5:['#d9f0c4','#fff3cf'],m6:['#1f2a4a','#4a4f78'],m7:['#3a2c22','#5e4a38'],m8:['#141a2a','#2c3550'],m9:['#9fd0f2','#eaf6ff'],m10:['#ffe3b0','#d9efc7'],m11:['#7fbfe8','#e9f6ff'],m12:['#cfe2ee','#f4f9fc'],m13:['#bcd9ea','#eef7fb'],m14:['#dfe9f1','#ffffff']}[id]||['#bfe3f2','#e6f3e0'];
   sky.addColorStop(0,pal[0]);sky.addColorStop(1,pal[1]);c.fillStyle=sky;c.fillRect(0,0,W,H);
   const hill=(y,col,amp,ph)=>{c.fillStyle=col;c.beginPath();c.moveTo(0,H);for(let x=0;x<=W;x+=8)c.lineTo(x,y+Math.sin(x/W*Math.PI*2*1.2+ph)*amp);c.lineTo(W,H);c.fill();};
   const giant=(x,y,s,kneel)=>{c.fillStyle='#8c7a6a';c.beginPath();c.ellipse(x,y-60*s*(kneel?.75:1),42*s,58*s*(kneel?.75:1),0,0,7);c.fill();c.beginPath();c.arc(x+(kneel?14*s:0),y-(kneel?112:128)*s,24*s,0,7);c.fill();
@@ -168,6 +190,11 @@ function drawMemory(c,id,W,H){
   else if(id==='m11'){c.fillStyle='rgba(255,255,255,.85)';for(let i=0;i<8;i++){c.beginPath();c.ellipse(hash2(i,1,9)*W,hash2(i,2,9)*H*.5,40+hash2(i,3,9)*40,14,0,0,7);c.fill();}
     hill(H*.86,'#93c070',8,2.2);c.strokeStyle='#7a5a3c';c.lineWidth=4;c.beginPath();c.moveTo(W*.3,H*.88);c.lineTo(W*.3,H*.74);c.stroke();c.fillStyle='#6cbf52';c.beginPath();c.arc(W*.3,H*.72,16,0,7);c.fill();
     giant(W*.42,H*.97,.6);spr(W*.66,H*.2,1.1);}
+  else if(id==='m12'||id==='m13'||id==='m14'){c.fillStyle='rgba(255,255,255,.8)';for(let i=0;i<60;i++){c.beginPath();c.arc(hash2(i,1,12)*W,hash2(i,2,12)*H*.7,1+hash2(i,3,12)*2,0,7);c.fill();}
+    hill(H*.74,'#eef4f8',10,1.4);c.fillStyle='#a9d3e6';c.beginPath();c.ellipse(W*.5,H*.86,W*.42,H*.1,0,0,7);c.fill();
+    if(id==='m12'){c.fillStyle='#2d4f63';c.beginPath();c.ellipse(W*.6,H*.86,20,8,0,0,7);c.fill();giant(W*.38,H*.95,.9,true);spr(W*.62,H*.74,.9);c.fillStyle='#d8e6ee';c.beginPath();c.ellipse(W*.7,H*.7,12,5,.3,0,7);c.fill();}
+    else if(id==='m13'){c.strokeStyle='rgba(255,255,255,.9)';c.lineWidth=2;c.beginPath();c.ellipse(W*.6,H*.86,60,12,0,0,7);c.stroke();spr(W*.6,H*.78,.9);giant(W*.2,H*.92,.8);}
+    else{c.fillStyle='#ffffff';c.beginPath();c.arc(W*.6,H*.76,40,0,7);c.fill();c.beginPath();c.arc(W*.6,H*.6,14,0,7);c.fill();giant(W*.36,H*.95,.9);spr(W*.68,H*.55,.8);}}
   else if(id==='m8'){c.fillStyle='#0f1422';c.fillRect(0,H*.7,W,H*.3);const gr=c.createLinearGradient(0,0,W,0);gr.addColorStop(0,'rgba(255,210,120,0)');gr.addColorStop(.5,'rgba(255,220,140,1)');gr.addColorStop(1,'rgba(255,210,120,0)');
     c.strokeStyle=gr;c.lineWidth=6;c.beginPath();c.moveTo(0,H*.78);c.bezierCurveTo(W*.3,H*.62,W*.6,H*.9,W,H*.7);c.stroke();c.globalAlpha=.35;c.lineWidth=18;c.stroke();c.globalAlpha=1;
     giant(W*.32,H*.94,1,true);spr(W*.58,H*.5,1.2);}
@@ -199,7 +226,9 @@ function storySoFar(){
   else if(PROG.ch1.done)out.push(['Next','The gate to the Lantern Mines glows in the eastern hills. Somewhere in the dark, three lantern stones wait to light the Great Lantern.']);
   if(PROG.ch3.done)out.push(['The Windmill Heights','High above the clouds they found three cogs, rode the wind and freed the Great Windmill\u2019s brake. The third root woke, and little windmills spin on the Vale\u2019s hills.']);
   else if(PROG.ch2.done)out.push(['Next','The gate to the Windmill Heights glows at the eastern edge of the Vale. Up there the Great Windmill is missing three cogs.']);
-  if(PROG.ch3.done)out.push(['Next','A fourth gate, to the Frostmere Lake, has begun to flicker. Chapter 4 arrives in a later update.']);
+  if(PROG.ch4.done)out.push(['The Frostmere Lake','On the frozen lake they slid ice, rolled a snowball as big as a bridge and melted their way to three embers. The old hearth burns again, the lake is thawing, and frost lilies line the Vale\u2019s river.']);
+  else if(PROG.ch3.done)out.push(['Next','The gate to the Frostmere Lake glows in the south-east of the Vale. Its old hearth needs three embers.']);
+  if(PROG.ch4.done)out.push(['Next','A fifth gate, to the Mushroom Marsh, has begun to flicker. Chapter 5 arrives in a later update.']);
   return out;
 }
 let jTab='story';
@@ -215,6 +244,7 @@ function renderJournal(){
     if(PROG.ch1.best)add('Best time, Chapter 1',Math.floor(PROG.ch1.best/60)+' min '+(PROG.ch1.best%60)+' s');
     if(PROG.ch2.best)add('Best time, Chapter 2',Math.floor(PROG.ch2.best/60)+' min '+(PROG.ch2.best%60)+' s');
     if(PROG.ch3.best)add('Best time, Chapter 3',Math.floor(PROG.ch3.best/60)+' min '+(PROG.ch3.best%60)+' s');
+    if(PROG.ch4.best)add('Best time, Chapter 4',Math.floor(PROG.ch4.best/60)+' min '+(PROG.ch4.best%60)+' s');
     if(PROG.ch1.done)add('Lanterns lit, Chapter 2',countBits(PROG.ch2.lan|0)+' of '+LANTERNS.length);
     el.appendChild(st);}
   if(jTab==='mem'){const el=$('jMem');el.textContent='';
@@ -233,7 +263,7 @@ function buildValeMapImage(){const N=200,cv=document.createElement('canvas');cv.
   c.putImageData(im,0,0);valeMapImg=cv;}
 function drawMap(cv){
   const c=cv.getContext('2d'),W=cv.width,H=cv.height;c.clearRect(0,0,W,H);c.fillStyle='#e9e2d0';c.fillRect(0,0,W,H);
-  let x0,x1,z0,z1;if(G.region==='vale'){x0=-128;x1=128;z0=-128;z1=128;}else if(G.region==='ch2'){x0=-38;x1=78;z0=-88;z1=8;}else if(G.region==='ch3'){x0=-20;x1=64;z0=-92;z1=12;}else{x0=-44;x1=48;z0=-86;z1=8;}
+  let x0,x1,z0,z1;if(G.region==='vale'){x0=-128;x1=128;z0=-128;z1=128;}else if(G.region==='ch2'){x0=-38;x1=78;z0=-88;z1=8;}else if(G.region==='ch3'){x0=-20;x1=64;z0=-92;z1=12;}else if(G.region==='ch4'){x0=-40;x1=34;z0=-86;z1=12;}else{x0=-44;x1=48;z0=-86;z1=8;}
   const s=Math.min((W-40)/(x1-x0),(H-40)/(z1-z0)),ox=(W-(x1-x0)*s)/2,oz=(H-(z1-z0)*s)/2;
   const X=x=>ox+(x-x0)*s,Z=z=>oz+(z-z0)*s;
   if(G.region==='vale'){
@@ -247,6 +277,14 @@ function drawMap(cv){
     for(const g of GATES){c.fillStyle=g.ready?'#f2873a':'#8f9aa3';c.beginPath();c.arc(X(g.pos.x),Z(g.pos.z),7,0,7);c.fill();label(c,g.ch+' · '+g.name,X(g.pos.x),Z(g.pos.z)+(g.pos.z<0?-14:22),g.ready?'#c9621a':'#5c6b76');}
     for(const cv of CAVES){const r=caveRect(cv);c.fillStyle='#4b4038';c.fillRect(X(r.x0),Z(r.z0),(r.x1-r.x0)*s,(r.z1-r.z0)*s);label(c,cv.name,X(cv.x-cv.dir*4),Z(cv.z)-12,'#5c4636');}
     c.fillStyle='#8a6448';c.beginPath();c.arc(X(VALE.plot.x),Z(VALE.plot.z),6,0,7);c.fill();label(c,'Seed Garden',X(VALE.plot.x)-26,Z(VALE.plot.z)+4,'#5c6b76');
+  }else if(G.region==='ch4'){
+    c.fillStyle='#dfe9ef';c.fillRect(X(x0),Z(z1),(x1-x0)*s,(z0-z1)*s);
+    for(const k of REG.ch4.colliders){if(!k.mesh||!k.on)continue;const top=k.max.y;if(top>.05||top<-.05)continue;c.fillStyle=k.surface==='ice'?'#bfe0ee':'#ffffff';c.fillRect(X(k.min.x),Z(k.min.z),(k.max.x-k.min.x)*s,(k.max.z-k.min.z)*s);}
+    c.fillStyle='#5d8fa6';c.fillRect(X(FR.chan.x0),Z(FR.chan.z0),(FR.chan.x1-FR.chan.x0)*s,2*s);c.fillStyle='rgba(93,143,166,.5)';c.fillRect(X(FR.bay.x0),Z(FR.bay.z0),(FR.bay.x1-FR.bay.x0)*s,(FR.bay.z1-FR.bay.z0)*s);
+    c.fillStyle='#3a4148';c.fillRect(X(FR.crev.x0),Z(FR.crev.z0),(FR.crev.x1-FR.crev.x0)*s,(FR.crev.z1-FR.crev.z0)*s);
+    c.fillStyle='#8a7a66';c.fillRect(X(-2),Z(-74),4*s,4*s);label(c,'Hearth',X(0),Z(-75),'#243039');
+    label(c,'Shore Camp',X(0),Z(-2),'#243039');label(c,'Ice Field',X(0),Z(-26),'#243039');label(c,'Snowfield',X(-24),Z(-45),'#243039');label(c,'The Narrows',X(18),Z(-45),'#243039');label(c,'To the Vale',X(0),Z(11),'#118a6f');
+    for(const p of PETALS)if(p.reg==='ch4'&&PROG.petals[p.id]){c.fillStyle='#ff8fc0';c.beginPath();c.arc(X(p.pos.x),Z(p.pos.z),5,0,7);c.fill();}
   }else if(G.region==='ch3'){
     c.fillStyle='#cfe3f0';c.fillRect(X(x0),Z(z1),(x1-x0)*s,(z0-z1)*s);
     for(const I of ISLES.slice().sort((a,b)=>a.y-b.y)){c.fillStyle=I.y>10?'#7fae5c':I.y<-1?'#9fc283':'#95c46f';c.fillRect(X(I.x0),Z(I.z0),(I.x1-I.x0)*s,(I.z1-I.z0)*s);}
@@ -314,7 +352,7 @@ function openTravel(){
   if(mode==='online'&&role!=='host'){toast(nameOf(myRole==='g'?'s':'g')+' chooses where to travel');return;}
   openOverlay('scrTravel');const L=$('travelList');L.textContent='';
   for(const w of WAYS){if(!PROG.ws[w.id])continue;const b=document.createElement('button');b.className='btn';const here=w.reg===G.region&&(dxz(golem.pos,w.pos)<4||dxz(sprite.pos,w.pos)<4);
-    b.append(({vale:'The Vale: ',ch1:'Chapter 1: ',ch2:'Chapter 2: ',ch3:'Chapter 3: '}[w.reg]||'')+w.name);const sm=document.createElement('small');sm.textContent=here?'you are here':(w.reg===G.region?'this area':'another area');b.append(sm);
+    b.append(({vale:'The Vale: ',ch1:'Chapter 1: ',ch2:'Chapter 2: ',ch3:'Chapter 3: ',ch4:'Chapter 4: '}[w.reg]||'')+w.name);const sm=document.createElement('small');sm.textContent=here?'you are here':(w.reg===G.region?'this area':'another area');b.append(sm);
     b.disabled=here;b.onclick=()=>{closeOverlay();travelToWaystone(w.id);};L.appendChild(b);}
 }
 function refreshTitleSave(){
@@ -368,5 +406,16 @@ function heightsHooks(){
     {id:'h8',x:34,z:-58,r:5,cond:()=>wheelWind()&&!heightsDone()},{id:'h9',x:22,z:-81,r:4,cond:()=>COGS[2].state==='rest'&&golem.pos.y>12},
     {id:'h10',x:-9,z:-36,r:3,cond:()=>!PROG.secrets.c3_grotto},{id:'h11',x:52,z:-78,r:6,cond:()=>hts.placed<3&&golem.pos.y>12},
     {id:'h12',x:52,z:-77.9,r:2.5,cond:()=>sprite.pos.y>19}];
+}
+function frostHooks(){
+  REG.ch4.secrets=[
+    {id:'c4_hut',name:'The fishing hut',test:b=>b.pos.x>14.2&&b.pos.x<17.8&&b.pos.z>-37.8&&b.pos.z<-34.2},
+    {id:'c4_ring',name:'The thin-ice islet',test:b=>b.pos.x>12.6&&b.pos.x<15.4&&b.pos.z>-59.4&&b.pos.z<-56.6&&b.pos.y>-.2},
+    {id:'c4_rock',name:'The great boulder',test:b=>b.pos.x>6.4&&b.pos.x<9.6&&b.pos.z>-79.6&&b.pos.z<-76.4&&b.pos.y>3}];
+  REG.ch4.talk=[
+    {id:'f1',x:0,z:-9,r:4,cond:()=>!frs.gate.open},{id:'f2',x:0,z:-15,r:4},{id:'f3',x:6,z:-22,r:4,cond:()=>!ICEB.sunk},
+    {id:'f4',x:4,z:-48,r:4,cond:()=>EMBERS[0].state==='rest'},{id:'f5',x:4,z:-52,r:4,cond:()=>!frs.cause},
+    {id:'f6',x:-20,z:-46.6,r:4,cond:()=>!SNOWB.bridged},{id:'f7',x:-24,z:-49,r:4,cond:()=>!SNOWB.bridged&&SNOWB.r>.9},
+    {id:'f8',x:0,z:-68,r:4},{id:'f9',x:-5,z:-76,r:4,cond:()=>EMBERS[2].state==='rest'},{id:'f10',x:13.5,z:-36,r:3}];
 }
 function countBits(n){let c=0;while(n){c+=n&1;n>>>=1;}return c;}
