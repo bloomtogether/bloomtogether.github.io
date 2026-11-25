@@ -162,6 +162,8 @@ function stepSim(dt,IG,IS){
   if(!G.ending)G.time+=dt;
   if(G.ending){IG=NOIN;IS=NOIN;}
   const g=golem,s=sprite,ch1=inCh1(),ch2=inCh2();
+  for(const b of [g,s])if(b.frz>0)b.frz-=dt;
+  if(g.frz>0)IG=Object.assign({},IG,{mx:0,mz:0,jumpP:0,actP:0});if(s.frz>0)IS=Object.assign({},IS,{mx:0,mz:0,jumpP:0,actP:0});
   if(ch2){stepMinesA(dt,IG,IS);if(g.winding)IG=Object.assign({},IG,{mx:0,mz:0,jumpP:0});if(s.winding)IS=Object.assign({},IS,{mx:0,mz:0,jumpP:0});}
   g.prev.copy(g.pos);
   // ---- golem ----
@@ -239,16 +241,16 @@ function stepSim(dt,IG,IS){
     if(b===s&&s.held)continue;
     if(ch1&&b.onGround&&b.pos.y>-.5&&Math.abs(b.pos.x)<11){for(let i=CP.length-1;i>b.cp;i--)if(b.pos.z<=CP[i].z){b.cp=i;break;}}
     const wet=curReg.hazard&&curReg.hazard(b);
-    if(!wet&&b.onGround&&b.ground&&!UNSAFE[b.ground.kind]){(b.safe=b.safe||new V3()).copy(b.pos);}
-    if(wet){const p=b.safe?[b.safe.x,b.safe.y+.05,b.safe.z]:(b===g?curReg.spawn.g:curReg.spawn.s);placeAt(b,p);G.splashN++;G.lastSplash=b===g?'g':'s';
+    if(!wet&&b.onGround&&b.ground&&!UNSAFE[b.ground.kind]&&wellOn(b)){(b.safe=b.safe||new V3()).copy(b.pos);}
+    if(wet){const p=b.safe?[b.safe.x,b.safe.y+.05,b.safe.z]:(b===g?curReg.spawn.g:curReg.spawn.s);respawnAt(b,p);G.splashN++;G.lastSplash=b===g?'g':'s';
       if(b===g&&g.holding){g.holding=false;g.charging=false;s.held=false;placeAt(s,p);s.pos.x+=.8;}if(b===g)syncGolemCol();continue;}
     if(ch1&&b.pos.y<-5){
-      const p=CP[b.cp][b===g?'g':'s'];placeAt(b,p);G.falls++;G.fallN++;G.lastFall=b===g?'g':'s';
+      const p=CP[b.cp][b===g?'g':'s'];respawnAt(b,p);G.falls++;G.fallN++;G.lastFall=b===g?'g':'s';
       if(b===g&&g.holding){g.holding=false;g.charging=false;s.held=false;placeAt(s,CP[s.cp].s);}
       if(b===g)syncGolemCol();
     }
     if(ch2&&b.pos.y<-6){ // a fall into a chasm: back to the last safe spot
-      const p=b.safe?[b.safe.x,b.safe.y+.05,b.safe.z]:curReg.spawn[b===g?'g':'s'];placeAt(b,p);G.falls++;G.fallN++;G.lastFall=b===g?'g':'s';b.winding=false;
+      const p=b.safe?[b.safe.x,b.safe.y+.05,b.safe.z]:curReg.spawn[b===g?'g':'s'];respawnAt(b,p);G.falls++;G.fallN++;G.lastFall=b===g?'g':'s';
       if(b===g&&g.holding){g.holding=false;g.charging=false;s.held=false;placeAt(s,[p[0]+.8,p[1],p[2]]);}
       if(b===g)syncGolemCol();
     }
@@ -265,6 +267,11 @@ function applyDoorColliders(){
   port.col.min.y=port.base.y0+port.t*3.5;port.col.max.y=port.base.y1+port.t*3.5;
   bridge.col.on=bridge.t>=.97;
 }
+// a spot counts as safe ground only when the body stands well onto it (its centre at least half a body-width
+// inside the edge), so a respawn never lands someone on the very lip of a drop where they slip straight off again
+function wellOn(b){const c=b.ground;if(c===TERR)return true;const m=b.hw*.5;return b.pos.x>c.min.x+m&&b.pos.x<c.max.x-m&&b.pos.z>c.min.z+m&&b.pos.z<c.max.z-m;}
+// back on safe ground after a fall: still, no slam or winding, and a moment before the keys move them again
+function respawnAt(b,p){placeAt(b,p);b.pound=false;b.winding=false;b.charging=false;b.frz=.5;b.airT=0;}
 const UNSAFE={seesaw:1,crack:1,golem:1,block:1,bridge:1,cart:1,lift:1,door:1};
 function chapterComplete(n){
   const P=PROG['ch'+n],first=!P.done;P.done=1;PROG.roots=Math.max(PROG.roots,n);G.endCh=n;

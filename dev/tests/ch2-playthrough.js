@@ -181,6 +181,24 @@ export async function run(opts = {}) {
     await walkTo('s', -4, -6.6, .5, 30); await pulse();
     if (!(mine.lan & 1)) throw new Error('lantern not lit');
   });
+  await step('Falling into the first chasm puts each of them back on solid ground, once, and they can walk away', async () => {
+    for (const [w, b] of [['g', g], ['s', s]]) {
+      await walkTo(w, w === 'g' ? .3 : 1.2, -11.5, .4, 20);
+      const f0 = G.falls; ctl[w] = () => ({ mz: -1 });
+      await until(() => G.falls > f0, 6, (w === 'g' ? 'Giant' : 'Sprite') + ' walking off the edge'); ctl[w] = null;
+      // a slam in mid-air on the way down must not leave the Giant stuck either
+      await wait(3);
+      if (G.falls !== f0 + 1) throw new Error((w === 'g' ? 'Giant' : 'Sprite') + ' kept falling after the respawn (' + (G.falls - f0) + ' falls)');
+      if (!b.onGround || b.pos.y < -.1 || b.pos.z < -14) throw new Error('not back on solid ground (at ' + fmt(b.pos) + ')');
+      await walkTo(w, w === 'g' ? -.5 : 1.1, -10, .4, 10);
+    }
+    { const f0 = G.falls; await walkTo('g', .3, -12.6, .3, 10); let ph = 0;
+      ctl.g = () => { if (ph === 0 && g.onGround) { ph = 1; return { mz: -1, jump: 1 }; } if (ph === 1 && g.pos.z < -14.8) { ph = 2; return { act: 1 }; } return ph === 1 ? { mz: -1, jump: 1 } : {}; };
+      await until(() => G.falls > f0 || (ph === 2 && g.onGround), 6, 'Giant slamming into the chasm'); ctl.g = null; await wait(3);
+      if (G.falls > f0 + 1 || !g.onGround || g.pos.y < -.1 || g.pound) throw new Error('after a slam into the chasm the Giant is stuck (falls ' + (G.falls - f0) + ', at ' + fmt(g.pos) + ', slam ' + g.pound + ')');
+      await walkTo('g', -.5, -10, .4, 10); }
+    G0.falls = G.falls;
+  });
   await step('Crystal bridge: the Sprite pulses by its posts and both cross the first chasm', async () => {
     await walkBoth(-.5, -12.6, 1.1, -12.9, 40);
     await pulse(); if (!CR[0].col.on) throw new Error('the bridge did not light');
@@ -311,6 +329,7 @@ export async function run(opts = {}) {
     document.getElementById('bEndMenu').click(); B.advance(DT);
     if (G.phase !== 'play') throw new Error('did not return to play');
   });
+  const mainFalls = G.falls - G0.falls; // the end of the chapter resets the fall count, so read it here
   await step('Crystal cellar: the Giant ground-pounds the cracked floor, drops in and climbs back out (secret, memory petal)', async () => {
     const cx = -7.5, cz = -79.5; let tog = 0;
     await walkTo('g', cx, cz, .4, 60);
@@ -344,11 +363,11 @@ export async function run(opts = {}) {
   });
   G.paused = false;
   const time = +simT.toFixed(1), ok = steps.every(x => x.ok);
-  log(ok ? 'PASSED' : 'FAILED', 'in', time, 's of game time; falls', G.falls - G0.falls);
+  log(ok ? 'PASSED' : 'FAILED', 'in', time, 's of game time; unplanned falls', mainFalls);
   const sum = { seeds: B.SEEDS.filter(x => x.reg === 'ch2' && B.PROG.seeds[x.id]).length + '/' + B.SEEDS.filter(x => x.reg === 'ch2').length,
     petals: B.PETALS.filter(x => x.reg === 'ch2' && B.PROG.petals[x.id]).length + '/' + B.PETALS.filter(x => x.reg === 'ch2').length,
     secrets: B.REG.ch2.secrets.filter(x => B.PROG.secrets[x.id]).map(x => x.name).join(', ') + ' (' + B.REG.ch2.secrets.filter(x => B.PROG.secrets[x.id]).length + '/' + B.REG.ch2.secrets.length + ')',
     lanterns: B.ch2.LANTERNS.filter(l => (B.PROG.ch2.lan >> l.i) & 1).length + '/' + B.ch2.LANTERNS.length };
   log('collected along the way:', JSON.stringify(sum), 'cards/scenes:', seen.join(', '));
-  return { ok, steps, time, falls: G.falls - G0.falls, collected: sum, shown: seen };
+  return { ok, steps, time, falls: mainFalls, collected: sum, shown: seen };
 }
